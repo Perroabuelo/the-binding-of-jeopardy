@@ -1,0 +1,22 @@
+# Herramientas locales
+.claude/
+
+# Dependencias y build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Pruebas
+coverage/
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Entorno y sistema
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log

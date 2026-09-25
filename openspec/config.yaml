@@ -1,0 +1,46 @@
+schema: spec-driven
+
+context: |
+  Language: Spanish (pt-BR)
+  Todos los artefactos deben escribirse en Español
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  App: Jeopardy para cumpleanos ("the-binding-of-jeopardy").
+  Stack: Vite + React + TypeScript, sin backend. Datos en IndexedDB del navegador.
+  Deploy: GitHub Pages via GitHub Actions desde main
+  (repo Perroabuelo/the-binding-of-jeopardy, base '/the-binding-of-jeopardy/').
+  Futuro: migrar hosting al homeserver (Cloudflare Tunnel) en un cambio aparte.
+  Tests: Vitest (+ Testing Library, fake-indexeddb) y Playwright (solo Chromium).
+  CI: lint -> typecheck -> unit -> e2e -> build; deploy solo si todo pasa en main.
+  Git: cada cambio de OpenSpec vive en su propia rama change/<nombre-del-cambio>
+  creada desde main al proponerlo; se integra a main solo mediante PR con CI en verde.
+  La carpeta .claude/ no se versiona.
+  UI y documentacion en espanol.
+
+rules:
+  proposal:
+    - Indicar el nombre de la rama git del cambio (change/<nombre-del-cambio>)
+    - Incluir una seccion "Fuera de alcance"
+  design:
+    - Describir la estrategia de pruebas (unit / componentes / e2e) del cambio
+    - Indicar cualquier cambio necesario en el pipeline de CI
+    - Mantener la logica del juego como codigo puro, separada de React
+  specs:
+    - Cada requirement debe tener al menos un scenario verificable por un test
+  tasks:
+    - Cada tarea es del tamano de un commit (una parte logica, revisable sola)
+    - Cada tarea incluye sus pruebas y el criterio de listo (que test debe pasar)
+    - Ninguna tarea se marca completa si lint, typecheck o tests fallan
+    - Si el CI aun no existe, la configuracion de CI es de las primeras tareas
+
+operations:
+  apply:
+    guidance:
+      - Trabajar siempre en la rama change/<nombre-del-cambio>, nunca en main
+      - Un commit por tarea, solo cuando sus pruebas pasan localmente
+      - Correr lint, typecheck y tests antes de cada commit
+      - Hacer push de la rama y verificar que el CI quede en verde
+  archive:
+    guidance:
+      - Archivar solo con el CI en verde en la rama del cambio
+      - Fusionar a main mediante PR; el deploy a Pages ocurre desde main
