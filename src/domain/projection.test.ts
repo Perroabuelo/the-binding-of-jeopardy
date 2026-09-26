@@ -7,7 +7,7 @@ import { projectForTv } from './projection';
 function newGame(): GameSession {
   const board = makeCompleteBoard();
   board.categories[2]!.clues[1]!.imageId = 'img-1';
-  return startGame(board, ['Equipo A', 'Equipo B'], {
+  return startGame([{ board, multiplier: 1 }], ['Equipo A', 'Equipo B'], {
     sessionId: 's1',
     now: 0,
     makeTeamId: (index) => `t${index}`,
@@ -71,7 +71,11 @@ describe('projectForTv', () => {
       const clue = board.categories[1]!.clues[3]!;
       if (questionImage) clue.imageId = 'img-pregunta';
       clue.answerImageId = 'img-respuesta';
-      return startGame(board, ['Equipo A'], { sessionId: 's1', now: 0, makeTeamId: () => 't0' });
+      return startGame([{ board, multiplier: 1 }], ['Equipo A'], {
+        sessionId: 's1',
+        now: 0,
+        makeTeamId: () => 't0',
+      });
     }
 
     it('sin revelar no se envía: la TV recibe solo la imagen de la pregunta', () => {
@@ -184,7 +188,7 @@ describe('projectForTv: Daily Double', () => {
     clue.imageId = 'img-pregunta';
     clue.answerImageId = 'img-respuesta';
     board.categories[4]!.clues[3]!.dailyDouble = true;
-    return startGame(board, ['Primos', 'Tíos'], {
+    return startGame([{ board, multiplier: 1 }], ['Primos', 'Tíos'], {
       sessionId: 's1',
       now: 0,
       makeTeamId: (index) => `t${index}`,
@@ -245,7 +249,7 @@ describe('projectForTv: Final', () => {
   /** Primos 1200 apuesta 777 y Tíos 400 apuesta 333; Abuelos en 0 no juega. */
   function inWagers(): GameSession {
     let session = startGame(
-      makeCompleteBoard({ final: { ...FINAL } }),
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
       ['Primos', 'Tíos', 'Abuelos'],
       { sessionId: 's1', now: 0, makeTeamId: (index) => `t${index}`, withFinal: true },
     );
@@ -360,12 +364,16 @@ describe('projectForTv: Final', () => {
   });
 
   it('en el podio envía finalSkipped cuando el Final se saltó', () => {
-    const session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos'], {
-      sessionId: 's1',
-      now: 0,
-      makeTeamId: () => 't0',
-      withFinal: true,
-    });
+    const session = startGame(
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
+      ['Primos'],
+      {
+        sessionId: 's1',
+        now: 0,
+        makeTeamId: () => 't0',
+        withFinal: true,
+      },
+    );
     const view = projectForTv(play(session, { type: 'finish' }));
     expect(view.phase).toMatchObject({ kind: 'finished', finalSkipped: 'noPositiveScores' });
     expectHidden(JSON.stringify(view), FINAL.question, FINAL.answer);

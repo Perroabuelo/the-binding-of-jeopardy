@@ -7,7 +7,7 @@
   - `normalizeSession` convierte una sesión con `boardSnapshot` en una ronda x1 con `roundIndex: 0`, y deja igual una sesión con `rounds`.
   - `deleteBoard` conserva una imagen que solo usa la segunda ronda de una sesión guardada.
   - `getSession` devuelve normalizada una sesión guardada con la forma anterior.
-- [ ] 1.2 Cambiar `startGame` para recibir `RoundSetup[]`, con `validateRounds` (de 1 a 5 rondas, tableros listos y distintos, multiplicador entero de 1 a 10) y la validación de `withFinal` sobre la última ronda. Actualizar `finalClueOf` para leer la última ronda. Verificar con tests unitarios en `game.test.ts`:
+- [x] 1.2 Cambiar `startGame` para recibir `RoundSetup[]`, con `validateRounds` (de 1 a 5 rondas, tableros listos y distintos, multiplicador entero de 1 a 10) y la validación de `withFinal` sobre la última ronda. Actualizar `finalClueOf` para leer la última ronda. Verificar con tests unitarios en `game.test.ts`:
   - `[{ board, multiplier: 1 }]` produce la misma sesión que antes.
   - Se rechazan 6 rondas, un tablero repetido, un tablero no listo y los multiplicadores 0, 11 y 1.5, con un mensaje en español.
   - `withFinal` se rechaza si solo la primera ronda tiene pista final, y se acepta si la tiene la última.

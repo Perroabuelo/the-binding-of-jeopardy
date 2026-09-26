@@ -12,7 +12,7 @@ const SESSION_ID = 'sesion-prueba';
 
 function makeSession(teamNames = ['Primos', 'Tíos'], overrides: Partial<GameSession> = {}) {
   let n = 0;
-  const session = startGame(makeCompleteBoard(), teamNames, {
+  const session = startGame([{ board: makeCompleteBoard(), multiplier: 1 }], teamNames, {
     sessionId: SESSION_ID,
     now: 1_700_000_000_000,
     makeTeamId: () => `equipo-${++n}`,
@@ -441,12 +441,16 @@ describe('OperatorScreen: Final', () => {
     names = ['Primos', 'Tíos', 'Abuelos', 'Sobrinos'],
   ) {
     let n = 0;
-    let session = startGame(makeCompleteBoard({ final: { ...FINAL } }), names, {
-      sessionId: SESSION_ID,
-      now: 1_700_000_000_000,
-      makeTeamId: () => `equipo-${++n}`,
-      withFinal: true,
-    });
+    let session = startGame(
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
+      names,
+      {
+        sessionId: SESSION_ID,
+        now: 1_700_000_000_000,
+        makeTeamId: () => `equipo-${++n}`,
+        withFinal: true,
+      },
+    );
     session = { ...session, teams: session.teams.map((t, i) => ({ ...t, score: scores[i]! })) };
     return gameReducer(session, { type: 'finish' }, 1_700_000_000_000);
   }

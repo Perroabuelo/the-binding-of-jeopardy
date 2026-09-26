@@ -26,7 +26,7 @@ const SESSION_ID = 'sesion-tv';
 
 function makeSession(): GameSession {
   let n = 0;
-  return startGame(makeCompleteBoard(), ['Primos', 'Tíos'], {
+  return startGame([{ board: makeCompleteBoard(), multiplier: 1 }], ['Primos', 'Tíos'], {
     sessionId: SESSION_ID,
     now: 1_700_000_000_000,
     makeTeamId: () => `equipo-${++n}`,
@@ -312,12 +312,16 @@ describe('TvScreen: Final', () => {
   /** Primos 1200 apuesta 777 y Tíos 400 apuesta 333, en la etapa indicada. */
   function finalSession(stage: 'wagers' | 'clue' | 'reveal'): GameSession {
     let n = 0;
-    let session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos', 'Tíos'], {
-      sessionId: SESSION_ID,
-      now: 0,
-      makeTeamId: () => `equipo-${++n}`,
-      withFinal: true,
-    });
+    let session = startGame(
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
+      ['Primos', 'Tíos'],
+      {
+        sessionId: SESSION_ID,
+        now: 0,
+        makeTeamId: () => `equipo-${++n}`,
+        withFinal: true,
+      },
+    );
     const actions: GameAction[] = [
       { type: 'setScore', teamId: 'equipo-1', score: 1200 },
       { type: 'setScore', teamId: 'equipo-2', score: 400 },
@@ -421,12 +425,16 @@ describe('TvScreen: Final', () => {
 
   it('en el podio avisa que el Final se saltó', async () => {
     render(<TvScreen sessionId={SESSION_ID} />);
-    const session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos'], {
-      sessionId: SESSION_ID,
-      now: 0,
-      makeTeamId: () => 'equipo-1',
-      withFinal: true,
-    });
+    const session = startGame(
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
+      ['Primos'],
+      {
+        sessionId: SESSION_ID,
+        now: 0,
+        makeTeamId: () => 'equipo-1',
+        withFinal: true,
+      },
+    );
     await sendView(projectForTv(gameReducer(session, { type: 'finish' }, 1)));
     expect(screen.getByRole('list', { name: 'Podio' })).toBeInTheDocument();
     expect(screen.getByRole('note')).toHaveTextContent(

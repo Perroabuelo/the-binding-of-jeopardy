@@ -57,7 +57,7 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
     setError(null);
     let session;
     try {
-      session = startGame(board, names, {
+      session = startGame([{ board, multiplier: 1 }], names, {
         sessionId: newId(),
         now: Date.now(),
         makeTeamId: () => newId(),

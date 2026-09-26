@@ -11,6 +11,11 @@ import { isFinalComplete, validateBoard } from './validation';
 
 export const MIN_TEAMS = 1;
 export const MAX_TEAMS = 8;
+/** Con "Jugar con rondas" activo. Sin rondas, el juego tiene una sola. */
+export const MIN_ROUNDS = 2;
+export const MAX_ROUNDS = 5;
+export const MIN_MULTIPLIER = 1;
+export const MAX_MULTIPLIER = 10;
 /** Duración del temporizador del Final. */
 export const FINAL_TIMER_MS = 30_000;
 
@@ -156,6 +161,18 @@ export interface TvFinalPhase {
   answer?: string;
 }
 
+/** Tablero y multiplicador de una ronda al iniciar el juego. */
+export interface RoundSetup {
+  board: Board;
+  multiplier: number;
+}
+
+/** Una ronda en armado: puede no tener tablero todavía. */
+export interface RoundDraft {
+  board: Board | null;
+  multiplier: number;
+}
+
 export interface StartGameOptions {
   sessionId: string;
   now: number;
@@ -175,14 +192,45 @@ function cloneBoard(board: Board): Board {
   };
 }
 
+/**
+ * Primer problema de las rondas, o null si se puede jugar con ellas: de 1 a MAX_ROUNDS rondas,
+ * cada una con un tablero listo y distinto, y un multiplicador entero de 1 a 10.
+ */
+export function validateRounds(rounds: readonly RoundDraft[]): string | null {
+  if (rounds.length < 1) return 'Se requiere al menos 1 ronda para iniciar el juego.';
+  if (rounds.length > MAX_ROUNDS) return `No se pueden tener más de ${MAX_ROUNDS} rondas.`;
+  const single = rounds.length === 1;
+  for (const [index, { board, multiplier }] of rounds.entries()) {
+    const name = `la ronda ${index + 1}`;
+    if (!board) return `Elige un tablero para ${name}.`;
+    if (!validateBoard(board).ready) {
+      return single
+        ? 'El tablero no está listo para jugar.'
+        : `El tablero de ${name} no está listo para jugar.`;
+    }
+    const repeated = rounds.findIndex((other) => other.board?.id === board.id);
+    if (repeated < index) {
+      return `Cada ronda necesita un tablero distinto: ${name} repite el de la ronda ${repeated + 1}.`;
+    }
+    if (
+      !Number.isInteger(multiplier) ||
+      multiplier < MIN_MULTIPLIER ||
+      multiplier > MAX_MULTIPLIER
+    ) {
+      return `El multiplicador de ${name} va de ${MIN_MULTIPLIER} a ${MAX_MULTIPLIER}, en números enteros.`;
+    }
+  }
+  return null;
+}
+
+/** Sin rondas se llama con una sola ronda en x1. */
 export function startGame(
-  board: Board,
+  rounds: readonly RoundSetup[],
   teamNames: readonly string[],
   { sessionId, now, makeTeamId, withFinal = false }: StartGameOptions,
 ): GameSession {
-  if (!validateBoard(board).ready) {
-    throw new Error('El tablero no está listo para jugar.');
-  }
+  const roundsError = validateRounds(rounds);
+  if (roundsError) throw new Error(roundsError);
   if (teamNames.length < MIN_TEAMS) {
     throw new Error(`Se requiere al menos ${MIN_TEAMS} equipo para iniciar el juego.`);
   }
@@ -194,12 +242,19 @@ export function startGame(
   if (emptyIndex !== -1) {
     throw new Error(`El equipo ${emptyIndex + 1} necesita un nombre.`);
   }
-  if (withFinal && !isFinalComplete(board.final)) {
-    throw new Error('El tablero no tiene una pista final completa para jugar el Final.');
+  if (withFinal && !isFinalComplete(rounds.at(-1)!.board.final)) {
+    throw new Error(
+      rounds.length === 1
+        ? 'El tablero no tiene una pista final completa para jugar el Final.'
+        : 'El tablero de la última ronda no tiene una pista final completa para jugar el Final.',
+    );
   }
   return {
     id: sessionId,
-    rounds: [{ boardSnapshot: cloneBoard(board), multiplier: 1 }],
+    rounds: rounds.map(({ board, multiplier }) => ({
+      boardSnapshot: cloneBoard(board),
+      multiplier,
+    })),
     roundIndex: 0,
     teams: names.map((name, index) => ({ id: makeTeamId(index), name, score: 0 })),
     usedClues: [],
@@ -230,9 +285,9 @@ export function normalizeSession(raw: unknown): GameSession {
   return { ...rest, rounds: [{ boardSnapshot, multiplier: 1 }], roundIndex: 0 };
 }
 
-/** Pista final con la que se juega el Final de la sesión. */
+/** Pista final con la que se juega el Final de la sesión: la del tablero de la última ronda. */
 export function finalClueOf(session: GameSession): FinalClue | undefined {
-  return currentRound(session).boardSnapshot.final;
+  return session.rounds.at(-1)?.boardSnapshot.final;
 }
 
 /**
