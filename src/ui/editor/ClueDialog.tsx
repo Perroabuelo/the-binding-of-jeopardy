@@ -1,6 +1,7 @@
 import { useId, type KeyboardEvent } from 'react';
 import type { Clue } from '../../domain/board';
 import type { CluePatch } from './boardEdits';
+import { ClueImageField } from './ClueImageField';
 import styles from './ClueDialog.module.css';
 
 interface ClueDialogProps {
@@ -58,6 +59,11 @@ export function ClueDialog({
           rows={2}
           value={clue.answer}
           onChange={(e) => onChange({ answer: e.target.value })}
+        />
+
+        <ClueImageField
+          imageId={clue.imageId}
+          onImageChange={(imageId) => onChange({ imageId }, { immediate: true })}
         />
 
         <div className={styles.actions}>

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { TINY_PNG_BASE64 } from './helpers/seed';
 
 test('los cambios del editor se conservan al recargar', async ({ page }) => {
   await page.goto('./');
@@ -22,4 +23,25 @@ test('los cambios del editor se conservan al recargar', async ({ page }) => {
   await page.getByRole('button', { name: 'Categoría 2, 300, completa' }).click();
   await expect(dialog.getByLabel('Pregunta')).toHaveValue('¿Cuál es el planeta más grande?');
   await expect(dialog.getByLabel('Respuesta')).toHaveValue('Júpiter');
+});
+
+test('la imagen de una pregunta se conserva al recargar', async ({ page }) => {
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Nuevo tablero' }).click();
+  await page.getByRole('button', { name: 'Categoría 1, 100, incompleta' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Categoría 1, 100' });
+  await dialog.getByLabel('Imagen (opcional)').setInputFiles({
+    name: 'foto.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(TINY_PNG_BASE64, 'base64'),
+  });
+  await expect(dialog.getByRole('img', { name: 'Vista previa de la imagen' })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('Cambios guardados');
+
+  await page.reload();
+
+  await page.getByRole('button', { name: 'Categoría 1, 100, incompleta' }).click();
+  await expect(dialog.getByRole('img', { name: 'Vista previa de la imagen' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Quitar imagen' }).click();
+  await expect(dialog.getByRole('img')).toHaveCount(0);
 });

@@ -1,9 +1,9 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLUE_VALUES, createEmptyBoard } from '../../domain/board';
 import * as db from '../../storage/db';
-import { getBoard, saveBoard, StorageUnavailable } from '../../storage/db';
+import { getBoard, getImage, saveBoard, StorageUnavailable } from '../../storage/db';
 import { EditorScreen } from './EditorScreen';
 
 const BOARD_ID = 'b-editor';
@@ -11,7 +11,8 @@ const CREATED_AT = 1_700_000_000_000;
 
 async function renderEditor() {
   await saveBoard(createEmptyBoard(BOARD_ID, CREATED_AT));
-  const user = userEvent.setup();
+  // Sin filtrar por `accept`, para poder probar archivos rechazados.
+  const user = userEvent.setup({ applyAccept: false });
   const view = render(<EditorScreen boardId={BOARD_ID} />);
   await screen.findByLabelText('Título del tablero');
   return { user, ...view };
@@ -126,5 +127,104 @@ describe('EditorScreen', () => {
     vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
     await user.type(screen.getByLabelText('Título del tablero'), 'X');
     expect(await screen.findByRole('alert')).toHaveTextContent(/los cambios no se guardaron/);
+  });
+});
+
+const TINY_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+function pngFile(name = 'foto.png') {
+  const bytes = Uint8Array.from(atob(TINY_PNG_BASE64), (c) => c.charCodeAt(0));
+  return new File([bytes], name, { type: 'image/png' });
+}
+
+describe('EditorScreen: imagen por pregunta', () => {
+  beforeEach(() => {
+    // jsdom no implementa URL de objetos.
+    URL.createObjectURL = vi.fn(() => 'blob:vista-previa');
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  async function openFirstClue() {
+    const view = await renderEditor();
+    await view.user.click(screen.getByRole('button', { name: 'Categoría 1, 100, incompleta' }));
+    return { ...view, dialog: screen.getByRole('dialog', { name: 'Categoría 1, 100' }) };
+  }
+
+  async function storedImageId() {
+    return (await storedBoard()).categories[0]!.clues[0]!.imageId;
+  }
+
+  it('acepta solo los tipos de imagen permitidos en el selector', async () => {
+    const { dialog } = await openFirstClue();
+    expect(within(dialog).getByLabelText('Imagen (opcional)')).toHaveAttribute(
+      'accept',
+      'image/png,image/jpeg,image/gif,image/webp',
+    );
+  });
+
+  it('adjunta una imagen válida y muestra la vista previa', async () => {
+    const { user, dialog } = await openFirstClue();
+    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile());
+
+    expect(
+      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' }),
+    ).toHaveAttribute('src', 'blob:vista-previa');
+    await waitFor(async () => expect(await storedImageId()).toBeDefined());
+    expect(await getImage((await storedImageId())!)).not.toBeNull();
+  });
+
+  it.each([
+    [
+      'un PDF',
+      new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
+      /Formato no soportado/,
+    ],
+    [
+      'una imagen de más de 5 MB',
+      new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' }),
+      /demasiado grande/,
+    ],
+  ])('rechaza %s sin modificar la celda', async (_label, file, message) => {
+    const { user, dialog } = await openFirstClue();
+    const input = within(dialog).getByLabelText('Imagen (opcional)');
+    await user.upload(input, pngFile());
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' });
+    await waitFor(async () => expect(await storedImageId()).toBeDefined());
+    const before = await storedBoard();
+
+    await user.upload(input, file);
+
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(message);
+    expect(
+      within(dialog).getByRole('img', { name: 'Vista previa de la imagen' }),
+    ).toBeInTheDocument();
+    expect(await storedBoard()).toEqual(before);
+  });
+
+  it('rechaza un archivo inválido en una celda sin imagen', async () => {
+    const { user, dialog } = await openFirstClue();
+    await user.upload(
+      within(dialog).getByLabelText('Imagen (opcional)'),
+      new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
+    );
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/Formato no soportado/);
+    expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
+    expect(await storedImageId()).toBeUndefined();
+  });
+
+  it('quita la imagen y borra el archivo guardado', async () => {
+    const { user, dialog } = await openFirstClue();
+    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile());
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' });
+    await waitFor(async () => expect(await storedImageId()).toBeDefined());
+    const imageId = (await storedImageId())!;
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen' }));
+
+    expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: 'Quitar imagen' })).not.toBeInTheDocument();
+    await waitFor(async () => expect(await storedImageId()).toBeUndefined());
+    await waitFor(async () => expect(await getImage(imageId)).toBeNull());
   });
 });
