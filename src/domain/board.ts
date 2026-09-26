@@ -58,6 +58,22 @@ export function getClue(board: Board, key: string): Clue | null {
   return board.categories[parsed.categoryIndex]?.clues[parsed.rowIndex] ?? null;
 }
 
+/** Ids de las imágenes que usa la celda. */
+export function clueImageIds(clue: Clue): string[] {
+  return clue.imageId !== undefined ? [clue.imageId] : [];
+}
+
+/** Ids, sin repetir, de todas las imágenes que usan las celdas del tablero. */
+export function boardImageIds(board: Board): Set<string> {
+  const ids = new Set<string>();
+  for (const category of board.categories) {
+    for (const clue of category.clues) {
+      for (const id of clueImageIds(clue)) ids.add(id);
+    }
+  }
+  return ids;
+}
+
 export function createEmptyBoard(id: string, now: number): Board {
   return {
     id,

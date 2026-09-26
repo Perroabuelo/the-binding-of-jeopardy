@@ -1,11 +1,5 @@
-import type { Board } from '../../domain/board';
+import { boardImageIds } from '../../domain/board';
 import { openJeopardyDb, StorageUnavailable } from '../../storage/db';
-
-function usesImage(board: Board, imageId: string): boolean {
-  return board.categories.some((category) =>
-    category.clues.some((clue) => clue.imageId === imageId),
-  );
-}
 
 /**
  * Borra la imagen solo si ningún tablero ni sesión guardada (su `boardSnapshot`) la usa,
@@ -20,8 +14,8 @@ export async function deleteImageIfUnused(imageId: string): Promise<boolean> {
       tx.objectStore('sessions').getAll(),
     ]);
     const inUse =
-      boards.some((board) => usesImage(board, imageId)) ||
-      sessions.some((session) => usesImage(session.boardSnapshot, imageId));
+      boards.some((board) => boardImageIds(board).has(imageId)) ||
+      sessions.some((session) => boardImageIds(session.boardSnapshot).has(imageId));
     if (!inUse) await tx.objectStore('images').delete(imageId);
     await tx.done;
     return !inUse;

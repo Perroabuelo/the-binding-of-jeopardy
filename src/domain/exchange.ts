@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   BOARD_SCHEMA_VERSION,
+  boardImageIds,
   CATEGORY_COUNT,
   CLUE_VALUES,
   type Board,
@@ -40,20 +41,10 @@ export interface ImportDeps {
   now: number;
 }
 
-function referencedImageIds(board: Board): string[] {
-  const ids = new Set<string>();
-  for (const category of board.categories) {
-    for (const clue of category.clues) {
-      if (clue.imageId !== undefined) ids.add(clue.imageId);
-    }
-  }
-  return [...ids];
-}
-
 /** Serializa el tablero con solo las imágenes que sus celdas referencian. */
 export function exportBoard(board: Board, images: Record<string, string>): string {
   const included: Record<string, string> = {};
-  for (const imageId of referencedImageIds(board)) {
+  for (const imageId of boardImageIds(board)) {
     const dataUrl = images[imageId];
     if (dataUrl === undefined) {
       throw new Error(`No se encontró la imagen ${imageId} del tablero para exportarla.`);

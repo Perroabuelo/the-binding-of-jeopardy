@@ -1,23 +1,13 @@
-import type { Board } from '../../domain/board';
+import { boardImageIds, type Board } from '../../domain/board';
 import { exportBoard, exportFileName, importBoard } from '../../domain/exchange';
 import { deleteImage, getImage, putImage, saveBoard } from '../../storage/db';
 import { newId } from '../lib/ids';
 import { blobToDataUrl, dataUrlToBlob } from '../lib/images';
 
-function imageIdsOf(board: Board): string[] {
-  const ids = new Set<string>();
-  for (const category of board.categories) {
-    for (const clue of category.clues) {
-      if (clue.imageId !== undefined) ids.add(clue.imageId);
-    }
-  }
-  return [...ids];
-}
-
 /** Arma el archivo de exportación del tablero con sus imágenes y lo descarga. */
 export async function downloadBoardFile(board: Board): Promise<void> {
   const images: Record<string, string> = {};
-  for (const imageId of imageIdsOf(board)) {
+  for (const imageId of boardImageIds(board)) {
     const stored = await getImage(imageId);
     if (stored) {
       const blob = stored.blob.type ? stored.blob : new Blob([stored.blob], { type: stored.type });

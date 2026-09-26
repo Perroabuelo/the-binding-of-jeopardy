@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Board } from '../domain/board';
+import { boardImageIds, type Board } from '../domain/board';
 import type { GameSession } from '../domain/game';
 
 export const DB_NAME = 'jeopardy';
@@ -91,16 +91,6 @@ async function withDb<T>(operation: (db: JeopardyDatabase) => Promise<T>): Promi
   } catch (error) {
     throw toStorageError(error);
   }
-}
-
-function boardImageIds(board: Board): Set<string> {
-  const ids = new Set<string>();
-  for (const category of board.categories) {
-    for (const clue of category.clues) {
-      if (clue.imageId) ids.add(clue.imageId);
-    }
-  }
-  return ids;
 }
 
 export function listBoards(): Promise<Board[]> {
