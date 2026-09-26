@@ -68,4 +68,4 @@
 
 ## 5. Documentación
 
-- [ ] 5.1 Actualizar `README.md`: cómo agregar la pista final, activar el Final y jugarlo, y una sección "Créditos" con la música. Agregar la entrada de v0.5.0 en `CHANGELOG.md` con las notas de versión de la propuesta. Verificar que `npm run lint` pasa y que el CI de la rama queda en verde.
+- [x] 5.1 Actualizar `README.md`: cómo agregar la pista final, activar el Final y jugarlo, y una sección "Créditos" con la música. Agregar la entrada de v0.5.0 en `CHANGELOG.md` con las notas de versión de la propuesta. Verificar que `npm run lint` pasa y que el CI de la rama queda en verde.

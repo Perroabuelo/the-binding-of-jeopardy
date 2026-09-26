@@ -8,6 +8,13 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+### Agregado
+
+- Final Jeopardy!: agrega una pista final a tu tablero y actívala al iniciar el juego. Los equipos
+  con puntaje positivo apuestan en secreto, responden en 30 s con música y se revelan del último al
+  primero.
+- El Final se salta solo si ningún equipo tiene puntaje positivo.
+
 ## [0.4.0] - 2026-09-26
 
 ### Agregado
