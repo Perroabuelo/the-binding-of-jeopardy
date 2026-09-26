@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { SITE_BASE } from './site.config';
 
-const PORT = 4173;
+const PORT = Number(process.env.E2E_PORT ?? 4173);
 const isCI = !!process.env.CI;
 
 export default defineConfig({
