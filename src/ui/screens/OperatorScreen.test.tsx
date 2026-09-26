@@ -284,3 +284,144 @@ describe('OperatorScreen', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No se encontró el juego.');
   });
 });
+
+describe('OperatorScreen: Daily Double', () => {
+  // Categoría 1, 200 (c0-r1) es Daily Double. Primos tiene 1200 y Tíos 300.
+  function dailyDoubleSession() {
+    const session = makeSession();
+    session.boardSnapshot.categories[0]!.clues[1]!.dailyDouble = true;
+    session.teams = session.teams.map((team, i) => ({ ...team, score: [1200, 300][i]! }));
+    return session;
+  }
+
+  function wagerRegion() {
+    return screen.getByRole('region', { name: 'Daily Double' });
+  }
+
+  async function openDailyDouble(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 200, Daily Double' }));
+    return wagerRegion();
+  }
+
+  it('marca en el tablero del operador las celdas Daily Double sin usar', async () => {
+    const user = userEvent.setup();
+    await renderOperator(dailyDoubleSession());
+    const cell = screen.getByRole('button', { name: 'Categoría 1, 200, Daily Double' });
+    expect(cell).toHaveTextContent('DD');
+    expect(screen.getAllByRole('button', { name: /, Daily Double$/ })).toHaveLength(1);
+
+    await openDailyDouble(user);
+    await user.click(screen.getByRole('button', { name: 'Volver al tablero' }));
+    expect(screen.getByRole('button', { name: 'Categoría 1, 200, usada' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /, Daily Double$/ })).not.toBeInTheDocument();
+  });
+
+  it('al abrirlo muestra pregunta y respuesta, sin revelar ni botones de puntos', async () => {
+    const user = userEvent.setup();
+    await renderOperator(dailyDoubleSession());
+    const region = await openDailyDouble(user);
+
+    expect(within(region).getByText('Pregunta 1-2')).toBeInTheDocument();
+    expect(within(region).getByRole('region', { name: 'Respuesta' })).toHaveTextContent(
+      'Respuesta 1-2',
+    );
+    expect(within(region).getByLabelText('Equipo que responde')).toBeInTheDocument();
+    expect(within(region).getByLabelText('Apuesta')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Revelar respuesta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^(Sumar|Restar) / })).not.toBeInTheDocument();
+    // La corrección manual sigue disponible.
+    expect(screen.getByRole('button', { name: 'Editar puntaje de Primos' })).toBeInTheDocument();
+
+    await waitFor(() => expect(lastTvView()?.phase.kind).toBe('dailyDouble'));
+    expect(JSON.stringify(lastTvView())).not.toContain('Pregunta 1-2');
+  });
+
+  it('el máximo cambia al elegir otro equipo', async () => {
+    const user = userEvent.setup();
+    await renderOperator(dailyDoubleSession());
+    const region = await openDailyDouble(user);
+
+    expect(within(region).getByText('Mínimo 0, máximo 1200.')).toBeInTheDocument();
+    await user.selectOptions(within(region).getByLabelText('Equipo que responde'), 'Tíos');
+    expect(within(region).getByText('Mínimo 0, máximo 500.')).toBeInTheDocument();
+  });
+
+  it('deshabilita el registro con una apuesta fuera de rango e indica el máximo', async () => {
+    const user = userEvent.setup();
+    await renderOperator(dailyDoubleSession());
+    const region = await openDailyDouble(user);
+    await user.selectOptions(within(region).getByLabelText('Equipo que responde'), 'Tíos');
+    const register = within(region).getByRole('button', { name: 'Registrar apuesta' });
+    const amount = within(region).getByLabelText('Apuesta');
+
+    expect(register).toBeDisabled();
+    await user.type(amount, '600');
+    expect(register).toBeDisabled();
+    expect(amount).toHaveAccessibleDescription(/máximo 500/);
+    expect(amount).toHaveAttribute('aria-invalid', 'true');
+
+    await user.clear(amount);
+    await user.type(amount, '500');
+    expect(register).toBeEnabled();
+  });
+
+  it('después de registrar solo aparecen los botones del equipo que apostó', async () => {
+    const user = userEvent.setup();
+    await renderOperator(dailyDoubleSession());
+    const region = await openDailyDouble(user);
+    await user.selectOptions(within(region).getByLabelText('Equipo que responde'), 'Tíos');
+    await user.type(within(region).getByLabelText('Apuesta'), '500');
+    await user.click(within(region).getByRole('button', { name: 'Registrar apuesta' }));
+
+    const clue = screen.getByRole('region', { name: 'Pregunta abierta' });
+    expect(within(clue).getByText('Daily Double: Tíos apuesta 500')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Revelar respuesta' })).toBeInTheDocument();
+    const awards = screen.getByRole('list', { name: 'Asignar puntos' });
+    expect(
+      within(awards)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Sumar 500 a Tíos', 'Restar 500 a Tíos']);
+
+    await user.click(screen.getByRole('button', { name: 'Restar 500 a Tíos' }));
+    expect(scoreItem('Tíos', -200)).toBeInTheDocument();
+    expect(scoreItem('Primos', 1200)).toBeInTheDocument();
+    expect((await getSession(SESSION_ID))?.phase).toMatchObject({
+      kind: 'clue',
+      wager: { teamId: 'equipo-2', amount: 500 },
+    });
+  });
+
+  it('al recargar esperando la apuesta sigue esperándola', async () => {
+    const user = userEvent.setup();
+    const first = await renderOperator(dailyDoubleSession());
+    await openDailyDouble(user);
+    await waitFor(async () =>
+      expect((await getSession(SESSION_ID))?.phase).toEqual({ kind: 'wager', clueKey: 'c0-r1' }),
+    );
+    first.unmount();
+
+    render(<OperatorScreen sessionId={SESSION_ID} />);
+    const region = await screen.findByRole('region', { name: 'Daily Double' });
+    expect(within(region).getByText('Pregunta 1-2')).toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: 'Registrar apuesta' })).toBeInTheDocument();
+  });
+
+  it('al recargar con la apuesta registrada conserva el equipo y el monto', async () => {
+    const user = userEvent.setup();
+    const first = await renderOperator(dailyDoubleSession());
+    const region = await openDailyDouble(user);
+    await user.type(within(region).getByLabelText('Apuesta'), '800');
+    await user.click(within(region).getByRole('button', { name: 'Registrar apuesta' }));
+    await waitFor(async () =>
+      expect((await getSession(SESSION_ID))?.phase).toMatchObject({ wager: { amount: 800 } }),
+    );
+    first.unmount();
+
+    render(<OperatorScreen sessionId={SESSION_ID} />);
+    const clue = await screen.findByRole('region', { name: 'Pregunta abierta' });
+    expect(within(clue).getByText('Daily Double: Primos apuesta 800')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sumar 800 a Primos' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /a Tíos$/ })).not.toBeInTheDocument();
+  });
+});
