@@ -244,3 +244,41 @@ test('exportar e importar un tablero con Daily Double conserva las celdas marcad
     page.getByRole('button', { name: 'Categoría 4, 500, completa, Daily Double' }),
   ).toBeVisible();
 });
+
+test('exportar e importar un tablero con pista final conserva sus textos e imagen', async ({
+  page,
+}) => {
+  const source = makeCompleteBoard({
+    id: 'e2e-final',
+    title: 'Trivia con Final',
+    final: {
+      category: 'Cumpleañero',
+      question: 'Pregunta final',
+      answer: 'Respuesta final',
+      imageId: 'e2e-image',
+    },
+  });
+  await openListWith(page, [source]);
+
+  const file = await exportBoard(page, 'Trivia con Final');
+  await page.getByLabel('Importar tablero').setInputFiles(file);
+  await expect(page.getByRole('status')).toHaveText('Se importó "Trivia con Final".');
+
+  const { boards, images } = await readStorage(page);
+  const imported = boards.find((board) => board.id !== source.id)!;
+  expect(imported.final).toMatchObject({
+    category: 'Cumpleañero',
+    question: 'Pregunta final',
+    answer: 'Respuesta final',
+  });
+  expect(imported.final!.imageId).not.toBe('e2e-image');
+  expect(images[imported.final!.imageId!]).toEqual({ type: 'image/png', base64: TINY_PNG_BASE64 });
+
+  await page.getByRole('link', { name: 'Trivia con Final' }).last().click();
+  const section = page.getByRole('region', { name: 'Pista final' });
+  await expect(section.getByLabel('Categoría de la pista final')).toHaveValue('Cumpleañero');
+  await expect(
+    section.getByRole('img', { name: 'Vista previa de la imagen de la pregunta final' }),
+  ).toBeVisible();
+  await expect(page.getByText('Pista final: completa.')).toBeVisible();
+});
