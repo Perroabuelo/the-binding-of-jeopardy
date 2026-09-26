@@ -176,6 +176,66 @@ describe('TvScreen', () => {
   });
 });
 
+describe('TvScreen: Daily Double', () => {
+  // Categoría 3, 200 (c2-r1) es Daily Double, con imagen de pregunta.
+  function dailyDoubleSession(): GameSession {
+    const session = makeSession();
+    const clue = session.boardSnapshot.categories[2]!.clues[1]!;
+    clue.dailyDouble = true;
+    clue.imageId = 'imagen-dd';
+    return session;
+  }
+
+  it('anuncia el Daily Double con la categoría y el valor, sin la pregunta', async () => {
+    const { container } = render(<TvScreen sessionId={SESSION_ID} />);
+    const session = dailyDoubleSession();
+    session.phase = { kind: 'wager', clueKey: 'c2-r1' };
+    await sendView(projectForTv(session));
+
+    const announcement = screen.getByRole('region', { name: 'Daily Double' });
+    expect(within(announcement).getByText('DAILY DOUBLE!')).toBeInTheDocument();
+    expect(within(announcement).getByText('Categoría 3')).toBeInTheDocument();
+    expect(within(announcement).getByText('200')).toBeInTheDocument();
+    expect(container.innerHTML).not.toContain('Pregunta 3-2');
+    expect(container.innerHTML).not.toContain('Respuesta 3-2');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Tablero' })).not.toBeInTheDocument();
+  });
+
+  it('con la apuesta muestra la pregunta, el equipo y el monto', async () => {
+    await putImage('imagen-dd', new Blob(['png'], { type: 'image/png' }));
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = dailyDoubleSession();
+    session.phase = {
+      kind: 'clue',
+      clueKey: 'c2-r1',
+      revealed: false,
+      wager: { teamId: 'equipo-1', amount: 800 },
+    };
+    await sendView(projectForTv(session));
+
+    const clue = screen.getByRole('region', { name: 'Pregunta' });
+    expect(within(clue).getByText('Pregunta 3-2')).toBeInTheDocument();
+    expect(within(clue).getByText('Primos apuesta 800')).toBeInTheDocument();
+    expect(
+      await within(clue).findByRole('img', { name: 'Imagen de la pregunta' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('DAILY DOUBLE!')).not.toBeInTheDocument();
+  });
+
+  it('en el tablero las celdas Daily Double se ven igual que las demás', async () => {
+    const plain = render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(makeSession()));
+    const plainHtml = plain.container.innerHTML;
+    plain.unmount();
+
+    const marked = render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(dailyDoubleSession()));
+    expect(marked.container.innerHTML).toBe(plainHtml);
+    expect(marked.container.innerHTML).not.toMatch(/DD|Daily Double/i);
+  });
+});
+
 describe('operador y TV juntos', () => {
   it('la TV refleja cada cambio del operador y la respuesta solo tras revelar', async () => {
     const user = userEvent.setup();
@@ -198,6 +258,29 @@ describe('operador y TV juntos', () => {
 
     await user.click(op.getByRole('button', { name: 'Volver al tablero' }));
     expect(await tv.findByRole('cell', { name: '300, usada' })).toBeInTheDocument();
+  });
+
+  it('un Daily Double se anuncia sin la pregunta y la muestra tras la apuesta', async () => {
+    const user = userEvent.setup();
+    const session = makeSession();
+    session.boardSnapshot.categories[1]!.clues[2]!.dailyDouble = true;
+    await saveSession(session);
+    const tvView = render(<TvScreen sessionId={SESSION_ID} />);
+    const tv = within(tvView.container);
+    const op = within(render(<OperatorScreen sessionId={SESSION_ID} />).container);
+
+    await user.click(await op.findByRole('button', { name: 'Categoría 2, 300, Daily Double' }));
+    expect(await tv.findByText('DAILY DOUBLE!')).toBeInTheDocument();
+    expect(tvView.container.innerHTML).not.toContain('Pregunta 2-3');
+
+    await user.type(op.getByLabelText('Apuesta'), '400');
+    await user.click(op.getByRole('button', { name: 'Registrar apuesta' }));
+    const clue = await tv.findByRole('region', { name: 'Pregunta' });
+    expect(clue).toHaveTextContent('Pregunta 2-3');
+    expect(clue).toHaveTextContent('Primos apuesta 400');
+
+    await user.click(op.getByRole('button', { name: 'Sumar 400 a Primos' }));
+    expect(await tv.findByRole('listitem', { name: 'Primos: 400 puntos' })).toBeInTheDocument();
   });
 
   it('al desmontar el operador la TV pasa a espera', async () => {
