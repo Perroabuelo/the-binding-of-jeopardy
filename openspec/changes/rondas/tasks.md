@@ -49,7 +49,7 @@
   - "Comenzar ronda 2" muestra el tablero con todas sus celdas disponibles.
   - Recargar en la transición la recupera, y una sesión con la forma anterior se reanuda.
 - [x] 3.2 En `TvScreen`, agregar el indicador de ronda y la pantalla de transición con los puntajes. En `ui/game/BoardGrid`, ajustar la escala de letra para valores de 4 cifras. Verificar con tests de componentes en `TvScreen.test.tsx`: el indicador aparece con rondas y no sin ellas, la transición muestra la ronda, el multiplicador, el título y los puntajes sin el tablero, y el tablero en x2 muestra 200 a 1000.
-- [ ] 3.3 Agregar un e2e en `e2e/game.spec.ts`:
+- [x] 3.3 Agregar un e2e en `e2e/game.spec.ts`:
   - Crear dos tableros listos e iniciar con rondas (x1 y x2).
   - Jugar una celda de la ronda 1 y usar "Terminar ronda".
   - La TV muestra la transición hacia la ronda 2 con x2.

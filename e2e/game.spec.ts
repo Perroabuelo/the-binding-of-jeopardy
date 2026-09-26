@@ -460,3 +460,106 @@ test('Final Jeopardy!: pista final en el editor, apuestas, temporizador, revelac
     ).toBeVisible();
   }
 });
+
+/** Siembra los tableros, entra desde el primero y activa "Jugar con rondas" con dos equipos. */
+async function setupRounds(page: Page, boards: Board[]) {
+  await page.goto('./');
+  await seedBoards(page, boards);
+  await page.goto(`./#/boards/${boards[0]!.id}/play`);
+  await page.getByLabel('Nombre del equipo 1').fill('Equipo Rojo');
+  await page.getByLabel('Nombre del equipo 2').fill('Equipo Azul');
+  await page.getByRole('checkbox', { name: 'Jugar con rondas' }).check();
+}
+
+test('rondas: transición en la TV, recarga del operador y valores multiplicados', async ({
+  page,
+}) => {
+  const cumpleA = makeCompleteBoard({ id: 'e2e-cumple-a', title: 'Cumple A' });
+  const cumpleB = makeCompleteBoard({ id: 'e2e-cumple-b', title: 'Cumple B' });
+  await setupRounds(page, [cumpleA, cumpleB]);
+  await expect(page.getByLabel('Multiplicador de la ronda 1')).toHaveValue('1');
+  await expect(page.getByLabel('Multiplicador de la ronda 2')).toHaveValue('2');
+  await page.getByLabel('Tablero de la ronda 2').selectOption({ label: 'Cumple B' });
+  await page.getByRole('button', { name: 'Comenzar juego' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+  const tv = await openTv(page);
+
+  // Ronda 1 en x1.
+  await expect(tv.getByRole('heading', { name: 'Cumple A' })).toBeVisible();
+  await expect(tv.getByText('Ronda 1 de 2 · x1')).toBeVisible();
+  await page.getByRole('button', { name: 'Categoría 1, 100' }).click();
+  await page.getByRole('button', { name: 'Sumar 100 a Equipo Rojo' }).click();
+  await page.getByRole('button', { name: 'Volver al tablero' }).click();
+
+  await page.getByRole('button', { name: 'Terminar ronda' }).click();
+  await expect(page.getByRole('alertdialog')).toContainText(
+    '¿Terminar la ronda 1? Quedan 29 preguntas sin usar.',
+  );
+  await page.getByRole('button', { name: 'Sí, terminar' }).click();
+
+  const tvBreak = tv.getByRole('region', { name: 'Transición entre rondas' });
+  await expect(tvBreak.getByRole('heading', { name: 'Ronda 2 de 2' })).toBeVisible({
+    timeout: 1000,
+  });
+  await expect(tvBreak).toContainText('x2');
+  await expect(tvBreak).toContainText('Cumple B');
+  await expect(tv.getByRole('table', { name: 'Tablero' })).toHaveCount(0);
+  await expect(score(tv, 'Equipo Rojo', 100)).toBeVisible();
+
+  // Recargar el operador en la transición.
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Transición entre rondas' })).toBeVisible();
+  await expect(tvBreak).toBeVisible();
+
+  // Ronda 2 en x2.
+  await page.getByRole('button', { name: 'Comenzar ronda 2' }).click();
+  await expect(tv.getByRole('heading', { name: 'Cumple B' })).toBeVisible({ timeout: 1000 });
+  await expect(tv.getByText('Ronda 2 de 2 · x2')).toBeVisible();
+  const tvBoard = tv.getByRole('table', { name: 'Tablero' });
+  for (const value of [200, 400, 600, 800, 1000]) {
+    await expect(tvBoard.getByRole('cell', { name: String(value), exact: true })).toHaveCount(6);
+  }
+  await expect(tvBoard.getByRole('cell', { name: 'usada' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Categoría 3, 600' }).click();
+  await expect(page.getByText('Valor: 600')).toBeVisible();
+  await page.getByRole('button', { name: 'Sumar 600 a Equipo Rojo' }).click();
+  for (const window of [page, tv]) {
+    await expect(score(window, 'Equipo Rojo', 700)).toBeVisible({ timeout: 1000 });
+    await expect(score(window, 'Equipo Azul', 0)).toBeVisible();
+  }
+  await expect(page.getByRole('button', { name: 'Terminar ronda' })).toHaveCount(0);
+});
+
+test.describe('TV en 1920x1080 con rondas', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+
+  test('el tablero de 8 categorías en x10 se ve completo y sin valores cortados', async ({
+    page,
+  }) => {
+    const other = makeCompleteBoard({ id: 'e2e-otra-ronda', title: 'Otra ronda' });
+    await setupRounds(page, [boardWithLongNames(8), other]);
+    await page.getByLabel('Multiplicador de la ronda 1').fill('10');
+    await page.getByLabel('Tablero de la ronda 2').selectOption({ label: 'Otra ronda' });
+    await page.getByRole('button', { name: 'Comenzar juego' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+    const tv = await openTv(page);
+
+    const table = tv.getByRole('table', { name: 'Tablero' });
+    await expect(table).toBeVisible();
+    await expect(tv.getByText('Ronda 1 de 2 · x10')).toBeVisible();
+    for (const value of [1000, 2000, 3000, 4000, 5000]) {
+      await expect(table.getByRole('cell', { name: String(value), exact: true })).toHaveCount(8);
+    }
+
+    const layout = await table.evaluate((el) => {
+      const root = document.documentElement;
+      const cut = [...el.querySelectorAll<HTMLElement>('th, td, td > *')]
+        .filter((cell) => cell.scrollWidth > cell.clientWidth)
+        .map((cell) => cell.textContent);
+      return { pageScrolls: root.scrollWidth > root.clientWidth, cut };
+    });
+    expect(layout.pageScrolls).toBe(false);
+    expect(layout.cut).toEqual([]);
+  });
+});
