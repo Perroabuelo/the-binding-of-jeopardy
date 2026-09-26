@@ -112,6 +112,23 @@ describe('BoardListScreen', () => {
     expect(await getBoard('b1')).toBeNull();
   });
 
+  it('si la eliminación se guarda pero recargar la lista fallaría, igual la quita sin avisar error', async () => {
+    const user = userEvent.setup();
+    await seedTwoBoards();
+    const realList = db.listBoards;
+    vi.spyOn(db, 'listBoards')
+      .mockImplementationOnce(() => realList())
+      .mockRejectedValue(new StorageUnavailable());
+    await renderList();
+    await user.click(screen.getByRole('button', { name: 'Eliminar Trivia de prueba' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Eliminar' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Se eliminó "Trivia de prueba"');
+    expect(screen.queryByRole('link', { name: 'Trivia de prueba' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Tablero sin título' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(await getBoard('b1')).toBeNull();
+  });
+
   it('avisa si el almacenamiento no está disponible al cargar la lista', async () => {
     vi.spyOn(db, 'listBoards').mockRejectedValue(new StorageUnavailable());
     render(<BoardListScreen />);
@@ -250,6 +267,24 @@ describe('BoardListScreen: exportar e importar', () => {
     expect(db.deleteImage).toHaveBeenCalledWith(vi.mocked(db.putImage).mock.calls[0]![0]);
     expect(images.size).toBe(0);
     expect(await listBoards()).toEqual([]);
+  });
+
+  it('si la importación se guarda pero recargar la lista fallaría, lo muestra sin avisar error', async () => {
+    const user = userEvent.setup();
+    stubImageStore();
+    await seedTwoBoards();
+    const realList = db.listBoards;
+    vi.spyOn(db, 'listBoards')
+      .mockImplementationOnce(() => realList())
+      .mockRejectedValue(new StorageUnavailable());
+    const list = await renderList();
+    await user.upload(screen.getByLabelText('Importar tablero'), exportedFile());
+    expect(await screen.findByRole('status')).toHaveTextContent('Se importó "Trivia con imagen"');
+    const items = within(list).getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+    expect(within(items[0]!).getByRole('link', { name: 'Trivia con imagen' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(await realList()).toHaveLength(3);
   });
 
   it('exportar descarga un archivo con el tablero y sus imágenes', async () => {

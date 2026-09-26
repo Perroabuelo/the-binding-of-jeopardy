@@ -17,10 +17,6 @@ export function BoardListScreen() {
   const [pendingDelete, setPendingDelete] = useState<Board | null>(null);
   const [importing, setImporting] = useState(false);
 
-  async function refresh() {
-    setBoards(await listBoards());
-  }
-
   useEffect(() => {
     listBoards()
       .then(setBoards)
@@ -51,11 +47,13 @@ export function BoardListScreen() {
     setPendingDelete(null);
     try {
       await deleteBoard(board.id);
-      showNotice(`Se eliminó "${boardDisplayTitle(board)}".`);
-      await refresh();
     } catch (e) {
       showError(errorMessage(e, 'No se pudo eliminar el tablero.'));
+      return;
     }
+    // Se actualiza en memoria: recargar podría fallar y ocultar que ya se eliminó.
+    setBoards((prev) => prev?.filter((b) => b.id !== board.id) ?? null);
+    showNotice(`Se eliminó "${boardDisplayTitle(board)}".`);
   }
 
   async function exportBoardFile(board: Board) {
@@ -74,8 +72,9 @@ export function BoardListScreen() {
     setImporting(true);
     try {
       const board = await importBoardFile(file);
+      // El importado es el más reciente, así que va primero.
+      setBoards((prev) => [board, ...(prev ?? []).filter((b) => b.id !== board.id)]);
       showNotice(`Se importó "${boardDisplayTitle(board)}".`);
-      await refresh();
     } catch (e) {
       showError(errorMessage(e, 'No se pudo importar el tablero.'));
     } finally {
