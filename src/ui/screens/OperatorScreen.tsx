@@ -153,6 +153,11 @@ function CluePanel({
       <section aria-labelledby={answerId} className={styles.answer}>
         <h3 id={answerId}>Respuesta</h3>
         <p>{clue.answer}</p>
+        <ClueImage
+          imageId={clue.answerImageId}
+          alt="Imagen de la respuesta"
+          className={styles.image}
+        />
         <p className={styles.revealState}>
           {phase.revealed ? 'Revelada en la TV' : 'No revelada: solo la ves tú'}
         </p>
