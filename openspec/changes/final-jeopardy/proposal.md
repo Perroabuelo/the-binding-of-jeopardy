@@ -2,7 +2,7 @@
 
 Hoy el juego termina de golpe: se usa la última celda y aparece el podio. El **Final Jeopardy!** del programa original es el cierre dramático que falta. Todos los equipos con puntaje positivo apuestan a ciegas sobre una sola pista, y el marcador se puede dar vuelta en el último momento. Es el segundo paso del roadmap y se apoya en las apuestas que introduce `daily-double`.
 
-**Rama del cambio:** `change/final-jeopardy`. Se crea desde `change/daily-double`, porque este cambio depende de él: se archiva después y se integra por PR con CI en verde.
+**Rama del cambio:** `change/final-jeopardy`. Se creó desde `change/daily-double`, del que depende, y tras la integración de `daily-double` (v0.4.0) quedó rebasada sobre `main`. Se integra por PR con CI en verde.
 
 Roadmap encadenado, cada cambio sobre la rama del anterior:
 
