@@ -19,4 +19,4 @@
 
 ## 4. Integración de punta a punta
 
-- [ ] 4.1 Agregar e2e en `e2e/game.spec.ts`: con operador y TV abiertos en una celda cuya pregunta y respuesta tienen imagen, antes de revelar la TV muestra solo la imagen de la pregunta y, después de revelar, muestra la de la respuesta en su lugar. Agregar e2e en `e2e/boards.spec.ts`: exportar e importar un tablero con imagen de respuesta produce una copia con esa imagen. Verificar que `npm run test:e2e` pasa localmente y que el CI de la rama queda en verde.
+- [x] 4.1 Agregar e2e en `e2e/game.spec.ts`: con operador y TV abiertos en una celda cuya pregunta y respuesta tienen imagen, antes de revelar la TV muestra solo la imagen de la pregunta y, después de revelar, muestra la de la respuesta en su lugar. Agregar e2e en `e2e/boards.spec.ts`: exportar e importar un tablero con imagen de respuesta produce una copia con esa imagen. Verificar que `npm run test:e2e` pasa localmente y que el CI de la rama queda en verde.
