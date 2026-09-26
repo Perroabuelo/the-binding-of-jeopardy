@@ -256,3 +256,19 @@ test.describe('TV en 1920x1080', () => {
     expect(fontSizes[1]).toBeLessThan(fontSizes[0]!);
   });
 });
+
+test('con 3 categorías el juego termina al usar las 15 celdas', async ({ page }) => {
+  const board = makeCompleteBoard({ id: 'e2e-tres' }, 3);
+  await startGameWithBoard(page, board);
+
+  for (let c = 1; c <= 3; c++) {
+    for (const value of [100, 200, 300, 400, 500]) {
+      await expect(page.getByRole('heading', { name: 'Podio' })).toHaveCount(0);
+      await page.getByRole('button', { name: `Categoría ${c}, ${value}` }).click();
+      await page.getByRole('button', { name: 'Volver al tablero' }).click();
+    }
+  }
+
+  await expect(page.getByRole('heading', { name: 'Podio' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Podio' }).getByRole('listitem')).toHaveCount(2);
+});
