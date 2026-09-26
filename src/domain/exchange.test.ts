@@ -99,6 +99,52 @@ describe('importBoard', () => {
     expect(board.categories[0]!.clues[0]!.imageId).toBe(board.categories[4]!.clues[1]!.imageId);
   });
 
+  it('ida y vuelta: conserva las imágenes de respuesta con ids nuevos', () => {
+    const original = boardWithImages();
+    original.categories[1]!.clues[2]!.answerImageId = 'img-r';
+    const json = exportBoard(original, { 'img-a': PNG, 'img-b': JPEG, 'img-r': PNG });
+    const { board, images } = importBoard(json, { makeId: makeIdGenerator('nuevo'), now: NOW });
+
+    const answerImageId = board.categories[1]!.clues[2]!.answerImageId;
+    expect(answerImageId).toBeDefined();
+    expect(answerImageId).not.toBe('img-r');
+    expect(images[answerImageId!]).toBe(PNG);
+    expect(Object.keys(images)).toHaveLength(3);
+    for (const category of board.categories) {
+      for (const clue of category.clues) {
+        if (clue !== board.categories[1]!.clues[2]) expect(clue.answerImageId).toBeUndefined();
+      }
+    }
+  });
+
+  it('importa un archivo sin answerImageId, de una versión anterior', () => {
+    const file = exportedFile();
+    const { board, images } = importBoard(JSON.stringify(file), {
+      makeId: makeIdGenerator(),
+      now: NOW,
+    });
+    expect(Object.keys(images)).toHaveLength(2);
+    expect(board.categories[0]!.clues[0]!.imageId).toBeDefined();
+    for (const category of board.categories) {
+      for (const clue of category.clues) expect('answerImageId' in clue).toBe(false);
+    }
+  });
+
+  it('una imagen compartida entre pregunta y respuesta se copia una sola vez', () => {
+    const original = boardWithImages();
+    original.categories[0]!.clues[0]!.answerImageId = 'img-a';
+    original.categories[3]!.clues[3]!.answerImageId = 'img-b';
+    const json = exportBoard(original, { 'img-a': PNG, 'img-b': JPEG });
+    const { board, images } = importBoard(json, { makeId: makeIdGenerator(), now: NOW });
+
+    expect(Object.keys(images)).toHaveLength(2);
+    const first = board.categories[0]!.clues[0]!;
+    expect(first.answerImageId).toBe(first.imageId);
+    expect(board.categories[3]!.clues[3]!.answerImageId).toBe(
+      board.categories[2]!.clues[4]!.imageId,
+    );
+  });
+
   it('ida y vuelta de un tablero sin imágenes', () => {
     const original = makeCompleteBoard();
     const { board, images } = importBoard(exportBoard(original, {}), {
@@ -228,6 +274,17 @@ describe('importBoard', () => {
       const noImages = exportedFile();
       delete noImages.images;
       expectImportError(JSON.stringify(noImages));
+    });
+
+    it('answerImageId referenciado sin imagen', () => {
+      const board = boardWithImages();
+      board.categories[1]!.clues[1]!.answerImageId = 'img-r';
+      const file = JSON.parse(
+        exportBoard(board, { 'img-a': PNG, 'img-b': JPEG, 'img-r': PNG }),
+      ) as Record<string, unknown>;
+      delete (file.images as Record<string, string>)['img-r'];
+      const error = expectImportError(JSON.stringify(file));
+      expect(error.message).toMatch(/falta una imagen/);
     });
 
     it('data URL que no es una imagen permitida en base64', () => {

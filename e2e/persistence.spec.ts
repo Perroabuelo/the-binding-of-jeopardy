@@ -33,8 +33,8 @@ test('abrir un tablero de la lista muestra su contenido en el editor', async ({ 
   await expect(page.getByLabel('Nombre de la categoría 3')).toHaveValue('Categoría 3');
   await page.getByRole('button', { name: 'Categoría 3, 200, completa' }).click();
   const dialog = page.getByRole('dialog', { name: 'Categoría 3, 200' });
-  await expect(dialog.getByLabel('Pregunta')).toHaveValue('Pregunta 3-2');
-  await expect(dialog.getByLabel('Respuesta')).toHaveValue('Respuesta 3-2');
+  await expect(dialog.getByLabel('Pregunta', { exact: true })).toHaveValue('Pregunta 3-2');
+  await expect(dialog.getByLabel('Respuesta', { exact: true })).toHaveValue('Respuesta 3-2');
 });
 
 /** Crea desde la UI un tablero con título, una categoría, una celda y una imagen. */
@@ -44,14 +44,16 @@ async function createBoardWithImage(page: Page) {
   await page.getByLabel('Nombre de la categoría 1').fill('Planetas');
   await page.getByRole('button', { name: 'Categoría 1, 100, incompleta' }).click();
   const dialog = page.getByRole('dialog', { name: 'Categoría 1, 100' });
-  await dialog.getByLabel('Pregunta').fill('¿Cuál es el planeta más grande?');
-  await dialog.getByLabel('Respuesta').fill('Júpiter');
-  await dialog.getByLabel('Imagen (opcional)').setInputFiles({
+  await dialog.getByLabel('Pregunta', { exact: true }).fill('¿Cuál es el planeta más grande?');
+  await dialog.getByLabel('Respuesta', { exact: true }).fill('Júpiter');
+  await dialog.getByLabel('Imagen de la pregunta').setInputFiles({
     name: 'foto.png',
     mimeType: 'image/png',
     buffer: Buffer.from(TINY_PNG_BASE64, 'base64'),
   });
-  await expect(dialog.getByRole('img', { name: 'Vista previa de la imagen' })).toBeVisible();
+  await expect(
+    dialog.getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
+  ).toBeVisible();
   await dialog.getByRole('button', { name: 'Cerrar' }).click();
   await expect(page.getByRole('status')).toHaveText('Cambios guardados');
 }
@@ -75,8 +77,10 @@ test('los tableros siguen disponibles tras cerrar y volver a abrir el navegador'
     await expect(reopened.getByLabel('Nombre de la categoría 1')).toHaveValue('Planetas');
     await reopened.getByRole('button', { name: 'Categoría 1, 100, completa' }).click();
     const dialog = reopened.getByRole('dialog', { name: 'Categoría 1, 100' });
-    await expect(dialog.getByLabel('Respuesta')).toHaveValue('Júpiter');
-    await expect(dialog.getByRole('img', { name: 'Vista previa de la imagen' })).toBeVisible();
+    await expect(dialog.getByLabel('Respuesta', { exact: true })).toHaveValue('Júpiter');
+    await expect(
+      dialog.getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
+    ).toBeVisible();
     await second.close();
   } finally {
     rmSync(userDataDir, { recursive: true, force: true });

@@ -9,8 +9,9 @@ interface ClueDialogProps {
   categoryName: string;
   clue: Clue;
   onChange: (patch: CluePatch) => void;
-  /** Cambia la imagen y guarda de inmediato; resuelve si el guardado tuvo éxito. */
+  /** Cambian la imagen y guardan de inmediato; resuelven si el guardado tuvo éxito. */
   onImageChange: (imageId: string | undefined) => Promise<boolean>;
+  onAnswerImageChange: (imageId: string | undefined) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -20,6 +21,7 @@ export function ClueDialog({
   clue,
   onChange,
   onImageChange,
+  onAnswerImageChange,
   onClose,
 }: ClueDialogProps) {
   const titleId = useId();
@@ -55,8 +57,15 @@ export function ClueDialog({
           value={clue.question}
           onChange={(e) => onChange({ question: e.target.value })}
         />
+        <ClueImageField
+          label="Imagen de la pregunta"
+          imageId={clue.imageId}
+          onImageChange={onImageChange}
+        />
 
-        <label htmlFor={answerId}>Respuesta</label>
+        <label htmlFor={answerId} className={styles.section}>
+          Respuesta
+        </label>
         <textarea
           id={answerId}
           rows={2}
@@ -64,7 +73,11 @@ export function ClueDialog({
           onChange={(e) => onChange({ answer: e.target.value })}
         />
 
-        <ClueImageField imageId={clue.imageId} onImageChange={onImageChange} />
+        <ClueImageField
+          label="Imagen de la respuesta"
+          imageId={clue.answerImageId}
+          onImageChange={onAnswerImageChange}
+        />
 
         <div className={styles.actions}>
           <button type="button" className="primary" onClick={onClose}>

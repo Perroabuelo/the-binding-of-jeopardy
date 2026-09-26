@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import {
   BOARD_SCHEMA_VERSION,
+  boardImageIds,
   CATEGORY_COUNT,
+  clueImageIds,
   CLUE_VALUES,
   type Board,
   type Category,
@@ -40,20 +42,10 @@ export interface ImportDeps {
   now: number;
 }
 
-function referencedImageIds(board: Board): string[] {
-  const ids = new Set<string>();
-  for (const category of board.categories) {
-    for (const clue of category.clues) {
-      if (clue.imageId !== undefined) ids.add(clue.imageId);
-    }
-  }
-  return [...ids];
-}
-
 /** Serializa el tablero con solo las imágenes que sus celdas referencian. */
 export function exportBoard(board: Board, images: Record<string, string>): string {
   const included: Record<string, string> = {};
-  for (const imageId of referencedImageIds(board)) {
+  for (const imageId of boardImageIds(board)) {
     const dataUrl = images[imageId];
     if (dataUrl === undefined) {
       throw new Error(`No se encontró la imagen ${imageId} del tablero para exportarla.`);
@@ -75,6 +67,7 @@ const clueSchema = (value: ClueValue) =>
     question: z.string(),
     answer: z.string(),
     imageId: z.string().optional(),
+    answerImageId: z.string().optional(),
   });
 
 const [v1, v2, v3, v4, v5] = CLUE_VALUES;
@@ -144,9 +137,9 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
   const newImageIds = new Map<string, string>();
   const images: Record<string, string> = {};
   for (const category of source.categories) {
-    for (const clue of category.clues) {
-      if (clue.imageId === undefined || newImageIds.has(clue.imageId)) continue;
-      const dataUrl = sourceImages[clue.imageId];
+    for (const imageId of category.clues.flatMap(clueImageIds)) {
+      if (newImageIds.has(imageId)) continue;
+      const dataUrl = sourceImages[imageId];
       if (dataUrl === undefined) {
         throw new ImportError('Al archivo le falta una imagen que usa una de sus preguntas.');
       }
@@ -156,7 +149,7 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
         );
       }
       const newId = makeId();
-      newImageIds.set(clue.imageId, newId);
+      newImageIds.set(imageId, newId);
       images[newId] = dataUrl;
     }
   }
@@ -166,6 +159,9 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
     clues: category.clues.map((clue): Clue => {
       const copy: Clue = { value: clue.value, question: clue.question, answer: clue.answer };
       if (clue.imageId !== undefined) copy.imageId = newImageIds.get(clue.imageId);
+      if (clue.answerImageId !== undefined) {
+        copy.answerImageId = newImageIds.get(clue.answerImageId);
+      }
       return copy;
     }),
   }));

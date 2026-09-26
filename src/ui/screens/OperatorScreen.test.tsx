@@ -168,6 +168,28 @@ describe('OperatorScreen', () => {
     );
   });
 
+  it('muestra la imagen de la respuesta junto a la respuesta antes de revelarla', async () => {
+    const user = userEvent.setup();
+    const session = makeSession();
+    const clue = session.boardSnapshot.categories[0]!.clues[0]!;
+    clue.imageId = 'imagen-pregunta';
+    clue.answerImageId = 'imagen-respuesta';
+    await putImage('imagen-pregunta', new Blob(['p'], { type: 'image/png' }));
+    await putImage('imagen-respuesta', new Blob(['r'], { type: 'image/png' }));
+    await renderOperator(session);
+
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    const answer = screen.getByRole('region', { name: 'Respuesta' });
+    expect(within(answer).getByText('No revelada: solo la ves tú')).toBeInTheDocument();
+    expect(
+      await within(answer).findByRole('img', { name: 'Imagen de la respuesta' }),
+    ).toHaveAttribute('src', 'blob:imagen-prueba');
+    expect(await screen.findByRole('img', { name: 'Imagen de la pregunta' })).toBeInTheDocument();
+    expect(
+      within(answer).queryByRole('img', { name: 'Imagen de la pregunta' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('restar puntos puede dejar un puntaje negativo', async () => {
     const user = userEvent.setup();
     await renderOperator();

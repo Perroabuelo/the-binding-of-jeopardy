@@ -2,17 +2,28 @@ import { expect, test, type Page } from '@playwright/test';
 import { makeCompleteBoard } from '../tests/fixtures/board';
 import { seedBoards, seedCompleteBoard, TINY_PNG_BASE64 } from './helpers/seed';
 
-/** Siembra un tablero completo (opcionalmente con imagen en "Categoría 2, 100") y arranca un juego con dos equipos. */
-async function startGameWithTwoTeams(page: Page, { withImage = false } = {}) {
+/**
+ * Siembra un tablero completo (opcionalmente con imagen en la pregunta y en la respuesta de
+ * "Categoría 2, 100") y arranca un juego con dos equipos.
+ */
+async function startGameWithTwoTeams(
+  page: Page,
+  { withImage = false, withAnswerImage = false } = {},
+) {
   await page.goto('./');
   let boardId: string;
-  if (withImage) {
+  if (withImage || withAnswerImage) {
     const board = makeCompleteBoard({ id: 'e2e-board-imagen' });
-    board.categories[1]!.clues[0]!.imageId = 'e2e-imagen';
+    const clue = board.categories[1]!.clues[0]!;
+    if (withImage) clue.imageId = 'e2e-imagen';
+    if (withAnswerImage) clue.answerImageId = 'e2e-imagen-respuesta';
     await seedBoards(
       page,
       [board],
-      [{ id: 'e2e-imagen', base64: TINY_PNG_BASE64, type: 'image/png' }],
+      [
+        { id: 'e2e-imagen', base64: TINY_PNG_BASE64, type: 'image/png' },
+        { id: 'e2e-imagen-respuesta', base64: TINY_PNG_BASE64, type: 'image/png' },
+      ],
     );
     boardId = board.id;
   } else {
@@ -114,6 +125,38 @@ test('operador y TV en dos ventanas', async ({ page }) => {
       podium.getByRole('listitem', { name: 'Posición 2: Equipo Azul, 0 puntos' }),
     ).toBeVisible();
   }
+});
+
+test('la TV muestra la imagen de la respuesta solo al revelarla, en lugar de la de la pregunta', async ({
+  page,
+}) => {
+  await startGameWithTwoTeams(page, { withImage: true, withAnswerImage: true });
+  const tv = await openTv(page);
+  await expect(tv.getByRole('table', { name: 'Tablero' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Categoría 2, 100' }).click();
+  // El operador ve ambas imágenes desde el principio.
+  await expect(page.getByRole('img', { name: 'Imagen de la pregunta' })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Respuesta' }).getByRole('img', {
+      name: 'Imagen de la respuesta',
+    }),
+  ).toBeVisible();
+
+  const tvClue = tv.getByRole('region', { name: 'Pregunta' });
+  await expect(tvClue.getByText('Pregunta 2-1')).toBeVisible({ timeout: 1000 });
+  await expect(tvClue.getByRole('img', { name: 'Imagen de la pregunta' })).toBeVisible();
+  await expect(tv.getByRole('img', { name: 'Imagen de la respuesta' })).toHaveCount(0);
+  await expect(tv.getByRole('img')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Revelar respuesta' }).click();
+
+  await expect(tvClue.getByRole('img', { name: 'Imagen de la respuesta' })).toBeVisible({
+    timeout: 1000,
+  });
+  await expect(tv.getByRole('img', { name: 'Imagen de la pregunta' })).toHaveCount(0);
+  await expect(tv.getByRole('img')).toHaveCount(1);
+  await expect(tv.getByText('Respuesta 2-1')).toBeVisible();
 });
 
 test('al cerrar el operador la TV muestra la pantalla de espera', async ({ page }) => {

@@ -159,7 +159,7 @@ describe('EditorScreen: imagen por pregunta', () => {
 
   it('acepta solo los tipos de imagen permitidos en el selector', async () => {
     const { dialog } = await openFirstClue();
-    expect(within(dialog).getByLabelText('Imagen (opcional)')).toHaveAttribute(
+    expect(within(dialog).getByLabelText('Imagen de la pregunta')).toHaveAttribute(
       'accept',
       'image/png,image/jpeg,image/gif,image/webp',
     );
@@ -167,10 +167,10 @@ describe('EditorScreen: imagen por pregunta', () => {
 
   it('adjunta una imagen válida y muestra la vista previa', async () => {
     const { user, dialog } = await openFirstClue();
-    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile());
+    await user.upload(within(dialog).getByLabelText('Imagen de la pregunta'), pngFile());
 
     expect(
-      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' }),
+      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
     ).toHaveAttribute('src', 'blob:vista-previa');
     await waitFor(async () => expect(await storedImageId()).toBeDefined());
     expect(await getImage((await storedImageId())!)).not.toBeNull();
@@ -184,11 +184,11 @@ describe('EditorScreen: imagen por pregunta', () => {
     const jpeg = new File([bytes], 'foto.jpg', { type: 'image/jpeg' });
 
     const { user, dialog } = await openFirstClue();
-    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), jpeg);
+    await user.upload(within(dialog).getByLabelText('Imagen de la pregunta'), jpeg);
 
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
     expect(
-      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' }),
+      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
     ).toHaveAttribute('src', 'blob:vista-previa');
     await waitFor(async () => expect(await storedImageId()).toBeDefined());
 
@@ -216,9 +216,9 @@ describe('EditorScreen: imagen por pregunta', () => {
     ],
   ])('rechaza %s sin modificar la celda', async (_label, file, message) => {
     const { user, dialog } = await openFirstClue();
-    const input = within(dialog).getByLabelText('Imagen (opcional)');
+    const input = within(dialog).getByLabelText('Imagen de la pregunta');
     await user.upload(input, pngFile());
-    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' });
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la pregunta' });
     await waitFor(async () => expect(await storedImageId()).toBeDefined());
     const before = await storedBoard();
 
@@ -226,7 +226,7 @@ describe('EditorScreen: imagen por pregunta', () => {
 
     expect(within(dialog).getByRole('alert')).toHaveTextContent(message);
     expect(
-      within(dialog).getByRole('img', { name: 'Vista previa de la imagen' }),
+      within(dialog).getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
     ).toBeInTheDocument();
     expect(await storedBoard()).toEqual(before);
   });
@@ -234,7 +234,7 @@ describe('EditorScreen: imagen por pregunta', () => {
   it('rechaza un archivo inválido en una celda sin imagen', async () => {
     const { user, dialog } = await openFirstClue();
     await user.upload(
-      within(dialog).getByLabelText('Imagen (opcional)'),
+      within(dialog).getByLabelText('Imagen de la pregunta'),
       new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
     );
     expect(within(dialog).getByRole('alert')).toHaveTextContent(
@@ -246,22 +246,24 @@ describe('EditorScreen: imagen por pregunta', () => {
 
   it('quita la imagen y borra el archivo guardado', async () => {
     const { user, dialog } = await openFirstClue();
-    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile());
-    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' });
+    await user.upload(within(dialog).getByLabelText('Imagen de la pregunta'), pngFile());
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la pregunta' });
     await waitFor(async () => expect(await storedImageId()).toBeDefined());
     const imageId = (await storedImageId())!;
 
-    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen de la pregunta' }));
 
     expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
-    expect(within(dialog).queryByRole('button', { name: 'Quitar imagen' })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('button', { name: 'Quitar imagen de la pregunta' }),
+    ).not.toBeInTheDocument();
     await waitFor(async () => expect(await storedImageId()).toBeUndefined());
     await waitFor(async () => expect(await getImage(imageId)).toBeNull());
   });
 
   async function uploadAndGetId(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile());
-    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' });
+    await user.upload(within(dialog).getByLabelText('Imagen de la pregunta'), pngFile());
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la pregunta' });
     await waitFor(async () => expect(await storedImageId()).toBeDefined());
     return (await storedImageId())!;
   }
@@ -279,7 +281,7 @@ describe('EditorScreen: imagen por pregunta', () => {
       updatedAt: CREATED_AT,
     });
 
-    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen de la pregunta' }));
 
     await waitFor(async () => expect(await storedImageId()).toBeUndefined());
     await waitFor(() => expect(cleanupSpy).toHaveBeenCalledWith(imageId));
@@ -290,7 +292,7 @@ describe('EditorScreen: imagen por pregunta', () => {
   it('al reemplazar la imagen borra la anterior si nadie la usa', async () => {
     const { user, dialog } = await openFirstClue();
     const firstId = await uploadAndGetId(user, dialog);
-    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile('otra.png'));
+    await user.upload(within(dialog).getByLabelText('Imagen de la pregunta'), pngFile('otra.png'));
     await waitFor(async () => expect(await storedImageId()).not.toBe(firstId));
     const secondId = (await storedImageId())!;
     await waitFor(async () => expect(await getImage(firstId)).toBeNull());
@@ -303,12 +305,99 @@ describe('EditorScreen: imagen por pregunta', () => {
     const imageId = await uploadAndGetId(user, dialog);
     vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
 
-    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen de la pregunta' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/los cambios no se guardaron/);
     expect(cleanupSpy).not.toHaveBeenCalled();
     expect(await storedImageId()).toBe(imageId);
     expect(await getImage(imageId)).not.toBeNull();
+  });
+});
+
+describe('EditorScreen: imagen por respuesta', () => {
+  beforeEach(() => {
+    // jsdom no implementa URL de objetos.
+    URL.createObjectURL = vi.fn(() => 'blob:vista-previa');
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  async function openFirstClueWithQuestionImage() {
+    const view = await renderEditor();
+    await view.user.click(screen.getByRole('button', { name: 'Categoría 1, 100, incompleta' }));
+    const dialog = screen.getByRole('dialog', { name: 'Categoría 1, 100' });
+    await view.user.upload(within(dialog).getByLabelText('Imagen de la pregunta'), pngFile());
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la pregunta' });
+    await waitFor(async () => expect((await storedClue()).imageId).toBeDefined());
+    return { ...view, dialog, questionImageId: (await storedClue()).imageId! };
+  }
+
+  async function storedClue() {
+    return (await storedBoard()).categories[0]!.clues[0]!;
+  }
+
+  it('adjunta una imagen a la respuesta sin cambiar la de la pregunta', async () => {
+    const { user, dialog, questionImageId } = await openFirstClueWithQuestionImage();
+
+    await user.upload(within(dialog).getByLabelText('Imagen de la respuesta'), pngFile('r.png'));
+
+    expect(
+      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen de la respuesta' }),
+    ).toHaveAttribute('src', 'blob:vista-previa');
+    await waitFor(async () => expect((await storedClue()).answerImageId).toBeDefined());
+    const clue = await storedClue();
+    expect(clue.imageId).toBe(questionImageId);
+    expect(clue.answerImageId).not.toBe(questionImageId);
+    expect(await getImage(clue.answerImageId!)).not.toBeNull();
+    expect(
+      within(dialog).getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
+    ).toBeInTheDocument();
+  });
+
+  it('quita la imagen de la respuesta y la pregunta conserva la suya', async () => {
+    const { user, dialog, questionImageId } = await openFirstClueWithQuestionImage();
+    await user.upload(within(dialog).getByLabelText('Imagen de la respuesta'), pngFile('r.png'));
+    await waitFor(async () => expect((await storedClue()).answerImageId).toBeDefined());
+    const answerImageId = (await storedClue()).answerImageId!;
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen de la respuesta' }));
+
+    expect(
+      within(dialog).queryByRole('img', { name: 'Vista previa de la imagen de la respuesta' }),
+    ).not.toBeInTheDocument();
+    await waitFor(async () => expect('answerImageId' in (await storedClue())).toBe(false));
+    await waitFor(async () => expect(await getImage(answerImageId)).toBeNull());
+    expect((await storedClue()).imageId).toBe(questionImageId);
+    expect(await getImage(questionImageId)).not.toBeNull();
+    expect(
+      within(dialog).getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      'un PDF',
+      new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
+      /Formato no soportado.*PNG, JPEG, GIF o WebP/,
+    ],
+    [
+      'una imagen de 8 MB',
+      new File([new Uint8Array(8 * 1024 * 1024)], 'enorme.png', { type: 'image/png' }),
+      /demasiado grande.*5 MB/,
+    ],
+  ])('rechaza %s en la respuesta sin modificar la celda', async (_label, file, message) => {
+    const { user, dialog } = await openFirstClueWithQuestionImage();
+    const before = await storedBoard();
+
+    await user.upload(within(dialog).getByLabelText('Imagen de la respuesta'), file);
+
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(message);
+    expect(
+      within(dialog).queryByRole('img', { name: 'Vista previa de la imagen de la respuesta' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
+    ).toBeInTheDocument();
+    expect(await storedBoard()).toEqual(before);
   });
 });
 

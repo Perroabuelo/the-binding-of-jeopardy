@@ -71,7 +71,11 @@ function TvClue({ view, phase }: { view: TvView; phase: CluePhase }) {
         <span className={styles.value}>{phase.value}</span>
       </p>
       <p className={styles.question}>{phase.question}</p>
-      <ClueImage imageId={phase.imageId} className={styles.image} />
+      <ClueImage
+        imageId={phase.imageId}
+        alt={phase.imageRole === 'answer' ? 'Imagen de la respuesta' : 'Imagen de la pregunta'}
+        className={styles.image}
+      />
       {phase.answer !== undefined && (
         <section aria-label="Respuesta" className={styles.answer}>
           <p>{phase.answer}</p>

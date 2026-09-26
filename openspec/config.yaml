@@ -21,6 +21,10 @@ rules:
   proposal:
     - Indicar el nombre de la rama git del cambio (change/<nombre-del-cambio>)
     - Incluir una seccion "Fuera de alcance"
+    - >-
+      Incluir una seccion "Notas de version" con la version objetivo (vX.Y.Z), el tipo de
+      salto SemVer (major, minor o patch; mientras la app este en 0.x, una funcionalidad
+      nueva sube el minor y una correccion sube el patch) y bullets en lenguaje de usuario
   design:
     - Describir la estrategia de pruebas (unit / componentes / e2e) del cambio
     - Indicar cualquier cambio necesario en el pipeline de CI
@@ -44,3 +48,11 @@ operations:
     guidance:
       - Archivar solo con el CI en verde en la rama del cambio
       - Fusionar a main mediante PR; el deploy a Pages ocurre desde main
+      - >-
+        Mover los bullets de "Notas de version" de la propuesta a CHANGELOG.md, en una seccion
+        nueva "## [X.Y.Z] - AAAA-MM-DD" bajo "Sin publicar", agrupados en Agregado, Cambiado o
+        Corregido
+      - Subir "version" a X.Y.Z en package.json y package-lock.json (npm version X.Y.Z --no-git-tag-version)
+      - >-
+        Despues de fusionar el PR, crear el tag anotado vX.Y.Z sobre el commit de merge en main
+        (git tag -a vX.Y.Z -m "vX.Y.Z" <merge>) y publicarlo (git push origin vX.Y.Z)

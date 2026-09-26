@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import {
   allClueKeys,
+  boardImageIds,
+  clueImageIds,
   clueKey,
   CLUE_VALUES,
   createEmptyBoard,
@@ -60,5 +62,49 @@ describe('claves de celda', () => {
       question: 'Pregunta 2-3',
     });
     expect(getClue(board, 'nope')).toBeNull();
+  });
+});
+
+describe('imágenes usadas', () => {
+  it('clueImageIds devuelve nada para una celda sin imagen', () => {
+    expect(clueImageIds({ value: 100, question: 'p', answer: 'r' })).toEqual([]);
+  });
+
+  it('clueImageIds devuelve la imagen de la pregunta', () => {
+    expect(clueImageIds({ value: 100, question: 'p', answer: 'r', imageId: 'img-1' })).toEqual([
+      'img-1',
+    ]);
+  });
+
+  it('clueImageIds devuelve las imágenes de la pregunta y de la respuesta', () => {
+    expect(
+      clueImageIds({
+        value: 100,
+        question: 'p',
+        answer: 'r',
+        imageId: 'img-p',
+        answerImageId: 'img-r',
+      }),
+    ).toEqual(['img-p', 'img-r']);
+  });
+
+  it('boardImageIds devuelve un conjunto vacío si el tablero no tiene imágenes', () => {
+    expect(boardImageIds(makeCompleteBoard()).size).toBe(0);
+  });
+
+  it('boardImageIds reúne las imágenes de todas las celdas sin repetir', () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-1';
+    board.categories[2]!.clues[4]!.imageId = 'img-2';
+    board.categories[4]!.clues[1]!.imageId = 'img-1';
+    expect([...boardImageIds(board)].sort()).toEqual(['img-1', 'img-2']);
+  });
+
+  it('boardImageIds incluye las imágenes de las respuestas', () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-p';
+    board.categories[1]!.clues[3]!.answerImageId = 'img-r';
+    board.categories[2]!.clues[2]!.answerImageId = 'img-p';
+    expect([...boardImageIds(board)].sort()).toEqual(['img-p', 'img-r']);
   });
 });
