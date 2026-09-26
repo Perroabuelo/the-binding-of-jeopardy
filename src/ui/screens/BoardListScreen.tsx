@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { createEmptyBoard, type Board } from '../../domain/board';
 import { deleteBoard, listBoards, saveBoard } from '../../storage/db';
 import { BoardListItem } from '../boards/BoardListItem';
+import { downloadBoardFile, importBoardFile } from '../boards/boardFiles';
 import { ConfirmDialog } from '../boards/ConfirmDialog';
 import { errorMessage } from '../boards/errors';
 import { boardDisplayTitle } from '../boards/format';
@@ -12,7 +13,9 @@ import styles from './BoardListScreen.module.css';
 export function BoardListScreen() {
   const [boards, setBoards] = useState<Board[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Board | null>(null);
+  const [importing, setImporting] = useState(false);
 
   async function refresh() {
     setBoards(await listBoards());
@@ -24,13 +27,23 @@ export function BoardListScreen() {
       .catch((e: unknown) => setError(errorMessage(e, 'No se pudieron cargar los tableros.')));
   }, []);
 
+  function showError(message: string) {
+    setNotice(null);
+    setError(message);
+  }
+
+  function showNotice(message: string) {
+    setError(null);
+    setNotice(message);
+  }
+
   async function createBoard() {
     const board = createEmptyBoard(newId(), Date.now());
     try {
       await saveBoard(board);
       navigate({ name: 'editor', boardId: board.id });
     } catch (e) {
-      setError(errorMessage(e, 'No se pudo crear el tablero.'));
+      showError(errorMessage(e, 'No se pudo crear el tablero.'));
     }
   }
 
@@ -38,10 +51,37 @@ export function BoardListScreen() {
     setPendingDelete(null);
     try {
       await deleteBoard(board.id);
-      setError(null);
+      showNotice(`Se eliminó "${boardDisplayTitle(board)}".`);
       await refresh();
     } catch (e) {
-      setError(errorMessage(e, 'No se pudo eliminar el tablero.'));
+      showError(errorMessage(e, 'No se pudo eliminar el tablero.'));
+    }
+  }
+
+  async function exportBoardFile(board: Board) {
+    try {
+      await downloadBoardFile(board);
+      showNotice(`Se exportó "${boardDisplayTitle(board)}".`);
+    } catch (e) {
+      showError(errorMessage(e, 'No se pudo exportar el tablero.'));
+    }
+  }
+
+  async function handleImport(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const board = await importBoardFile(file);
+      showNotice(`Se importó "${boardDisplayTitle(board)}".`);
+      await refresh();
+    } catch (e) {
+      showError(errorMessage(e, 'No se pudo importar el tablero.'));
+    } finally {
+      // Permite volver a elegir el mismo archivo.
+      input.value = '';
+      setImporting(false);
     }
   }
 
@@ -49,10 +89,22 @@ export function BoardListScreen() {
     <main className="screen">
       <h1>Tableros</h1>
       {error && <p role="alert">{error}</p>}
+      <p role="status" className={styles.notice}>
+        {notice}
+      </p>
       <div className={styles.toolbar}>
         <button type="button" className="primary" onClick={createBoard}>
           Nuevo tablero
         </button>
+        <label className={styles.import}>
+          Importar tablero
+          <input
+            type="file"
+            accept=".json,application/json"
+            disabled={importing}
+            onChange={(event) => void handleImport(event)}
+          />
+        </label>
       </div>
       {boards &&
         (boards.length === 0 ? (
@@ -60,7 +112,12 @@ export function BoardListScreen() {
         ) : (
           <ul aria-label="Tableros guardados" className={styles.list}>
             {boards.map((board) => (
-              <BoardListItem key={board.id} board={board} onDelete={setPendingDelete} />
+              <BoardListItem
+                key={board.id}
+                board={board}
+                onExport={(target) => void exportBoardFile(target)}
+                onDelete={setPendingDelete}
+              />
             ))}
           </ul>
         ))}

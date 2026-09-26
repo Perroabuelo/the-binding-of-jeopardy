@@ -5,10 +5,11 @@ import { boardDisplayTitle, formatUpdatedAt } from './format';
 
 interface BoardListItemProps {
   board: Board;
+  onExport: (board: Board) => void;
   onDelete: (board: Board) => void;
 }
 
-export function BoardListItem({ board, onDelete }: BoardListItemProps) {
+export function BoardListItem({ board, onExport, onDelete }: BoardListItemProps) {
   const title = boardDisplayTitle(board);
   return (
     <li className={styles.item}>
@@ -24,6 +25,9 @@ export function BoardListItem({ board, onDelete }: BoardListItemProps) {
         </span>
       </div>
       <div className={styles.actions}>
+        <button type="button" aria-label={`Exportar ${title}`} onClick={() => onExport(board)}>
+          Exportar
+        </button>
         <button
           type="button"
           className="danger"

@@ -1,10 +1,19 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import { createEmptyBoard } from '../../domain/board';
+import { exportBoard } from '../../domain/exchange';
 import * as db from '../../storage/db';
-import { getBoard, listBoards, saveBoard, StorageUnavailable } from '../../storage/db';
+import {
+  getBoard,
+  getImage,
+  listBoards,
+  putImage,
+  saveBoard,
+  StorageUnavailable,
+} from '../../storage/db';
+import { blobToDataUrl, dataUrlToBlob } from '../lib/images';
 import { BoardListScreen } from './BoardListScreen';
 
 afterEach(() => {
@@ -129,5 +138,171 @@ describe('BoardListScreen', () => {
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Eliminar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('los cambios no se guardaron');
     expect(screen.getByRole('link', { name: 'Trivia de prueba' })).toBeInTheDocument();
+  });
+});
+
+const PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+function boardWithImage() {
+  const board = makeCompleteBoard({ id: 'src', title: 'Trivia con imagen' });
+  board.categories[0]!.clues[0]!.imageId = 'img-1';
+  return board;
+}
+
+function exportedFile(name = 'Trivia con imagen.jeopardy.json') {
+  const json = exportBoard(boardWithImage(), { 'img-1': PNG_DATA_URL });
+  return new File([json], name, { type: 'application/json' });
+}
+
+/**
+ * Los Blob de jsdom no sobreviven al clonado de fake-indexeddb, así que las imágenes
+ * se guardan en memoria; la ida y vuelta real con IndexedDB la cubre el e2e.
+ */
+function stubImageStore() {
+  const images = new Map<string, db.StoredImage>();
+  vi.spyOn(db, 'putImage').mockImplementation(async (id, blob) => {
+    images.set(id, { id, blob, type: blob.type });
+  });
+  vi.spyOn(db, 'getImage').mockImplementation(async (id) => images.get(id) ?? null);
+  vi.spyOn(db, 'deleteImage').mockImplementation(async (id) => {
+    images.delete(id);
+  });
+  return images;
+}
+
+describe('BoardListScreen: exportar e importar', () => {
+  it('importar un archivo válido crea un tablero nuevo con sus imágenes', async () => {
+    const user = userEvent.setup();
+    stubImageStore();
+    await seedTwoBoards();
+    await renderList();
+    await user.upload(screen.getByLabelText('Importar tablero'), exportedFile());
+
+    expect(await screen.findByRole('link', { name: 'Trivia con imagen' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Se importó "Trivia con imagen"');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    const boards = await listBoards();
+    expect(boards).toHaveLength(3);
+    const imported = boards.find((b) => b.title === 'Trivia con imagen')!;
+    expect(imported.id).not.toBe('src');
+    expect(imported.categories.map((c) => c.name)).toEqual(
+      boardWithImage().categories.map((c) => c.name),
+    );
+    const imageId = imported.categories[0]!.clues[0]!.imageId!;
+    expect(imageId).not.toBe('img-1');
+    const image = await getImage(imageId);
+    expect(image?.type).toBe('image/png');
+    expect(await blobToDataUrl(image!.blob)).toBe(PNG_DATA_URL);
+  });
+
+  it('importar el mismo archivo dos veces crea dos tableros distintos', async () => {
+    const user = userEvent.setup();
+    render(<BoardListScreen />);
+    const input = screen.getByLabelText('Importar tablero');
+    await user.upload(input, exportedFile());
+    await screen.findByRole('link', { name: 'Trivia con imagen' });
+    await user.upload(input, exportedFile());
+    await waitFor(() =>
+      expect(screen.getAllByRole('link', { name: 'Trivia con imagen' })).toHaveLength(2),
+    );
+    const ids = (await listBoards()).map((b) => b.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it.each([
+    ['un archivo que no es JSON', 'esto no es un tablero', 'no es un JSON válido'],
+    ['un JSON de otro formato', '{"format":"otro"}', 'no es un tablero exportado'],
+    [
+      'un tablero dañado',
+      exportBoard(boardWithImage(), { 'img-1': PNG_DATA_URL }).replace('"Categoría 1"', '1'),
+      'no es válido',
+    ],
+  ])('importar %s muestra un aviso y no guarda nada', async (_label, content, message) => {
+    const user = userEvent.setup();
+    await seedTwoBoards();
+    const before = await listBoards();
+    const putImageSpy = vi.spyOn(db, 'putImage');
+    const saveBoardSpy = vi.spyOn(db, 'saveBoard');
+    await renderList();
+    await user.upload(
+      screen.getByLabelText('Importar tablero'),
+      new File([content], 'malo.json', { type: 'application/json' }),
+    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No se pudo importar el tablero.');
+    expect(alert).toHaveTextContent(message);
+    expect(putImageSpy).not.toHaveBeenCalled();
+    expect(saveBoardSpy).not.toHaveBeenCalled();
+    expect(await listBoards()).toEqual(before);
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+
+  it('si falla guardar el tablero importado, avisa y borra las imágenes escritas', async () => {
+    const user = userEvent.setup();
+    const images = stubImageStore();
+    vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
+    render(<BoardListScreen />);
+    await user.upload(screen.getByLabelText('Importar tablero'), exportedFile());
+    expect(await screen.findByRole('alert')).toHaveTextContent('los cambios no se guardaron');
+    expect(db.putImage).toHaveBeenCalledTimes(1);
+    expect(db.deleteImage).toHaveBeenCalledWith(vi.mocked(db.putImage).mock.calls[0]![0]);
+    expect(images.size).toBe(0);
+    expect(await listBoards()).toEqual([]);
+  });
+
+  it('exportar descarga un archivo con el tablero y sus imágenes', async () => {
+    const user = userEvent.setup();
+    const board = boardWithImage();
+    stubImageStore();
+    await saveBoard(board);
+    await putImage('img-1', dataUrlToBlob(PNG_DATA_URL));
+
+    let exported: Blob | null = null;
+    const createObjectURL = vi.fn((blob: Blob) => {
+      exported = blob;
+      return 'blob:exportado';
+    });
+    const revokeObjectURL = vi.fn();
+    // jsdom no implementa URLs de objeto.
+    const originalUrl = {
+      createObjectURL: URL.createObjectURL,
+      revokeObjectURL: URL.revokeObjectURL,
+    };
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    onTestFinished(() => {
+      Object.assign(URL, originalUrl);
+    });
+    const clicked: { href: string; download: string }[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicked.push({ href: this.getAttribute('href')!, download: this.download });
+    });
+
+    await renderList();
+    await user.click(screen.getByRole('button', { name: 'Exportar Trivia con imagen' }));
+
+    await waitFor(() => expect(clicked).toHaveLength(1));
+    expect(clicked[0]).toEqual({
+      href: 'blob:exportado',
+      download: 'Trivia con imagen.jeopardy.json',
+    });
+    const file = JSON.parse(await exported!.text());
+    expect(file.board).toEqual(board);
+    expect(file.images).toEqual({ 'img-1': PNG_DATA_URL });
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:exportado'));
+    expect(screen.getByRole('status')).toHaveTextContent('Se exportó "Trivia con imagen"');
+  });
+
+  it('si falta una imagen al exportar, avisa y no descarga nada', async () => {
+    const user = userEvent.setup();
+    await saveBoard(boardWithImage());
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click');
+    await renderList();
+    await user.click(screen.getByRole('button', { name: 'Exportar Trivia con imagen' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo exportar el tablero.');
+    expect(clickSpy).not.toHaveBeenCalled();
   });
 });
