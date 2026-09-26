@@ -7,7 +7,7 @@
 - [x] 1.3 Configurar Vitest (proyectos node y jsdom) con Testing Library y un test inicial de la pantalla "Hola" — verificar que `npm test` pasa
 - [x] 1.4 Configurar Playwright (solo Chromium, `webServer` con `vite preview` usando la base real, SW bloqueado por defecto) con un e2e que abre la app — verificar que `npm run test:e2e` pasa localmente
 - [x] 1.5 Agregar `.github/workflows/ci.yml` con los jobs `checks` (lint, typecheck, unit, build) y `e2e` (subiendo `playwright-report` si falla), caché de npm y concurrencia por rama — verificar que el push de la rama deja ambos jobs en verde en GitHub
-- [ ] 1.6 Agregar el job `deploy` (necesita `checks` y `e2e`, solo en push a `main`, `upload-pages-artifact` + `deploy-pages`) y documentar en `README.md` la configuración manual de Pages (fuente "GitHub Actions") y la protección de `main` — verificar con `actionlint` o con la ejecución del CI que el job se omite en la rama del cambio
+- [x] 1.6 Agregar el job `deploy` (necesita `checks` y `e2e`, solo en push a `main`, `upload-pages-artifact` + `deploy-pages`) y documentar en `README.md` la configuración manual de Pages (fuente "GitHub Actions") y la protección de `main` — verificar con `actionlint` o con la ejecución del CI que el job se omite en la rama del cambio
 
 ## 2. Dominio: tablero
 
