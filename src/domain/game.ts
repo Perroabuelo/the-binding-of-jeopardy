@@ -33,6 +33,8 @@ export type GameAction =
   | { type: 'finish' };
 
 /** Lo que la TV necesita para dibujar. Nunca incluye respuestas no reveladas. */
+export type TvImageRole = 'question' | 'answer';
+
 export interface TvView {
   sessionId: string;
   title: string;
@@ -45,7 +47,10 @@ export interface TvView {
         clueKey: ClueKey;
         value: ClueValue;
         question: string;
+        /** La imagen que muestra la TV: la de la respuesta solo después de revelarla. */
         imageId?: string;
+        /** Presente junto a `imageId`: de qué parte de la celda es la imagen. */
+        imageRole?: TvImageRole;
         /** Presente solo cuando la respuesta fue revelada. */
         answer?: string;
       }

@@ -61,12 +61,66 @@ describe('projectForTv', () => {
       value: 200,
       question: 'Pregunta 3-2',
       imageId: 'img-1',
+      imageRole: 'question',
+    });
+  });
+
+  describe('imagen de la respuesta', () => {
+    function gameWithAnswerImage(questionImage: boolean): GameSession {
+      const board = makeCompleteBoard();
+      const clue = board.categories[1]!.clues[3]!;
+      if (questionImage) clue.imageId = 'img-pregunta';
+      clue.answerImageId = 'img-respuesta';
+      return startGame(board, ['Equipo A'], { sessionId: 's1', now: 0, makeTeamId: () => 't0' });
+    }
+
+    it('sin revelar no se envía: la TV recibe solo la imagen de la pregunta', () => {
+      const view = projectForTv(play(gameWithAnswerImage(true), openClue('c1-r3')));
+      expect(JSON.stringify(view)).not.toContain('img-respuesta');
+      expect(view.phase).toMatchObject({ imageId: 'img-pregunta', imageRole: 'question' });
+    });
+
+    it('sin revelar y sin imagen de pregunta, la TV no recibe ninguna imagen', () => {
+      const view = projectForTv(play(gameWithAnswerImage(false), openClue('c1-r3')));
+      expect(JSON.stringify(view)).not.toContain('img-respuesta');
+      expect(view.phase).not.toHaveProperty('imageId');
+      expect(view.phase).not.toHaveProperty('imageRole');
+    });
+
+    it('en fase tablero no se envía', () => {
+      const session = play(
+        gameWithAnswerImage(true),
+        openClue('c1-r3'),
+        { type: 'reveal' },
+        {
+          type: 'backToBoard',
+        },
+      );
+      expect(JSON.stringify(projectForTv(session))).not.toContain('img-respuesta');
+    });
+
+    it('al revelar reemplaza a la imagen de la pregunta', () => {
+      const view = projectForTv(
+        play(gameWithAnswerImage(true), openClue('c1-r3'), { type: 'reveal' }),
+      );
+      expect(view.phase).toMatchObject({ imageId: 'img-respuesta', imageRole: 'answer' });
+      expect(JSON.stringify(view)).not.toContain('img-pregunta');
+    });
+
+    it('al revelar una respuesta sin imagen se mantiene la de la pregunta', () => {
+      const view = projectForTv(play(newGame(), openClue('c2-r1'), { type: 'reveal' }));
+      expect(view.phase).toMatchObject({
+        imageId: 'img-1',
+        imageRole: 'question',
+        answer: 'Respuesta 3-2',
+      });
     });
   });
 
   it('omite la imagen si la celda no tiene', () => {
     const view = projectForTv(play(newGame(), openClue('c0-r0')));
     expect(view.phase).not.toHaveProperty('imageId');
+    expect(view.phase).not.toHaveProperty('imageRole');
   });
 
   it('incluye título, categorías, valores y equipos', () => {
