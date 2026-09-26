@@ -99,6 +99,10 @@ export function EditorScreen({ boardId }: { boardId: string }) {
               changeClue(openCell, { imageId });
               return flush();
             }}
+            onAnswerImageChange={(answerImageId) => {
+              changeClue(openCell, { answerImageId });
+              return flush();
+            }}
             onClose={closeDialog}
           />
         )}

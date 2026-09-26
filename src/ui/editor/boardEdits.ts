@@ -1,6 +1,6 @@
 import type { Board, Clue } from '../../domain/board';
 
-export type CluePatch = Partial<Pick<Clue, 'question' | 'answer' | 'imageId'>>;
+export type CluePatch = Partial<Pick<Clue, 'question' | 'answer' | 'imageId' | 'answerImageId'>>;
 
 export function isClueComplete(clue: Clue): boolean {
   return clue.question.trim() !== '' && clue.answer.trim() !== '';
@@ -19,7 +19,7 @@ export function withCategoryName(board: Board, categoryIndex: number, name: stri
   };
 }
 
-/** Aplica cambios a una celda; `imageId: undefined` quita la imagen. */
+/** Aplica cambios a una celda; una clave con valor `undefined` (p. ej. `imageId`) se quita. */
 export function withClue(
   board: Board,
   categoryIndex: number,
@@ -36,7 +36,9 @@ export function withClue(
             clues: category.clues.map((clue, r) => {
               if (r !== rowIndex) return clue;
               const next: Clue = { ...clue, ...patch };
-              if ('imageId' in patch && patch.imageId === undefined) delete next.imageId;
+              for (const key of Object.keys(patch) as (keyof CluePatch)[]) {
+                if (patch[key] === undefined) delete next[key];
+              }
               return next;
             }),
           },
