@@ -96,6 +96,44 @@ test('exportar e importar un tablero con imagen crea una copia idéntica', async
   expect(images['e2e-image']).toEqual({ type: 'image/png', base64: TINY_PNG_BASE64 });
 });
 
+test('exportar e importar un tablero con imagen de respuesta crea una copia con esa imagen', async ({
+  page,
+}) => {
+  const source = boardWithImage();
+  source.categories[0]!.clues[4]!.answerImageId = 'e2e-image-respuesta';
+  await page.goto('./');
+  await seedBoards(
+    page,
+    [source],
+    [
+      { id: 'e2e-image', base64: TINY_PNG_BASE64, type: 'image/png' },
+      { id: 'e2e-image-respuesta', base64: TINY_PNG_BASE64, type: 'image/png' },
+    ],
+  );
+  await page.reload();
+
+  const file = await exportBoard(page, 'Trivia exportable');
+  await page.getByLabel('Importar tablero').setInputFiles(file);
+  await expect(page.getByRole('status')).toHaveText('Se importó "Trivia exportable".');
+
+  const { boards, images } = await readStorage(page);
+  const imported = boards.find((board) => board.id !== source.id)!;
+  const answerImageId = imported.categories[0]!.clues[4]!.answerImageId;
+  expect(answerImageId).toBeDefined();
+  expect(answerImageId).not.toBe('e2e-image-respuesta');
+  expect(images[answerImageId!]).toEqual({ type: 'image/png', base64: TINY_PNG_BASE64 });
+  expect(imported.categories[2]!.clues[3]!.imageId).not.toBe(answerImageId);
+
+  // La copia muestra la imagen de la respuesta en el editor.
+  await page.goto(`./#/boards/${imported.id}`);
+  await page.getByRole('button', { name: 'Categoría 1, 500, completa' }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'Categoría 1, 500' })
+      .getByRole('img', { name: 'Vista previa de la imagen de la respuesta' }),
+  ).toBeVisible();
+});
+
 test('importar un archivo inválido muestra un aviso y la lista no cambia', async ({ page }) => {
   await openListWith(page, [boardWithImage()]);
   const before = await readStorage(page);
