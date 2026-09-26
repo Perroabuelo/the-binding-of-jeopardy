@@ -17,6 +17,7 @@ export function createTvSync(
   { onView, onWaiting }: TvSyncOptions,
 ): TvSync {
   let waiting = false;
+  let hasView = false;
   let disposed = false;
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -29,6 +30,7 @@ export function createTvSync(
     clearWatchdog();
     if (waiting) return;
     waiting = true;
+    hasView = false;
     onWaiting();
   };
 
@@ -42,16 +44,14 @@ export function createTvSync(
     switch (msg.type) {
       case 'state':
         waiting = false;
+        hasView = true;
         resetWatchdog();
         onView(msg.view);
         break;
       case 'ping':
-        if (waiting) {
-          // El operador volvió pero no tenemos su estado: lo pedimos.
-          transport.send({ type: 'hello' });
-        } else {
-          resetWatchdog();
-        }
+        // El operador está vivo pero no tenemos su estado: lo pedimos.
+        if (waiting || !hasView) transport.send({ type: 'hello' });
+        if (!waiting) resetWatchdog();
         break;
       case 'bye':
         enterWaiting();

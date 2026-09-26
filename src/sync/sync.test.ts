@@ -250,6 +250,34 @@ describe('createTvSync', () => {
     tv.dispose();
   });
 
+  it('sin estado recibido, un ping del operador provoca un nuevo hello', async () => {
+    const [operatorSide, tvSide] = createMemoryTransportPair();
+    const tv = createTvSync(tvSide, { onView: vi.fn(), onWaiting: vi.fn() });
+    await flush();
+    const received = record(operatorSide);
+
+    await vi.advanceTimersByTimeAsync(OPERATOR_TIMEOUT_MS / 2);
+    operatorSide.send({ type: 'ping' });
+    await flush();
+
+    expect(received).toEqual([{ type: 'hello' }]);
+    tv.dispose();
+  });
+
+  it('con estado recibido, el ping no provoca hello', async () => {
+    const [operatorSide, tvSide] = createMemoryTransportPair();
+    const tv = createTvSync(tvSide, { onView: vi.fn(), onWaiting: vi.fn() });
+    operatorSide.send({ type: 'state', view: makeView() });
+    await flush();
+    const received = record(operatorSide);
+
+    operatorSide.send({ type: 'ping' });
+    await flush();
+
+    expect(received).toEqual([]);
+    tv.dispose();
+  });
+
   it('dispose limpia el timer y deja de entregar mensajes', async () => {
     const [operatorSide, tvSide] = createMemoryTransportPair();
     const onView = vi.fn();
@@ -290,6 +318,27 @@ describe('operador y TV juntos', () => {
     operator.dispose();
     await flush();
     expect(onWaiting).toHaveBeenCalledTimes(1);
+    tv.dispose();
+  });
+
+  it('la TV abierta antes que el operador recibe el estado sin cambios del operador', async () => {
+    const [operatorSide, tvSide] = createMemoryTransportPair();
+    const onView = vi.fn();
+    const onWaiting = vi.fn();
+    const tv = createTvSync(tvSide, { onView, onWaiting });
+    await flush();
+
+    // El operador se suscribe tarde (p. ej. tras cargar la sesión) y no publica nada.
+    await vi.advanceTimersByTimeAsync(OPERATOR_TIMEOUT_MS / 2);
+    const current = makeView({ title: 'Operador tardío' });
+    const operator = createOperatorSync(operatorSide, { getView: () => current });
+    expect(onView).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(PING_INTERVAL_MS);
+    expect(onView).toHaveBeenCalledWith(current);
+    expect(onWaiting).not.toHaveBeenCalled();
+
+    operator.dispose();
     tv.dispose();
   });
 });
