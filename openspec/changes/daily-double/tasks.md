@@ -18,4 +18,4 @@
 
 ## 4. Documentación
 
-- [ ] 4.1 Actualizar `README.md` (cómo marcar y jugar un Daily Double, regla de la apuesta) y agregar la entrada de v0.4.0 en `CHANGELOG.md` con las notas de versión de la propuesta. Verificar que `npm run lint` pasa y que el CI de la rama queda en verde.
+- [x] 4.1 Actualizar `README.md` (cómo marcar y jugar un Daily Double, regla de la apuesta) y agregar la entrada de v0.4.0 en `CHANGELOG.md` con las notas de versión de la propuesta. Verificar que `npm run lint` pasa y que el CI de la rama queda en verde.
