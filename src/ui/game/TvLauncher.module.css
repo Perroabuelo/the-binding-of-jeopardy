@@ -1,0 +1,24 @@
+.launcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.url {
+  display: grid;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 16rem;
+}
+
+.url label {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.blocked {
+  flex-basis: 100%;
+  margin: 0;
+}
