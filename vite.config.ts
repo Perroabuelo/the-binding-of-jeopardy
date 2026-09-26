@@ -28,7 +28,8 @@ export default defineConfig({
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // mp3: la música del Final también suena sin conexión.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest,mp3}'],
         navigateFallback: `${SITE_BASE}index.html`,
         skipWaiting: false,
         clientsClaim: false,

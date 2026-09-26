@@ -43,7 +43,7 @@
 
 ## 3. Música
 
-- [ ] 3.1 Elegir una pieza CC0 de al menos 30 s y menos de 1 MB, que no sea ni imite el tema del programa. Guardarla como `public/audio/final-jeopardy.mp3`, con la URL de origen, el autor y la licencia en `public/audio/CREDITS.md`. Agregar `mp3` a `workbox.globPatterns` en `vite.config.ts`. Verificar que `npm run build` genera `dist/sw.js` con `audio/final-jeopardy.mp3` en el manifiesto de precache. Agregar a `e2e/offline.spec.ts` un `fetch` del audio sin conexión que responda 200.
+- [x] 3.1 Elegir una pieza CC0 de al menos 30 s y menos de 1 MB, que no sea ni imite el tema del programa. Guardarla como `public/audio/final-jeopardy.mp3`, con la URL de origen, el autor y la licencia en `public/audio/CREDITS.md`. Agregar `mp3` a `workbox.globPatterns` en `vite.config.ts`. Verificar que `npm run build` genera `dist/sw.js` con `audio/final-jeopardy.mp3` en el manifiesto de precache. Agregar a `e2e/offline.spec.ts` un `fetch` del audio sin conexión que responda 200.
 - [ ] 3.2 Crear el hook `useFinalMusic` en `src/ui/game/`: reproducir desde 0 al iniciar o reiniciar, detener al llegar a 0, al pasar a `reveal` y al desmontar, silenciar con la preferencia en `localStorage` protegida con try/catch, y mostrar un aviso si `play()` falla. Verificar con tests unitarios del hook, con `HTMLMediaElement` simulado: `play` al iniciar, `pause` al terminar el tiempo y al desmontar, `muted` persistido tras volver a montar, aviso cuando `play` rechaza, y que después de recargar no se llama a `play` sin una acción del operador.
 
 ## 4. Operador y TV

@@ -26,6 +26,13 @@ test('después de cargar con red, la app funciona completa sin conexión', async
   await expect(page.getByRole('heading', { level: 1, name: 'Tableros' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Tablero de prueba' })).toBeVisible();
 
+  // La música del Final está precacheada.
+  const audioStatus = await page.evaluate(async () => {
+    const response = await fetch('audio/final-jeopardy.mp3');
+    return response.status;
+  });
+  expect(audioStatus).toBe(200);
+
   // Jugar sin red: operador y TV funcionan y se sincronizan.
   await page.goto(`./#/boards/${board.id}/play`);
   await page.getByLabel('Nombre del equipo 1').fill('Equipo Rojo');
