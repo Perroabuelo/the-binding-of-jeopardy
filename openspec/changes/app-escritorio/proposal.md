@@ -34,7 +34,7 @@ Roadmap encadenado, cada cambio sobre la rama del anterior:
 
 ## Notas de versión
 
-**v1.0.0** (major). **A confirmar por el usuario.** Es un salto deliberado: marca la primera versión de escritorio. Mientras la app esté en 0.x, las reglas dirían v0.7.0 (minor), porque no hay cambios incompatibles para la web.
+**v1.0.0** (major), confirmada por el usuario. Es un salto deliberado: marca la primera versión de escritorio, aunque no hay cambios incompatibles para la web.
 
 - Nueva app de escritorio para Windows: instálala desde GitHub Releases y juega sin depender del navegador.
 - La pantalla de TV se abre sola en el segundo monitor y a pantalla completa.

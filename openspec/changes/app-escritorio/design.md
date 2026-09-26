@@ -310,4 +310,3 @@ type DeviceServerMessage =
 
 - El número exacto del puerto preferido (47470 es una propuesta). Se puede cambiar al implementar sin tocar specs ni tareas, siempre que sea un rango fijo de 10 puertos.
 - El diseño del ícono `.ico`. Parte de `public/icon.svg` y se decide al implementar.
-- La versión objetivo (v1.0.0 o v0.7.0) queda a confirmar por el usuario. Solo cambia `proposal.md`, el CHANGELOG y `package.json`.

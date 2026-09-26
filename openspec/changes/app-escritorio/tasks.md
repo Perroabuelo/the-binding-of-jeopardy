@@ -98,4 +98,4 @@
   - Cómo traer tableros de la web (exportar e importar).
   - Carpeta de respaldos.
 
-  Agregar la entrada del CHANGELOG con la versión que confirme el usuario (v1.0.0 propuesta, o v0.7.0) y subir `package.json` a esa versión. Criterio de listo: `npm run lint` pasa (prettier sobre el markdown) y la versión de `package.json` coincide con la del CHANGELOG y la de `proposal.md`.
+  Agregar la entrada del CHANGELOG con la versión v1.0.0 y subir `package.json` a esa versión. Criterio de listo: `npm run lint` pasa (prettier sobre el markdown) y la versión de `package.json` coincide con la del CHANGELOG y la de `proposal.md`.
