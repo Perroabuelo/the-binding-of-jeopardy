@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Board } from '../../domain/board';
 import { MAX_TEAMS, startGame } from '../../domain/game';
-import { validateBoard } from '../../domain/validation';
+import { isFinalComplete, validateBoard } from '../../domain/validation';
 import { getBoard, saveSession } from '../../storage/db';
 import { newId } from '../lib/ids';
 import { navigate, routeHref } from '../router';
@@ -19,6 +19,7 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
   const [names, setNames] = useState<string[]>(['', '']);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [playFinal, setPlayFinal] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +40,8 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
 
   const board = boardState.status === 'loaded' ? boardState.board : null;
   const ready = board ? validateBoard(board).ready : false;
+  const finalAvailable = board ? isFinalComplete(board.final) : false;
+  const withFinal = finalAvailable && playFinal;
 
   function setName(index: number, value: string) {
     setNames((current) => current.map((name, i) => (i === index ? value : name)));
@@ -58,6 +61,7 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
         sessionId: newId(),
         now: Date.now(),
         makeTeamId: () => newId(),
+        withFinal,
       });
     } catch (e) {
       setError(errorMessage(e));
@@ -110,6 +114,24 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
               );
             })}
           </ol>
+          <div className={styles.final}>
+            <div className={styles.checkbox}>
+              <input
+                id="play-final"
+                type="checkbox"
+                checked={withFinal}
+                disabled={!finalAvailable}
+                aria-describedby={finalAvailable ? undefined : 'play-final-hint'}
+                onChange={(event) => setPlayFinal(event.target.checked)}
+              />
+              <label htmlFor="play-final">Jugar Final Jeopardy!</label>
+            </div>
+            {!finalAvailable && (
+              <p id="play-final-hint" className={styles.hint}>
+                Para jugar el Final, completa la pista final del tablero en el editor.
+              </p>
+            )}
+          </div>
           <div className={styles.actions}>
             <button
               type="button"

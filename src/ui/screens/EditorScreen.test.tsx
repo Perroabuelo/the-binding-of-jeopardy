@@ -807,3 +807,105 @@ describe('EditorScreen: faltantes y Jugar', () => {
     expect(screen.getByRole('button', { name: 'Jugar' })).toBeDisabled();
   });
 });
+
+describe('EditorScreen: pista final', () => {
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => 'blob:vista-previa');
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    const user = userEvent.setup({ applyAccept: false });
+    const view = render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user, ...view };
+  }
+
+  async function storedFinal() {
+    return (await getBoard('fixture-board'))?.final;
+  }
+
+  function finalSection() {
+    return screen.getByRole('region', { name: 'Pista final' });
+  }
+
+  it('completar la pista final la guarda, la conserva al volver a montar y la marca completa', async () => {
+    const { user, unmount } = await renderSeeded();
+    const section = finalSection();
+    await user.type(within(section).getByLabelText('Categoría de la pista final'), 'Cumpleañero');
+    await user.type(within(section).getByLabelText('Pregunta de la pista final'), '¿Año?');
+    await user.type(within(section).getByLabelText('Respuesta de la pista final'), '1990');
+    expect(screen.getByText(/Pista final: completa/)).toBeInTheDocument();
+    await waitFor(async () =>
+      expect(await storedFinal()).toEqual({
+        category: 'Cumpleañero',
+        question: '¿Año?',
+        answer: '1990',
+      }),
+    );
+
+    unmount();
+    render(<EditorScreen boardId="fixture-board" />);
+    expect(await screen.findByLabelText('Categoría de la pista final')).toHaveValue('Cumpleañero');
+    expect(screen.getByLabelText('Pregunta de la pista final')).toHaveValue('¿Año?');
+    expect(screen.getByLabelText('Respuesta de la pista final')).toHaveValue('1990');
+    expect(screen.getByText(/Pista final: completa/)).toBeInTheDocument();
+  });
+
+  it('con solo la categoría la marca incompleta y Jugar sigue habilitado', async () => {
+    const { user } = await renderSeeded();
+    await user.type(screen.getByLabelText('Categoría de la pista final'), 'Cumpleañero');
+    expect(screen.getByText(/Pista final: incompleta/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Listo para jugar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+    await waitFor(async () =>
+      expect(await storedFinal()).toEqual({ category: 'Cumpleañero', question: '', answer: '' }),
+    );
+  });
+
+  it('un tablero sin pista final lo indica y se puede jugar', async () => {
+    await renderSeeded();
+    expect(screen.getByText(/Pista final: sin pista final/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Categoría de la pista final')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+  });
+
+  it('al vaciar todos los campos quita la pista final del tablero', async () => {
+    const { user } = await renderSeeded(
+      makeCompleteBoard({ final: { category: 'C', question: '', answer: '' } }),
+    );
+    await user.clear(screen.getByLabelText('Categoría de la pista final'));
+    expect(screen.getByText(/Pista final: sin pista final/)).toBeInTheDocument();
+    await waitFor(async () => {
+      const board = await getBoard('fixture-board');
+      expect(board && 'final' in board).toBe(false);
+    });
+  });
+
+  it('adjunta una imagen a la pregunta final y muestra la vista previa', async () => {
+    const { user } = await renderSeeded();
+    await user.upload(screen.getByLabelText('Imagen de la pregunta final'), pngFile());
+    expect(
+      await screen.findByRole('img', { name: 'Vista previa de la imagen de la pregunta final' }),
+    ).toHaveAttribute('src', 'blob:vista-previa');
+    await waitFor(async () => expect((await storedFinal())?.imageId).toBeDefined());
+    expect(await getImage((await storedFinal())!.imageId!)).not.toBeNull();
+  });
+
+  it('rechaza un PDF en la imagen de la respuesta final sin cambiar nada', async () => {
+    const final = { category: 'C', question: 'P', answer: 'R' };
+    const { user } = await renderSeeded(makeCompleteBoard({ final }));
+    const spy = vi.spyOn(db, 'saveBoard');
+    await user.upload(
+      screen.getByLabelText('Imagen de la respuesta final'),
+      new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
+    );
+    expect(within(finalSection()).getByRole('alert')).toHaveTextContent(
+      /Formato no soportado.*PNG, JPEG, GIF o WebP/,
+    );
+    expect(within(finalSection()).queryByRole('img')).not.toBeInTheDocument();
+    expect(spy).not.toHaveBeenCalled();
+    expect(await storedFinal()).toEqual(final);
+  });
+});

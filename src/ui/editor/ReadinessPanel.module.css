@@ -30,3 +30,8 @@
   overflow-y: auto;
   color: var(--color-text-muted);
 }
+
+.final {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-muted);
+}

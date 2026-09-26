@@ -1,8 +1,8 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { allClueKeys } from '../../domain/board';
-import { startGame, type GameSession, type TvView } from '../../domain/game';
+import { gameReducer, startGame, type GameSession, type TvView } from '../../domain/game';
 import { getSession, putImage, saveSession } from '../../storage/db';
 import { createMemoryBus, type MemoryBus, type SyncMessage } from '../../sync';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
@@ -425,3 +425,254 @@ describe('OperatorScreen: Daily Double', () => {
     expect(screen.queryByRole('button', { name: /a Tíos$/ })).not.toBeInTheDocument();
   });
 });
+
+describe('OperatorScreen: Final', () => {
+  const FINAL = {
+    category: 'Cumpleañero',
+    question: 'Pregunta final',
+    answer: 'Respuesta final',
+  };
+
+  /** Primos 1200, Tíos 400, Abuelos 800 y Sobrinos 0, recién entrados al Final. */
+  function finalSession(
+    scores = [1200, 400, 800, 0],
+    names = ['Primos', 'Tíos', 'Abuelos', 'Sobrinos'],
+  ) {
+    let n = 0;
+    let session = startGame(makeCompleteBoard({ final: { ...FINAL } }), names, {
+      sessionId: SESSION_ID,
+      now: 1_700_000_000_000,
+      makeTeamId: () => `equipo-${++n}`,
+      withFinal: true,
+    });
+    session = { ...session, teams: session.teams.map((t, i) => ({ ...t, score: scores[i]! })) };
+    return gameReducer(session, { type: 'finish' }, 1_700_000_000_000);
+  }
+
+  function withWagers(session: GameSession, wagers: Record<string, number>): GameSession {
+    return Object.entries(wagers).reduce(
+      (current, [teamId, amount]) =>
+        gameReducer(current, { type: 'setFinalWager', teamId, amount }, 1),
+      session,
+    );
+  }
+
+  /** Apuestas: Primos 1000, Tíos 400, Abuelos 0. */
+  function inClue(): GameSession {
+    const session = withWagers(finalSession(), {
+      'equipo-1': 1000,
+      'equipo-2': 400,
+      'equipo-3': 0,
+    });
+    return gameReducer(session, { type: 'showFinalClue' }, 1);
+  }
+
+  function inReveal(): GameSession {
+    return gameReducer(inClue(), { type: 'startFinalReveal' }, 1);
+  }
+
+  function finalRegion() {
+    return screen.getByRole('region', { name: 'Final Jeopardy!' });
+  }
+
+  let play: ReturnType<typeof vi.spyOn>;
+  let pause: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('en las apuestas muestra la pista, el máximo de cada participante y quiénes no participan', async () => {
+    await renderOperator(finalSession());
+    const region = finalRegion();
+    expect(within(region).getByText('Categoría: Cumpleañero')).toBeInTheDocument();
+    expect(within(region).getByText('Pregunta final')).toBeInTheDocument();
+    expect(within(region).getByText('Respuesta final')).toBeInTheDocument();
+
+    const wagers = within(region).getByRole('list', { name: 'Apuestas del Final' });
+    expect(
+      within(wagers)
+        .getAllByRole('listitem')
+        .map((li) => li.getAttribute('aria-label')),
+    ).toEqual(['Tíos', 'Abuelos', 'Primos']);
+    expect(within(wagers).getByRole('listitem', { name: 'Primos' })).toHaveTextContent('máx. 1200');
+    expect(within(wagers).getByRole('listitem', { name: 'Tíos' })).toHaveTextContent('máx. 400');
+
+    const outside = within(region).getByRole('region', { name: 'No participan' });
+    expect(outside).toHaveTextContent('Sobrinos');
+    expect(outside).not.toHaveTextContent('Primos');
+    expect(screen.queryByRole('table', { name: 'Tablero' })).not.toBeInTheDocument();
+  });
+
+  it('rechaza una apuesta mayor al puntaje e indica el máximo', async () => {
+    const user = userEvent.setup();
+    await renderOperator(finalSession());
+    await user.type(screen.getByLabelText('Apuesta de Tíos'), '401');
+    expect(screen.getByRole('button', { name: 'Anotar apuesta de Tíos' })).toBeDisabled();
+    expect(screen.getByLabelText('Apuesta de Tíos')).toHaveAccessibleDescription(/máximo 400/);
+  });
+
+  it('Mostrar pista está deshabilitado hasta anotar todas las apuestas', async () => {
+    const user = userEvent.setup();
+    await renderOperator(finalSession());
+    const show = screen.getByRole('button', { name: 'Mostrar pista' });
+    for (const [name, amount] of [
+      ['Tíos', '300'],
+      ['Abuelos', '0'],
+    ] as const) {
+      await user.type(screen.getByLabelText(`Apuesta de ${name}`), amount);
+      await user.click(screen.getByRole('button', { name: `Anotar apuesta de ${name}` }));
+    }
+    expect(show).toBeDisabled();
+    // Se puede cambiar una apuesta ya anotada.
+    await user.clear(screen.getByLabelText('Apuesta de Tíos'));
+    await user.type(screen.getByLabelText('Apuesta de Tíos'), '400');
+    await user.click(screen.getByRole('button', { name: 'Anotar apuesta de Tíos' }));
+    await user.type(screen.getByLabelText('Apuesta de Primos'), '1200');
+    await user.click(screen.getByRole('button', { name: 'Anotar apuesta de Primos' }));
+    expect(show).toBeEnabled();
+
+    await user.click(show);
+    expect(screen.getByRole('button', { name: 'Iniciar temporizador' })).toBeInTheDocument();
+    const stored = await getSession(SESSION_ID);
+    expect(stored?.phase).toMatchObject({
+      stage: 'clue',
+      wagers: { 'equipo-1': 1200, 'equipo-2': 400, 'equipo-3': 0 },
+    });
+  });
+
+  it('el temporizador reproduce la música, avanza y al llegar a 0 la detiene', async () => {
+    await renderOperator(inClue());
+    const timer = screen.getByRole('timer', { name: 'Tiempo restante' });
+    expect(timer).toHaveTextContent('30');
+    expect(play).not.toHaveBeenCalled();
+
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar temporizador' }));
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Reiniciar temporizador' })).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(timer).toHaveTextContent('20');
+    pause.mockClear();
+    act(() => vi.advanceTimersByTime(25_000));
+    expect(timer).toHaveTextContent('0');
+    expect(pause).toHaveBeenCalled();
+    // Sigue en la pista hasta que el operador pase a la revelación.
+    expect(screen.getByRole('button', { name: 'Pasar a la revelación' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reiniciar temporizador' }));
+    expect(play).toHaveBeenCalledTimes(2);
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(timer).toHaveTextContent('29');
+  });
+
+  it('silenciar la música no detiene la cuenta regresiva', async () => {
+    const user = userEvent.setup();
+    const { container } = await renderOperator(inClue());
+    await user.click(screen.getByRole('button', { name: 'Iniciar temporizador' }));
+    await user.click(screen.getByRole('button', { name: 'Silenciar música' }));
+    expect(container.querySelector('audio')!.muted).toBe(true);
+    expect(screen.getByRole('button', { name: 'Activar música' })).toBeInTheDocument();
+  });
+
+  it('Acertó y Falló solo aparecen para el equipo en turno, en orden', async () => {
+    const user = userEvent.setup();
+    await renderOperator(inReveal());
+    expect(screen.getAllByRole('button', { name: 'Acertó' })).toHaveLength(1);
+    const turn = screen.getByRole('region', { name: 'En turno: Tíos' });
+    expect(turn).toHaveTextContent('Apuesta: 400');
+
+    await user.click(within(turn).getByRole('button', { name: 'Acertó' }));
+    expect(scoreItem('Tíos', 800)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'En turno: Abuelos' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Equipos juzgados' })).toHaveTextContent(
+      'Tíos: acertó, apuesta 400, puntaje 800',
+    );
+    expect(screen.queryByRole('button', { name: 'Ir al podio' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Falló' }));
+    await user.click(screen.getByRole('button', { name: 'Falló' }));
+    expect(scoreItem('Primos', 200)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Acertó' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar respuesta en la TV' }));
+    expect(lastTvView()?.phase).toMatchObject({ answer: 'Respuesta final' });
+
+    await user.click(screen.getByRole('button', { name: 'Ir al podio' }));
+    expect(screen.getByRole('heading', { name: 'Podio' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('list', { name: 'Podio' }))
+        .getAllByRole('listitem')
+        .map((li) => li.getAttribute('aria-label')),
+    ).toEqual([
+      'Posición 1: Tíos, 800 puntos',
+      'Posición 1: Abuelos, 800 puntos',
+      'Posición 3: Primos, 200 puntos',
+      'Posición 4: Sobrinos, 0 puntos',
+    ]);
+  });
+
+  it('terminar durante el Final pide confirmación y no aplica las apuestas pendientes', async () => {
+    const user = userEvent.setup();
+    await renderOperator(inReveal());
+    await user.click(screen.getByRole('button', { name: 'Terminar juego' }));
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(
+      'Las apuestas de los equipos sin juzgar no se aplicarán',
+    );
+    await user.click(screen.getByRole('button', { name: 'Sí, terminar' }));
+    expect(scoreItemInPodium('Primos', 1200)).toBeInTheDocument();
+    expect(scoreItemInPodium('Tíos', 400)).toBeInTheDocument();
+  });
+
+  it('el podio avisa que el Final se saltó', async () => {
+    await saveSession(finalSession([0, -200], ['Tíos', 'Sobrinos']));
+    render(<OperatorScreen sessionId={SESSION_ID} />);
+    expect(await screen.findByRole('heading', { name: 'Podio' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'El Final se saltó porque ningún equipo tenía puntaje positivo.',
+    );
+  });
+
+  it('al recargar en las apuestas conserva las anotadas y las pendientes', async () => {
+    const first = await renderOperator(withWagers(finalSession(), { 'equipo-2': 300 }));
+    first.unmount();
+    render(<OperatorScreen sessionId={SESSION_ID} />);
+    const tios = await screen.findByRole('listitem', { name: 'Tíos' });
+    expect(tios).toHaveTextContent('Apuesta anotada: 300');
+    expect(screen.getByLabelText('Apuesta de Tíos')).toHaveValue(300);
+    expect(screen.getByRole('listitem', { name: 'Primos' })).toHaveTextContent('Sin apuesta');
+    expect(screen.getByRole('button', { name: 'Mostrar pista' })).toBeDisabled();
+  });
+
+  it('al recargar con el temporizador a los 10 s sigue con unos 20 s y sin música', async () => {
+    const session = gameReducer(inClue(), { type: 'startFinalTimer' }, Date.now() - 10_000);
+    await renderOperator(session);
+    expect(screen.getByRole('timer', { name: 'Tiempo restante' })).toHaveTextContent(/^(20|19)$/);
+    expect(screen.getByRole('button', { name: 'Reiniciar temporizador' })).toBeInTheDocument();
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  it('al recargar en la revelación sigue con el siguiente equipo sin rejuzgar', async () => {
+    const session = gameReducer(
+      inReveal(),
+      { type: 'judgeFinal', teamId: 'equipo-2', correct: true },
+      1,
+    );
+    await renderOperator(session);
+    expect(screen.getByRole('region', { name: 'En turno: Abuelos' })).toBeInTheDocument();
+    expect(scoreItem('Tíos', 800)).toBeInTheDocument();
+  });
+});
+
+function scoreItemInPodium(name: string, score: number) {
+  return within(screen.getByRole('list', { name: 'Podio' })).getByRole('listitem', {
+    name: new RegExp(`${name}, ${score} puntos$`),
+  });
+}

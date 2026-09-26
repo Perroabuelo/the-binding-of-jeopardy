@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { parseClueKey } from '../../domain/board';
-import type { TvView } from '../../domain/game';
+import { FINAL_TIMER_MS, type TvFinalPhase, type TvView } from '../../domain/game';
 import { createBroadcastTransport, createTvSync } from '../../sync';
 import { BoardGrid } from '../game/BoardGrid';
 import { ClueImage } from '../game/ClueImage';
 import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
+import { secondsLeft, useCountdown } from '../game/useCountdown';
 import styles from './TvScreen.module.css';
 
 /**
@@ -51,8 +52,9 @@ function TvContent({ view }: { view: TvView }) {
       {phase.kind === 'board' && <BoardGrid categories={view.categories} size="tv" />}
       {phase.kind === 'dailyDouble' && <TvDailyDouble view={view} phase={phase} />}
       {phase.kind === 'clue' && <TvClue view={view} phase={phase} />}
+      {phase.kind === 'final' && <TvFinal phase={phase} />}
       {phase.kind === 'finished' ? (
-        <Podium ranking={phase.ranking} size="tv" />
+        <Podium ranking={phase.ranking} size="tv" finalSkipped={phase.finalSkipped} />
       ) : (
         <TeamScores teams={view.teams} size="tv" />
       )}
@@ -107,5 +109,64 @@ function TvClue({ view, phase }: { view: TvView; phase: CluePhase }) {
         </section>
       )}
     </section>
+  );
+}
+
+/** El Final: la vista trae solo lo que la etapa permite mostrar. */
+function TvFinal({ phase }: { phase: TvFinalPhase }) {
+  return (
+    <section aria-label="Final Jeopardy!" className={styles.clue}>
+      <p className={styles.finalTitle}>FINAL JEOPARDY!</p>
+      <p className={styles.clueMeta}>{phase.category}</p>
+      {phase.stage === 'wagers' && (
+        <>
+          <p className={styles.wager}>
+            {`Juegan: ${phase.participants.map((p) => p.name).join(', ')}`}
+          </p>
+          <p className={styles.finalStatus}>
+            {`Apuestas anotadas: ${phase.wagersReady} de ${phase.participants.length}`}
+          </p>
+        </>
+      )}
+      {phase.question !== undefined && <p className={styles.question}>{phase.question}</p>}
+      <ClueImage
+        imageId={phase.imageId}
+        alt={phase.imageRole === 'answer' ? 'Imagen de la respuesta' : 'Imagen de la pregunta'}
+        className={styles.image}
+      />
+      {phase.stage === 'clue' && phase.timerEndsAt !== undefined && (
+        <TvCountdown endsAt={phase.timerEndsAt} />
+      )}
+      {phase.answer !== undefined && (
+        <section aria-label="Respuesta" className={styles.answer}>
+          <p>{phase.answer}</p>
+        </section>
+      )}
+      {phase.stage === 'reveal' && (
+        <>
+          {phase.judged && phase.judged.length > 0 && (
+            <ol aria-label="Resultados del Final" className={styles.judged}>
+              {phase.judged.map((team) => (
+                <li key={team.teamId}>
+                  {`${team.name}: ${team.correct ? 'acertó' : 'falló'} · apuesta ${team.wager} · ${team.score} puntos`}
+                </li>
+              ))}
+            </ol>
+          )}
+          {phase.currentTeamName !== undefined && (
+            <p className={styles.wager}>{`En turno: ${phase.currentTeamName}`}</p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function TvCountdown({ endsAt }: { endsAt: number }) {
+  const remaining = useCountdown(endsAt);
+  return (
+    <p className={styles.countdown} role="timer" aria-label="Tiempo restante">
+      {secondsLeft(remaining ?? FINAL_TIMER_MS)}
+    </p>
   );
 }

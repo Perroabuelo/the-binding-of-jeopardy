@@ -130,6 +130,39 @@ describe('importBoard', () => {
     }
   });
 
+  it('ida y vuelta: conserva la pista final con sus imágenes con ids nuevos', () => {
+    const original = boardWithImages();
+    original.final = {
+      category: 'Cumpleañero',
+      question: 'Pregunta final',
+      answer: 'Respuesta final',
+      imageId: 'img-fp',
+      answerImageId: 'img-a',
+    };
+    const json = exportBoard(original, { 'img-a': PNG, 'img-b': JPEG, 'img-fp': JPEG });
+    const { board, images } = importBoard(json, { makeId: makeIdGenerator('nuevo'), now: NOW });
+
+    const final = board.final!;
+    expect(final).toMatchObject({
+      category: 'Cumpleañero',
+      question: 'Pregunta final',
+      answer: 'Respuesta final',
+    });
+    expect(final.imageId).not.toBe('img-fp');
+    expect(images[final.imageId!]).toBe(JPEG);
+    // La imagen compartida con una celda usa el mismo id nuevo.
+    expect(final.answerImageId).toBe(board.categories[0]!.clues[0]!.imageId);
+    expect(images[final.answerImageId!]).toBe(PNG);
+    expect(Object.keys(images)).toHaveLength(3);
+  });
+
+  it('importa un archivo sin pista final, de una versión anterior, sin pista final', () => {
+    const file = exportedFile();
+    expect('final' in (file.board as object)).toBe(false);
+    const { board } = importBoard(JSON.stringify(file), { makeId: makeIdGenerator(), now: NOW });
+    expect('final' in board).toBe(false);
+  });
+
   it('ida y vuelta: conserva exactamente las celdas Daily Double', () => {
     const original = makeCompleteBoard();
     original.categories[0]!.clues[2]!.dailyDouble = true;
@@ -340,6 +373,27 @@ describe('importBoard', () => {
       delete (file.images as Record<string, string>)['img-r'];
       const error = expectImportError(JSON.stringify(file));
       expect(error.message).toMatch(/falta una imagen/);
+    });
+
+    it('imagen de la pista final faltante o dañada', () => {
+      for (const field of ['imageId', 'answerImageId'] as const) {
+        const board = boardWithImages();
+        board.final = { category: 'F', question: 'P', answer: 'R', [field]: 'img-f' };
+        const missing = JSON.parse(
+          exportBoard(board, { 'img-a': PNG, 'img-b': JPEG, 'img-f': PNG }),
+        ) as Record<string, unknown>;
+        const damaged = structuredClone(missing);
+        delete (missing.images as Record<string, string>)['img-f'];
+        expect(expectImportError(JSON.stringify(missing)).message).toMatch(/falta una imagen/);
+        (damaged.images as Record<string, string>)['img-f'] = 'data:image/png;base64,';
+        expectImportError(JSON.stringify(damaged));
+      }
+    });
+
+    it('pista final con tipos incorrectos', () => {
+      const file = exportedFile();
+      (file.board as Record<string, unknown>).final = { category: 1, question: 'P', answer: 'R' };
+      expectImportError(JSON.stringify(file));
     });
 
     it('data URL que no es una imagen permitida en base64', () => {

@@ -5,6 +5,7 @@ import {
   clueKey,
   type Board,
   type ClueKey,
+  type FinalClue,
 } from './board';
 
 export type MissingItem =
@@ -45,4 +46,10 @@ export function validateBoard(board: Board): BoardValidation {
   }
 
   return { ready: missing.length === 0, missing };
+}
+
+/** La pista final está completa con categoría, pregunta y respuesta. No afecta `validateBoard`. */
+export function isFinalComplete(final: FinalClue | undefined): boolean {
+  if (!final) return false;
+  return !isBlank(final.category) && !isBlank(final.question) && !isBlank(final.answer);
 }

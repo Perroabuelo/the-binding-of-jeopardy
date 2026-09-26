@@ -2,10 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import { allClueKeys, clueKey, type ClueKey } from './board';
 import {
+  endBoard,
+  FINAL_TIMER_MS,
+  finalClueOf,
+  finalTimeRemaining,
   gameReducer,
   MAX_TEAMS,
   maxWager,
+  nextFinalTeamId,
   startGame,
+  type FinalPhase,
   type GameAction,
   type GameSession,
 } from './game';
@@ -456,5 +462,317 @@ describe('Daily Double: award', () => {
       score: 0,
     });
     expect(scoreOf(next, 't1')).toBe(0);
+  });
+});
+
+const FINAL = { category: 'Cumpleañero', question: 'Pregunta final', answer: 'Respuesta final' };
+
+function finalBoard() {
+  return makeCompleteBoard({ final: { ...FINAL } }, 3);
+}
+
+/** Juego con Final activo y los puntajes indicados, todavía en el tablero. */
+function gameWithFinal(scores: Record<string, number>): GameSession {
+  const names = Object.keys(scores);
+  let session = startGame(finalBoard(), names, {
+    sessionId: 's1',
+    now: T0,
+    makeTeamId: (index) => `t${index}`,
+    withFinal: true,
+  });
+  names.forEach((_, i) => {
+    session = play(session, { type: 'setScore', teamId: `t${i}`, score: scores[names[i]!]! });
+  });
+  return session;
+}
+
+function enterFinal(scores: Record<string, number>): GameSession {
+  return play(gameWithFinal(scores), { type: 'finish' });
+}
+
+function finalPhase(session: GameSession): FinalPhase {
+  if (session.phase.kind !== 'final') throw new Error(`Fase ${session.phase.kind}, no final`);
+  return session.phase;
+}
+
+describe('Final: inicio', () => {
+  it('startGame guarda finalEnabled según withFinal', () => {
+    const board = finalBoard();
+    const opts = { sessionId: 's1', now: T0, makeTeamId: () => 't0' };
+    expect(startGame(board, ['A'], { ...opts, withFinal: true }).finalEnabled).toBe(true);
+    expect(startGame(board, ['A'], opts).finalEnabled).toBe(false);
+  });
+
+  it('startGame rechaza withFinal sin pista final completa', () => {
+    const opts = { sessionId: 's1', now: T0, makeTeamId: () => 't0', withFinal: true };
+    expect(() => startGame(makeCompleteBoard(), ['A'], opts)).toThrow(/pista final/);
+    const incomplete = makeCompleteBoard({ final: { ...FINAL, answer: ' ' } });
+    expect(() => startGame(incomplete, ['A'], opts)).toThrow(/pista final/);
+  });
+
+  it('copia la pista final de forma independiente', () => {
+    const board = finalBoard();
+    const session = startGame(board, ['A'], { sessionId: 's1', now: T0, makeTeamId: () => 't0' });
+    board.final!.question = 'Cambiada';
+    expect(finalClueOf(session)).toEqual(FINAL);
+  });
+});
+
+describe('Final: entrada', () => {
+  it('backToBoard tras la última celda entra al Final en vez del podio', () => {
+    let session = gameWithFinal({ Primos: 500 });
+    const keys = allClueKeys(session.boardSnapshot);
+    for (const key of keys) session = play(session, openClue(key), { type: 'backToBoard' });
+    expect(session.usedClues).toHaveLength(keys.length);
+    expect(session.phase).toEqual({
+      kind: 'final',
+      stage: 'wagers',
+      participants: [{ teamId: 't0', entryScore: 500 }],
+      wagers: {},
+      judged: [],
+      answerRevealed: false,
+    });
+  });
+
+  it('finish con celdas pendientes entra al Final y deja usada la celda abierta', () => {
+    const session = play(gameWithFinal({ Primos: 500 }), openClue('c0-r0'), { type: 'finish' });
+    expect(finalPhase(session).stage).toBe('wagers');
+    expect(session.usedClues).toEqual(['c0-r0']);
+  });
+
+  it('sin Final activo, terminar el tablero va al podio', () => {
+    const session = startGame(finalBoard(), ['A'], {
+      sessionId: 's1',
+      now: T0,
+      makeTeamId: () => 't0',
+    });
+    const next = play(session, { type: 'setScore', teamId: 't0', score: 500 }, { type: 'finish' });
+    expect(next.phase).toEqual({ kind: 'finished' });
+  });
+
+  it('una sesión guardada sin finalEnabled termina sin Final', () => {
+    const session = { ...gameWithFinal({ Primos: 500 }) };
+    delete session.finalEnabled;
+    expect(play(session, { type: 'finish' }).phase).toEqual({ kind: 'finished' });
+  });
+
+  it('participan solo los equipos con puntaje positivo, en orden ascendente y estable', () => {
+    const session = enterFinal({ Primos: 1200, Tíos: 400, Cero: 0, Abuelos: 800, Neg: -200 });
+    expect(finalPhase(session).participants.map((p) => p.teamId)).toEqual(['t1', 't3', 't0']);
+
+    const tied = enterFinal({ A: 800, B: 400, C: 800, D: 400 });
+    expect(finalPhase(tied).participants).toEqual([
+      { teamId: 't1', entryScore: 400 },
+      { teamId: 't3', entryScore: 400 },
+      { teamId: 't0', entryScore: 800 },
+      { teamId: 't2', entryScore: 800 },
+    ]);
+  });
+
+  it('se salta el Final si ningún equipo tiene puntaje positivo', () => {
+    const session = enterFinal({ Tíos: 0, Sobrinos: -200 });
+    expect(session.phase).toEqual({ kind: 'finished', finalSkipped: 'noPositiveScores' });
+
+    let byCells = gameWithFinal({ Tíos: 0 });
+    for (const key of allClueKeys(byCells.boardSnapshot)) {
+      byCells = play(byCells, openClue(key), { type: 'backToBoard' });
+    }
+    expect(byCells.phase).toEqual({ kind: 'finished', finalSkipped: 'noPositiveScores' });
+  });
+
+  it('endBoard pasa al Final con la sesión dada', () => {
+    const next = endBoard(gameWithFinal({ A: 100 }), T1);
+    expect(finalPhase(next).participants).toEqual([{ teamId: 't0', entryScore: 100 }]);
+    expect(next.updatedAt).toBe(T1);
+  });
+});
+
+describe('Final: apuestas', () => {
+  const wager = (teamId: string, amount: number): GameAction => ({
+    type: 'setFinalWager',
+    teamId,
+    amount,
+  });
+
+  it.each([0, 800])('anota una apuesta de %i con 800', (amount) => {
+    const next = play(enterFinal({ Primos: 800 }), wager('t0', amount));
+    expect(finalPhase(next).wagers).toEqual({ t0: amount });
+  });
+
+  it.each([801, -1, 2.5, Number.NaN])('rechaza una apuesta de %d con 800', (amount) => {
+    const session = enterFinal({ Primos: 800 });
+    expect(gameReducer(session, wager('t0', amount), T1)).toBe(session);
+  });
+
+  it('rechaza la apuesta de un equipo que no participa o no existe', () => {
+    const session = enterFinal({ Primos: 800, Tíos: 0 });
+    expect(gameReducer(session, wager('t1', 0), T1)).toBe(session);
+    expect(gameReducer(session, wager('nadie', 0), T1)).toBe(session);
+  });
+
+  it('permite sobrescribir una apuesta antes de mostrar la pista', () => {
+    const next = play(enterFinal({ Primos: 800 }), wager('t0', 300), wager('t0', 500));
+    expect(finalPhase(next).wagers).toEqual({ t0: 500 });
+  });
+
+  it('setScore durante el Final no cambia entryScore ni el máximo de la apuesta', () => {
+    const session = play(enterFinal({ Primos: 800 }), {
+      type: 'setScore',
+      teamId: 't0',
+      score: 2000,
+    });
+    expect(scoreOf(session, 't0')).toBe(2000);
+    expect(finalPhase(session).participants).toEqual([{ teamId: 't0', entryScore: 800 }]);
+    expect(gameReducer(session, wager('t0', 801), T1)).toBe(session);
+  });
+
+  it('showFinalClue está bloqueada mientras falten apuestas', () => {
+    const session = play(enterFinal({ Primos: 800, Tíos: 400 }), wager('t0', 100));
+    expect(gameReducer(session, { type: 'showFinalClue' }, T1)).toBe(session);
+    const shown = play(session, wager('t1', 400), { type: 'showFinalClue' });
+    expect(finalPhase(shown).stage).toBe('clue');
+  });
+
+  it('con la pista mostrada, las apuestas ya no cambian', () => {
+    const session = play(enterFinal({ Primos: 800 }), wager('t0', 100), {
+      type: 'showFinalClue',
+    });
+    expect(gameReducer(session, wager('t0', 200), T1)).toBe(session);
+  });
+
+  it('en el Final, las acciones del tablero no hacen nada', () => {
+    const session = enterFinal({ Primos: 800 });
+    for (const action of [
+      openClue('c1-r1'),
+      { type: 'reveal' },
+      { type: 'award', teamId: 't0', direction: 1 },
+      { type: 'placeWager', teamId: 't0', amount: 100 },
+      { type: 'backToBoard' },
+    ] as GameAction[]) {
+      expect(gameReducer(session, action, T1)).toBe(session);
+    }
+  });
+});
+
+describe('Final: pista y temporizador', () => {
+  function inClue(): GameSession {
+    return play(
+      enterFinal({ Primos: 800 }),
+      { type: 'setFinalWager', teamId: 't0', amount: 100 },
+      { type: 'showFinalClue' },
+    );
+  }
+
+  it('startFinalTimer fija el inicio y reiniciarla lo reemplaza', () => {
+    const started = gameReducer(inClue(), { type: 'startFinalTimer' }, 5_000);
+    expect(finalPhase(started).timerStartedAt).toBe(5_000);
+    const restarted = gameReducer(started, { type: 'startFinalTimer' }, 9_000);
+    expect(finalPhase(restarted).timerStartedAt).toBe(9_000);
+  });
+
+  it('startFinalTimer solo vale en la pista', () => {
+    const wagers = enterFinal({ Primos: 800 });
+    expect(gameReducer(wagers, { type: 'startFinalTimer' }, T1)).toBe(wagers);
+  });
+
+  it('startFinalReveal pasa a la revelación en cualquier momento de la pista', () => {
+    const next = play(inClue(), { type: 'startFinalReveal' });
+    expect(finalPhase(next).stage).toBe('reveal');
+    const wagers = enterFinal({ Primos: 800 });
+    expect(gameReducer(wagers, { type: 'startFinalReveal' }, T1)).toBe(wagers);
+  });
+
+  it.each([
+    [0, 30_000],
+    [10_000, 20_000],
+    [30_000, 0],
+    [45_000, 0],
+  ])('finalTimeRemaining a los %i ms es %i', (elapsed, remaining) => {
+    const started = gameReducer(inClue(), { type: 'startFinalTimer' }, 100_000);
+    expect(finalTimeRemaining(started.phase, 100_000 + elapsed)).toBe(remaining);
+  });
+
+  it('finalTimeRemaining es null sin temporizador iniciado', () => {
+    expect(finalTimeRemaining(inClue().phase, T1)).toBeNull();
+    expect(finalTimeRemaining({ kind: 'board' }, T1)).toBeNull();
+    expect(FINAL_TIMER_MS).toBe(30_000);
+  });
+
+  it('el fin del tiempo no cambia la etapa', () => {
+    const started = gameReducer(inClue(), { type: 'startFinalTimer' }, 0);
+    expect(gameReducer(started, { type: 'reveal' }, 60_000)).toBe(started);
+    expect(finalPhase(started).stage).toBe('clue');
+  });
+});
+
+describe('Final: revelación', () => {
+  function inReveal(): GameSession {
+    return play(
+      enterFinal({ Primos: 1200, Tíos: 400, Abuelos: 800 }),
+      { type: 'setFinalWager', teamId: 't0', amount: 1000 },
+      { type: 'setFinalWager', teamId: 't1', amount: 400 },
+      { type: 'setFinalWager', teamId: 't2', amount: 0 },
+      { type: 'showFinalClue' },
+      { type: 'startFinalReveal' },
+    );
+  }
+  const judge = (teamId: string, correct: boolean): GameAction => ({
+    type: 'judgeFinal',
+    teamId,
+    correct,
+  });
+
+  it('juzga en orden: acierto suma la apuesta y fallo la resta', () => {
+    let session = inReveal();
+    expect(nextFinalTeamId(finalPhase(session))).toBe('t1');
+    session = play(session, judge('t1', true));
+    expect(scoreOf(session, 't1')).toBe(800);
+    expect(nextFinalTeamId(finalPhase(session))).toBe('t2');
+    session = play(session, judge('t2', false), judge('t0', false));
+    expect(scoreOf(session, 't2')).toBe(800);
+    expect(scoreOf(session, 't0')).toBe(200);
+    expect(finalPhase(session).judged).toEqual([
+      { teamId: 't1', correct: true },
+      { teamId: 't2', correct: false },
+      { teamId: 't0', correct: false },
+    ]);
+    expect(nextFinalTeamId(finalPhase(session))).toBeUndefined();
+  });
+
+  it('fuera de turno o repetido no hace nada', () => {
+    const session = inReveal();
+    expect(gameReducer(session, judge('t0', true), T1)).toBe(session);
+    const judged = play(session, judge('t1', true));
+    expect(gameReducer(judged, judge('t1', true), T1)).toBe(judged);
+  });
+
+  it('judgeFinal no vale antes de la revelación', () => {
+    const session = play(
+      enterFinal({ Primos: 800 }),
+      { type: 'setFinalWager', teamId: 't0', amount: 100 },
+      { type: 'showFinalClue' },
+    );
+    expect(gameReducer(session, judge('t0', true), T1)).toBe(session);
+  });
+
+  it('revealFinalAnswer marca la respuesta revelada solo en la revelación', () => {
+    const session = inReveal();
+    const next = play(session, { type: 'revealFinalAnswer' });
+    expect(finalPhase(next).answerRevealed).toBe(true);
+    expect(gameReducer(next, { type: 'revealFinalAnswer' }, T1)).toBe(next);
+    const wagers = enterFinal({ Primos: 800 });
+    expect(gameReducer(wagers, { type: 'revealFinalAnswer' }, T1)).toBe(wagers);
+  });
+
+  it('finish desde el Final no aplica las apuestas pendientes', () => {
+    const session = play(inReveal(), judge('t1', true), { type: 'finish' });
+    expect(session.phase).toEqual({ kind: 'finished' });
+    expect(session.teams.map((team) => team.score)).toEqual([1200, 800, 800]);
+  });
+
+  it('finish desde las apuestas termina el juego sin Final', () => {
+    const session = play(enterFinal({ Primos: 800 }), { type: 'finish' });
+    expect(session.phase).toEqual({ kind: 'finished' });
+    expect(scoreOf(session, 't0')).toBe(800);
   });
 });

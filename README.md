@@ -34,6 +34,32 @@ La apuesta es un número entero de 0 hasta el puntaje del equipo o el valor más
 que sea mayor. Así, un equipo en 0 o en negativo también puede apostar hasta 500. Una vez
 registrada, la apuesta no se cambia: si hubo un error, corrige el puntaje a mano.
 
+### Final Jeopardy!
+
+Debajo del tablero, en el editor, está la sección **Pista final**: una categoría, una pregunta y una
+respuesta, cada una de las dos últimas con su imagen opcional. Es opcional y no impide jugar; el
+panel de **Jugar** indica si está completa, incompleta o si el tablero no tiene pista final.
+
+Si la pista final está completa, al configurar los equipos aparece marcada la opción **Jugar Final
+Jeopardy!**. Con ella activa, al usar todas las celdas (o al terminar antes el juego) se pasa al
+Final en lugar del podio:
+
+1. **Apuestas.** Juegan solo los equipos con puntaje mayor que 0. La TV muestra la categoría y
+   quiénes juegan; el operador anota en secreto la apuesta de cada equipo, de 0 a su puntaje. Se
+   puede cambiar hasta mostrar la pista.
+2. **Pista.** Con todas las apuestas anotadas, **Mostrar pista** la lleva a la TV. **Iniciar
+   temporizador** arranca una cuenta regresiva de 30 segundos con música en la vista de operador
+   (si el operador está conectado a la TV por HDMI, suena en la TV). La música se puede silenciar,
+   y el temporizador reiniciar.
+3. **Revelación.** Los equipos se revelan de a uno, del menor al mayor puntaje con que entraron.
+   Para el equipo en turno marca **Acertó** (suma su apuesta) o **Falló** (la resta). **Mostrar
+   respuesta en la TV** revela la respuesta cuando quieras.
+4. **Ir al podio** termina el juego. Si nadie tenía puntaje positivo, el Final se salta y el podio
+   lo avisa.
+
+Si recargas el operador durante el Final, sigue en el mismo punto, con las apuestas, los equipos ya
+juzgados y el tiempo restante; la música vuelve a sonar solo si reinicias el temporizador.
+
 Los tableros viven solo en el navegador donde se crearon. Para llevarlos a otro computador o
 respaldarlos, usa **Exportar** e **Importar tablero** en la lista. Después de abrir la app una vez
 con conexión, funciona sin internet.
@@ -82,6 +108,13 @@ La app queda publicada en `https://perroabuelo.github.io/the-binding-of-jeopardy
 
 El repositorio es público. Nunca commitees tableros reales ni sus exportaciones (`*.jeopardy.json`):
 los fixtures de pruebas usan solo contenido ficticio.
+
+## Créditos
+
+La música del temporizador del Final es "Four Loop", de pauliuw (Paulius Jurgelevičius), publicada
+en [OpenGameArt](https://opengameart.org/content/music-loops) con licencia
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). El detalle de los cambios está en
+[`public/audio/CREDITS.md`](public/audio/CREDITS.md).
 
 ## Agradecimientos
 

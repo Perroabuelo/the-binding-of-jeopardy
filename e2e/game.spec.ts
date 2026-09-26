@@ -337,3 +337,126 @@ test('Daily Double: marcar en el editor, anunciar en la TV, apostar y reanudar',
   await expect(page.getByRole('button', { name: 'Categoría 2, 400, usada' })).toBeDisabled();
   await expect(tv.getByRole('cell', { name: '400, usada' })).toBeVisible({ timeout: 1000 });
 });
+
+test('Final Jeopardy!: pista final en el editor, apuestas, temporizador, revelación y podio', async ({
+  page,
+}) => {
+  await page.goto('./');
+  const small = makeCompleteBoard({ id: 'e2e-final' }, 3);
+  await seedBoards(page, [small]);
+  await page.goto(`./#/boards/${small.id}`);
+
+  // Completar la pista final en el editor.
+  const section = page.getByRole('region', { name: 'Pista final' });
+  await section.getByLabel('Categoría de la pista final').fill('Cumpleañero');
+  await section.getByLabel('Pregunta de la pista final').fill('Pregunta final secreta');
+  await section.getByLabel('Respuesta de la pista final').fill('Respuesta final secreta');
+  await expect(page.getByText('Pista final: completa.')).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('Cambios guardados');
+
+  await page.getByRole('button', { name: 'Jugar' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Jugar Final Jeopardy!' })).toBeChecked();
+  await page.getByLabel('Nombre del equipo 1').fill('Equipo Rojo');
+  await page.getByLabel('Nombre del equipo 2').fill('Equipo Azul');
+  await page.getByRole('button', { name: 'Agregar equipo' }).click();
+  await page.getByLabel('Nombre del equipo 3').fill('Equipo Verde');
+  await page.getByRole('button', { name: 'Comenzar juego' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+  const tv = await openTv(page);
+  await expect(tv.getByRole('table', { name: 'Tablero' })).toBeVisible();
+
+  // Rojo 100, Azul 200 y Verde 0; se usan las 15 celdas.
+  await page.getByRole('button', { name: 'Categoría 1, 100' }).click();
+  await page.getByRole('button', { name: 'Sumar 100 a Equipo Rojo' }).click();
+  await page.getByRole('button', { name: 'Volver al tablero' }).click();
+  await page.getByRole('button', { name: 'Categoría 1, 200' }).click();
+  await page.getByRole('button', { name: 'Sumar 200 a Equipo Azul' }).click();
+  await page.getByRole('button', { name: 'Volver al tablero' }).click();
+  for (let c = 1; c <= 3; c++) {
+    for (const value of [100, 200, 300, 400, 500]) {
+      if (c === 1 && value <= 200) continue;
+      await page.getByRole('button', { name: `Categoría ${c}, ${value}` }).click();
+      await page.getByRole('button', { name: 'Volver al tablero' }).click();
+    }
+  }
+
+  // Apuestas: la TV muestra la categoría y quiénes juegan, sin la pregunta.
+  const final = page.getByRole('region', { name: 'Final Jeopardy!' });
+  await expect(final).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Podio' })).toHaveCount(0);
+  await expect(final.getByRole('region', { name: 'No participan' })).toContainText('Equipo Verde');
+  const tvFinal = tv.getByRole('region', { name: 'Final Jeopardy!' });
+  await expect(tvFinal).toContainText('Cumpleañero', { timeout: 1000 });
+  await expect(tvFinal).toContainText('Juegan: Equipo Rojo, Equipo Azul');
+  await expect(tv.getByRole('table', { name: 'Tablero' })).toHaveCount(0);
+  expect(await tv.content()).not.toContain('Pregunta final secreta');
+
+  await final.getByLabel('Apuesta de Equipo Rojo').fill('100');
+  await final.getByRole('button', { name: 'Anotar apuesta de Equipo Rojo' }).click();
+  await final.getByLabel('Apuesta de Equipo Azul').fill('50');
+  await final.getByRole('button', { name: 'Anotar apuesta de Equipo Azul' }).click();
+  await expect(tvFinal).toContainText('Apuestas anotadas: 2 de 2', { timeout: 1000 });
+  expect(await tv.content()).not.toMatch(/apuesta (100|50)\b/);
+
+  // Recargar el operador conserva las apuestas.
+  await page.reload();
+  await expect(final.getByRole('listitem', { name: 'Equipo Rojo' })).toContainText(
+    'Apuesta anotada: 100',
+  );
+  await expect(final.getByRole('listitem', { name: 'Equipo Azul' })).toContainText(
+    'Apuesta anotada: 50',
+  );
+
+  // Pista y temporizador: la música suena en el operador y la TV muestra la cuenta regresiva.
+  await final.getByRole('button', { name: 'Mostrar pista' }).click();
+  await expect(tvFinal.getByText('Pregunta final secreta')).toBeVisible({ timeout: 1000 });
+  expect(await tv.content()).not.toContain('Respuesta final secreta');
+  await final.getByRole('button', { name: 'Iniciar temporizador' }).click();
+  await expect
+    .poll(() => page.locator('audio').evaluate((audio: HTMLAudioElement) => audio.paused))
+    .toBe(false);
+  await expect(tv.getByRole('timer', { name: 'Tiempo restante' })).toHaveText(/^(30|29|28)$/, {
+    timeout: 1000,
+  });
+
+  // Revelación en orden: primero Rojo (100), luego Azul (200).
+  await final.getByRole('button', { name: 'Pasar a la revelación' }).click();
+  await expect(page.locator('audio')).toHaveCount(0);
+  await expect(tvFinal).toContainText('En turno: Equipo Rojo', { timeout: 1000 });
+  await final
+    .getByRole('region', { name: 'En turno: Equipo Rojo' })
+    .getByRole('button', { name: 'Acertó' })
+    .click();
+  await final
+    .getByRole('region', { name: 'En turno: Equipo Azul' })
+    .getByRole('button', { name: 'Falló' })
+    .click();
+  for (const window of [page, tv]) {
+    await expect(score(window, 'Equipo Rojo', 200)).toBeVisible({ timeout: 1000 });
+    await expect(score(window, 'Equipo Azul', 150)).toBeVisible();
+    await expect(score(window, 'Equipo Verde', 0)).toBeVisible();
+  }
+  await expect(tv.getByRole('list', { name: 'Resultados del Final' })).toContainText(
+    'Equipo Azul: falló · apuesta 50 · 150 puntos',
+  );
+
+  await final.getByRole('button', { name: 'Mostrar respuesta en la TV' }).click();
+  await expect(tvFinal.getByRole('region', { name: 'Respuesta' })).toHaveText(
+    'Respuesta final secreta',
+    { timeout: 1000 },
+  );
+
+  await final.getByRole('button', { name: 'Ir al podio' }).click();
+  for (const window of [page, tv]) {
+    const podium = window.getByRole('list', { name: 'Podio' });
+    await expect(
+      podium.getByRole('listitem', { name: 'Posición 1: Equipo Rojo, 200 puntos' }),
+    ).toBeVisible({ timeout: 1000 });
+    await expect(
+      podium.getByRole('listitem', { name: 'Posición 2: Equipo Azul, 150 puntos' }),
+    ).toBeVisible();
+    await expect(
+      podium.getByRole('listitem', { name: 'Posición 3: Equipo Verde, 0 puntos' }),
+    ).toBeVisible();
+  }
+});

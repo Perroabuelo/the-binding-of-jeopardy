@@ -1,7 +1,13 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { startGame, type GameSession, type TvView } from '../../domain/game';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  gameReducer,
+  startGame,
+  type GameAction,
+  type GameSession,
+  type TvView,
+} from '../../domain/game';
 import { projectForTv } from '../../domain/projection';
 import { putImage, saveSession } from '../../storage/db';
 import { createMemoryBus, type MemoryBus, type SyncMessage, type SyncTransport } from '../../sync';
@@ -291,5 +297,140 @@ describe('operador y TV juntos', () => {
 
     op.unmount();
     expect(await tv.findByRole('status')).toHaveTextContent('Esperando al operador…');
+  });
+});
+
+describe('TvScreen: Final', () => {
+  const FINAL = {
+    category: 'Cumpleañero',
+    question: 'Pregunta final secreta',
+    answer: 'Respuesta final secreta',
+    imageId: 'img-final-pregunta',
+    answerImageId: 'img-final-respuesta',
+  };
+
+  /** Primos 1200 apuesta 777 y Tíos 400 apuesta 333, en la etapa indicada. */
+  function finalSession(stage: 'wagers' | 'clue' | 'reveal'): GameSession {
+    let n = 0;
+    let session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos', 'Tíos'], {
+      sessionId: SESSION_ID,
+      now: 0,
+      makeTeamId: () => `equipo-${++n}`,
+      withFinal: true,
+    });
+    const actions: GameAction[] = [
+      { type: 'setScore', teamId: 'equipo-1', score: 1200 },
+      { type: 'setScore', teamId: 'equipo-2', score: 400 },
+      { type: 'finish' },
+      { type: 'setFinalWager', teamId: 'equipo-1', amount: 777 },
+    ];
+    if (stage !== 'wagers') {
+      actions.push({ type: 'setFinalWager', teamId: 'equipo-2', amount: 333 });
+      actions.push({ type: 'showFinalClue' });
+    }
+    if (stage === 'reveal') actions.push({ type: 'startFinalReveal' });
+    for (const action of actions) session = gameReducer(session, action, 1);
+    return session;
+  }
+
+  function finalRegion() {
+    return screen.getByRole('region', { name: 'Final Jeopardy!' });
+  }
+
+  beforeEach(async () => {
+    await putImage(FINAL.imageId, new Blob(['p'], { type: 'image/png' }));
+    await putImage(FINAL.answerImageId, new Blob(['r'], { type: 'image/png' }));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('en las apuestas muestra la categoría, quiénes juegan y el conteo, sin la pregunta', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(finalSession('wagers')));
+    const region = finalRegion();
+    expect(region).toHaveTextContent('Cumpleañero');
+    expect(region).toHaveTextContent('Juegan: Tíos, Primos');
+    expect(region).toHaveTextContent('Apuestas anotadas: 1 de 2');
+    expect(screen.queryByRole('table', { name: 'Tablero' })).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(FINAL.question);
+    expect(document.body).not.toHaveTextContent('777');
+    expect(within(region).queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('en la pista muestra la pregunta y su imagen, sin la respuesta', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(finalSession('clue')));
+    const region = finalRegion();
+    expect(within(region).getByText(FINAL.question)).toBeInTheDocument();
+    expect(
+      await within(region).findByRole('img', { name: 'Imagen de la pregunta' }),
+    ).toBeInTheDocument();
+    expect(within(region).queryByRole('region', { name: 'Respuesta' })).not.toBeInTheDocument();
+    expect(within(region).queryByRole('timer')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(FINAL.answer);
+  });
+
+  it('la cuenta regresiva baja de 30 a 0 desde timerEndsAt', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    const session = gameReducer(finalSession('clue'), { type: 'startFinalTimer' }, Date.now());
+    await sendView(projectForTv(session));
+    const timer = screen.getByRole('timer', { name: 'Tiempo restante' });
+    expect(timer).toHaveTextContent('30');
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(timer).toHaveTextContent('20');
+    act(() => vi.advanceTimersByTime(25_000));
+    expect(timer).toHaveTextContent('0');
+  });
+
+  it('en la revelación muestra cada equipo juzgado y el que está en turno', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(finalSession('reveal')));
+    expect(finalRegion()).toHaveTextContent('En turno: Tíos');
+    expect(document.body).not.toHaveTextContent('333');
+
+    const judged = gameReducer(
+      finalSession('reveal'),
+      { type: 'judgeFinal', teamId: 'equipo-2', correct: true },
+      1,
+    );
+    await sendView(projectForTv(judged));
+    expect(screen.getByRole('list', { name: 'Resultados del Final' })).toHaveTextContent(
+      'Tíos: acertó · apuesta 333 · 733 puntos',
+    );
+    expect(finalRegion()).toHaveTextContent('En turno: Primos');
+    expect(document.body).not.toHaveTextContent('777');
+    expect(document.body).not.toHaveTextContent(FINAL.answer);
+  });
+
+  it('al revelar la respuesta la muestra con su imagen en lugar de la de la pregunta', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = gameReducer(finalSession('reveal'), { type: 'revealFinalAnswer' }, 1);
+    await sendView(projectForTv(session));
+    const region = finalRegion();
+    expect(within(region).getByRole('region', { name: 'Respuesta' })).toHaveTextContent(
+      FINAL.answer,
+    );
+    expect(
+      await within(region).findByRole('img', { name: 'Imagen de la respuesta' }),
+    ).toBeInTheDocument();
+    expect(within(region).queryByRole('img', { name: 'Imagen de la pregunta' })).toBeNull();
+  });
+
+  it('en el podio avisa que el Final se saltó', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos'], {
+      sessionId: SESSION_ID,
+      now: 0,
+      makeTeamId: () => 'equipo-1',
+      withFinal: true,
+    });
+    await sendView(projectForTv(gameReducer(session, { type: 'finish' }, 1)));
+    expect(screen.getByRole('list', { name: 'Podio' })).toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveTextContent(
+      'El Final se saltó porque ningún equipo tenía puntaje positivo.',
+    );
   });
 });

@@ -100,3 +100,32 @@
   color: var(--color-accent);
   text-transform: uppercase;
 }
+
+.finalTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: calc(var(--tv-question-font) * 1.25);
+  color: var(--color-accent);
+}
+
+.finalStatus {
+  margin: 0;
+  font-size: var(--tv-category-font);
+  color: var(--color-text-muted);
+}
+
+.countdown {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: calc(var(--tv-question-font) * 1.5);
+  color: var(--color-accent);
+}
+
+.judged {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--tv-category-font);
+}
