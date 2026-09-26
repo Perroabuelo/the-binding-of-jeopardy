@@ -69,6 +69,7 @@ const clueSchema = (value: ClueValue) =>
     answer: z.string(),
     imageId: z.string().optional(),
     answerImageId: z.string().optional(),
+    dailyDouble: z.boolean().optional(),
   });
 
 const [v1, v2, v3, v4, v5] = CLUE_VALUES;
@@ -164,6 +165,7 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
       if (clue.answerImageId !== undefined) {
         copy.answerImageId = newImageIds.get(clue.answerImageId);
       }
+      if (clue.dailyDouble === true) copy.dailyDouble = true;
       return copy;
     }),
   }));

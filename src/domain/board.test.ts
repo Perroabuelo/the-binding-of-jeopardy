@@ -10,6 +10,7 @@ import {
   CLUE_VALUES,
   createEmptyBoard,
   getClue,
+  maxClueValue,
   moveCategory,
   parseClueKey,
   removeCategory,
@@ -254,5 +255,12 @@ describe('categoryHasContent', () => {
     const category = empty();
     fill(category);
     expect(categoryHasContent(category)).toBe(true);
+  });
+});
+
+describe('maxClueValue', () => {
+  it('devuelve 500 en un tablero de 100 a 500', () => {
+    expect(maxClueValue(makeCompleteBoard())).toBe(500);
+    expect(maxClueValue(createEmptyBoard('b1', 0, 3))).toBe(500);
   });
 });
