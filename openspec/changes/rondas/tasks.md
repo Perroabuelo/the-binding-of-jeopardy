@@ -23,7 +23,7 @@
   - `finish` en la ronda 1 de 3 va al podio sin Final, y al Final con Final activo.
   - `startNextRound` avanza `roundIndex`, vacía `usedClues` y conserva los puntajes.
   - En `roundBreak`, `openClue`, `reveal`, `award`, `placeWager` y `backToBoard` devuelven la misma referencia, y `setScore` funciona.
-- [ ] 1.5 En `src/domain/projection.ts`, proyectar los valores multiplicados (`categories`, `clue` y `dailyDouble`), `round` solo con 2 o más rondas, el título de la ronda en curso y la fase `roundBreak`. Cambiar a `number` el tipo de los valores del `TvView`. Verificar con tests unitarios sobre `JSON.stringify(view)`:
+- [x] 1.5 En `src/domain/projection.ts`, proyectar los valores multiplicados (`categories`, `clue` y `dailyDouble`), `round` solo con 2 o más rondas, el título de la ronda en curso y la fase `roundBreak`. Cambiar a `number` el tipo de los valores del `TvView`. Verificar con tests unitarios sobre `JSON.stringify(view)`:
   - En x2, el tablero proyecta 200 a 1000, la celda abierta de 300 proyecta 600, y el Daily Double de 300 también proyecta 600.
   - Sin rondas no hay `round`.
   - En `roundBreak` aparecen el número, el total, el multiplicador y el título de la ronda siguiente, y no aparece ninguna pregunta, respuesta ni id de imagen de su tablero.

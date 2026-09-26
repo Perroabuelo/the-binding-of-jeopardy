@@ -379,3 +379,78 @@ describe('projectForTv: Final', () => {
     expectHidden(JSON.stringify(view), FINAL.question, FINAL.answer);
   });
 });
+
+describe('projectForTv: rondas', () => {
+  /** Dos rondas: "Cumple A" en x1 y "Cumple B" en x2, con imágenes y Daily Double en c0-r2. */
+  function twoRounds(): GameSession {
+    const a = makeCompleteBoard({ id: 'a', title: 'Cumple A' });
+    const b = makeCompleteBoard({ id: 'b', title: 'Cumple B' });
+    b.categories.forEach((category, c) =>
+      category.clues.forEach((clue, r) => {
+        clue.question = `Pregunta B ${c}-${r}`;
+        clue.answer = `Respuesta B ${c}-${r}`;
+        clue.imageId = `img-b-${c}-${r}`;
+        clue.answerImageId = `img-b-resp-${c}-${r}`;
+      }),
+    );
+    b.categories[0]!.clues[2]!.dailyDouble = true;
+    return startGame(
+      [
+        { board: a, multiplier: 1 },
+        { board: b, multiplier: 2 },
+      ],
+      ['Primos', 'Tíos'],
+      { sessionId: 's1', now: 0, makeTeamId: (index) => `t${index}` },
+    );
+  }
+
+  function inRound2(): GameSession {
+    return play(twoRounds(), { type: 'finishRound' }, { type: 'startNextRound' });
+  }
+
+  it('en x2, el tablero proyecta los valores de 200 a 1000', () => {
+    const view = projectForTv(inRound2());
+    for (const category of view.categories) {
+      expect(category.clues.map((clue) => clue.value)).toEqual([200, 400, 600, 800, 1000]);
+    }
+  });
+
+  it('en x2, la celda abierta de 300 proyecta 600', () => {
+    const view = projectForTv(play(inRound2(), openClue('c1-r2')));
+    expect(view.phase).toMatchObject({ kind: 'clue', value: 600 });
+  });
+
+  it('en x2, el Daily Double de 300 proyecta 600', () => {
+    const view = projectForTv(play(inRound2(), openClue('c0-r2')));
+    expect(view.phase).toEqual({ kind: 'dailyDouble', clueKey: 'c0-r2', value: 600 });
+  });
+
+  it('sin rondas no hay indicador de ronda', () => {
+    expect(projectForTv(newGame())).not.toHaveProperty('round');
+  });
+
+  it('con rondas indica la ronda, el total y el multiplicador, y el título de la ronda en curso', () => {
+    expect(projectForTv(twoRounds())).toMatchObject({
+      title: 'Cumple A',
+      round: { number: 1, count: 2, multiplier: 1 },
+    });
+    expect(projectForTv(inRound2())).toMatchObject({
+      title: 'Cumple B',
+      round: { number: 2, count: 2, multiplier: 2 },
+    });
+  });
+
+  it('en la transición envía la ronda siguiente sin el contenido de sus celdas', () => {
+    const view = projectForTv(play(twoRounds(), { type: 'finishRound' }));
+    expect(view.phase).toEqual({
+      kind: 'roundBreak',
+      number: 2,
+      count: 2,
+      multiplier: 2,
+      title: 'Cumple B',
+    });
+    const json = JSON.stringify(view);
+    expect(json).toContain('Cumple B');
+    expect(json).not.toMatch(/Pregunta B|Respuesta B|img-b/);
+  });
+});

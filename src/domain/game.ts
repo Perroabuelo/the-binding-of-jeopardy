@@ -5,7 +5,6 @@ import {
   type Board,
   type Clue,
   type ClueKey,
-  type ClueValue,
   type FinalClue,
 } from './board';
 import { isFinalComplete, validateBoard } from './validation';
@@ -114,17 +113,21 @@ export type GameAction =
 /** Lo que la TV necesita para dibujar. Nunca incluye respuestas no reveladas. */
 export type TvImageRole = 'question' | 'answer';
 
+/** Los valores de la TV son los de la ronda en curso, ya multiplicados. */
 export interface TvView {
   sessionId: string;
+  /** Título del tablero de la ronda en curso. */
   title: string;
-  categories: { name: string; clues: { key: ClueKey; value: ClueValue; used: boolean }[] }[];
+  categories: { name: string; clues: { key: ClueKey; value: number; used: boolean }[] }[];
   teams: Team[];
+  /** Presente solo en un juego con 2 o más rondas. `number` desde 1. */
+  round?: { number: number; count: number; multiplier: number };
   phase:
     | { kind: 'board' }
     | {
         kind: 'clue';
         clueKey: ClueKey;
-        value: ClueValue;
+        value: number;
         question: string;
         /** La imagen que muestra la TV: la de la respuesta solo después de revelarla. */
         imageId?: string;
@@ -136,7 +139,9 @@ export interface TvView {
         dailyDouble?: { teamName: string; wager: number };
       }
     /** Daily Double que espera la apuesta: sin pregunta, imágenes ni respuesta. */
-    | { kind: 'dailyDouble'; clueKey: ClueKey; value: ClueValue }
+    | { kind: 'dailyDouble'; clueKey: ClueKey; value: number }
+    /** Transición hacia la ronda `number` (desde 1): del tablero siguiente, solo su título. */
+    | { kind: 'roundBreak'; number: number; count: number; multiplier: number; title: string }
     | TvFinalPhase
     | {
         kind: 'finished';
