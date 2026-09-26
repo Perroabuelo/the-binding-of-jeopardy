@@ -138,7 +138,37 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
         updatedAt: now,
       };
     }
-    default:
-      return session;
+    case 'award': {
+      if (phase.kind !== 'clue') return session;
+      const clue = getClue(session.boardSnapshot, phase.clueKey);
+      if (!clue) return session;
+      return updateTeamScore(
+        session,
+        action.teamId,
+        (score) => score + action.direction * clue.value,
+        now,
+      );
+    }
+    case 'setScore': {
+      if (phase.kind === 'finished') return session;
+      if (!Number.isSafeInteger(action.score)) return session;
+      return updateTeamScore(session, action.teamId, () => action.score, now);
+    }
   }
+}
+
+function updateTeamScore(
+  session: GameSession,
+  teamId: string,
+  update: (score: number) => number,
+  now: number,
+): GameSession {
+  if (!session.teams.some((team) => team.id === teamId)) return session;
+  return {
+    ...session,
+    teams: session.teams.map((team) =>
+      team.id === teamId ? { ...team, score: update(team.score) } : team,
+    ),
+    updatedAt: now,
+  };
 }

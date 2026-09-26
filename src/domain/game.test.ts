@@ -172,3 +172,88 @@ describe('gameReducer: acciones inválidas devuelven la misma referencia', () =>
     }
   });
 });
+
+function scoreOf(session: GameSession, teamId: string): number | undefined {
+  return session.teams.find((team) => team.id === teamId)?.score;
+}
+
+describe('gameReducer: award', () => {
+  it('suma el valor de la pregunta abierta', () => {
+    // c0-r3 vale 400; el equipo parte con 100
+    const session = play(
+      newGame(),
+      { type: 'setScore', teamId: 't0', score: 100 },
+      openClue('c0-r3'),
+    );
+    const next = gameReducer(session, { type: 'award', teamId: 't0', direction: 1 }, T1);
+    expect(scoreOf(next, 't0')).toBe(500);
+    expect(scoreOf(next, 't1')).toBe(0);
+    expect(next.updatedAt).toBe(T1);
+  });
+
+  it('resta el valor y permite puntajes negativos', () => {
+    const next = play(newGame(), openClue('c1-r2'), { type: 'award', teamId: 't1', direction: -1 });
+    expect(scoreOf(next, 't1')).toBe(-300);
+  });
+
+  it('funciona con la respuesta revelada y se puede repetir', () => {
+    const next = play(
+      newGame(),
+      openClue('c0-r0'),
+      { type: 'reveal' },
+      { type: 'award', teamId: 't0', direction: 1 },
+      { type: 'award', teamId: 't0', direction: 1 },
+      { type: 'award', teamId: 't1', direction: 1 },
+    );
+    expect(scoreOf(next, 't0')).toBe(200);
+    expect(scoreOf(next, 't1')).toBe(100);
+  });
+
+  it('es inválida fuera de la fase de pregunta', () => {
+    const action: GameAction = { type: 'award', teamId: 't0', direction: 1 };
+    const board = newGame();
+    expect(gameReducer(board, action, T1)).toBe(board);
+    const finished = play(newGame(), { type: 'finish' });
+    expect(gameReducer(finished, action, T1)).toBe(finished);
+  });
+
+  it('ignora un equipo inexistente', () => {
+    const session = play(newGame(), openClue('c0-r0'));
+    expect(gameReducer(session, { type: 'award', teamId: 'nope', direction: 1 }, T1)).toBe(session);
+  });
+});
+
+describe('gameReducer: setScore', () => {
+  it('fija el puntaje en la fase tablero', () => {
+    const next = play(newGame(), { type: 'setScore', teamId: 't0', score: 700 });
+    expect(scoreOf(next, 't0')).toBe(700);
+    expect(next.updatedAt).toBe(T1);
+  });
+
+  it('fija el puntaje con una pregunta abierta', () => {
+    const next = play(newGame(), openClue('c0-r0'), {
+      type: 'setScore',
+      teamId: 't1',
+      score: -200,
+    });
+    expect(scoreOf(next, 't1')).toBe(-200);
+    expect(next.phase).toEqual({ kind: 'clue', clueKey: 'c0-r0', revealed: false });
+  });
+
+  it('es inválida con el juego terminado', () => {
+    const session = play(newGame(), { type: 'finish' });
+    expect(gameReducer(session, { type: 'setScore', teamId: 't0', score: 5 }, T1)).toBe(session);
+  });
+
+  it('ignora un equipo inexistente', () => {
+    const session = newGame();
+    expect(gameReducer(session, { type: 'setScore', teamId: 'nope', score: 5 }, T1)).toBe(session);
+  });
+
+  it('rechaza puntajes que no son enteros finitos', () => {
+    const session = newGame();
+    for (const score of [1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(gameReducer(session, { type: 'setScore', teamId: 't0', score }, T1)).toBe(session);
+    }
+  });
+});
