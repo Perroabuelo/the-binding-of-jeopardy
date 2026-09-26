@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Recuperar el juego en curso
-El sistema SHALL conservar el juego en curso (equipos, puntajes, rondas con su tablero y multiplicador, ronda en curso, celdas usadas de la ronda en curso, pregunta abierta y, si es un Daily Double, la espera de apuesta o la apuesta registrada con su equipo) de forma que, si la vista de operador se recarga o se cierra por accidente, el operador pueda reanudarlo en el mismo punto, incluida la transición entre rondas. En un juego con pulsadores, SHALL conservar además si los pulsadores están cerrados, activos o con un equipo respondiendo, qué equipos ya fallaron en la pregunta abierta y qué equipo elige. Durante el Final, SHALL conservar además la etapa del Final, los equipos participantes, las apuestas anotadas, los equipos ya juzgados con su resultado, si la respuesta fue revelada y el momento en que se inició el temporizador, y en un juego con pulsadores, las apuestas y respuestas enviadas desde los celulares con el dispositivo que las envió. Al reanudar con el temporizador corriendo, la cuenta regresiva SHALL continuar con el tiempo restante, sin reproducir la música hasta que el operador reinicie el temporizador. Un juego guardado por una versión anterior, sin rondas, SHALL reanudarse como un juego de una sola ronda con multiplicador x1, y un juego guardado sin pulsadores SHALL reanudarse sin pulsadores.
+El sistema SHALL conservar el juego en curso (equipos, puntajes, rondas con su tablero y multiplicador, ronda en curso, celdas usadas de la ronda en curso, pregunta abierta y, si es un Daily Double, la espera de apuesta o la apuesta registrada con su equipo) de forma que, si la vista de operador se recarga o se cierra por accidente, el operador pueda reanudarlo en el mismo punto, incluida la transición entre rondas. En un juego con pulsadores, SHALL conservar además si los pulsadores están cerrados, activos o con un equipo respondiendo (y el momento en que ese equipo ganó el toque), qué equipos ya fallaron en la pregunta abierta y qué equipo elige. Durante el Final, SHALL conservar además la etapa del Final, los equipos participantes, las apuestas anotadas, los equipos ya juzgados con su resultado, si la respuesta fue revelada y el momento en que se inició el temporizador, y en un juego con pulsadores, las apuestas y respuestas enviadas desde los celulares con el dispositivo que las envió. Al reanudar con el temporizador corriendo, la cuenta regresiva SHALL continuar con el tiempo restante, sin reproducir la música hasta que el operador reinicie el temporizador. Un juego guardado por una versión anterior, sin rondas, SHALL reanudarse como un juego de una sola ronda con multiplicador x1, y un juego guardado sin pulsadores SHALL reanudarse sin pulsadores.
 
 #### Scenario: Recarga del operador
 - **WHEN** con un juego en curso la vista de operador se recarga
@@ -26,6 +26,10 @@ El sistema SHALL conservar el juego en curso (equipos, puntajes, rondas con su t
 #### Scenario: Recarga durante la revelación
 - **WHEN** con "Tíos" ya juzgado como acierto la vista de operador se recarga
 - **THEN** al reanudar, la revelación continúa con el siguiente equipo y el puntaje de "Tíos" no se vuelve a modificar
+
+#### Scenario: Recarga con un equipo respondiendo por pulsador
+- **WHEN** 2 segundos después de que "Tíos" ganó el toque la vista de operador se recarga
+- **THEN** al reanudar, sigue respondiendo "Tíos" y la cuenta regresiva continúa con unos 3 segundos restantes
 
 #### Scenario: Recarga en la ronda 2
 - **WHEN** en la ronda 2 de una partida, con 4 celdas usadas, la vista de operador se recarga

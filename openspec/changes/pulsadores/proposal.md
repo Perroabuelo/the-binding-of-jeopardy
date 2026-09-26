@@ -19,6 +19,7 @@ Roadmap encadenado, cada cambio sobre la rama del anterior:
 - **Armar los pulsadores.** Con una pregunta abierta, el operador la lee y presiona "Activar pulsadores". Recién entonces los celulares muestran el botón activo.
 - **Pulsar antes de tiempo.** Un toque antes de que se activen bloquea a ese celular durante 0,25 s, como en el programa.
 - **Primer toque.** El primer toque válido gana: el operador, la TV y los celulares muestran qué equipo responde, y el celular que tocó lo indica.
+- **Tiempo para responder.** Al ganar el toque empieza una cuenta regresiva fija de 5 s, visible en el operador, la TV y los celulares. Al llegar a 0 muestran "¡Tiempo!" y el operador ve resaltado "Incorrecta", pero no se descuenta nada solo: el operador decide, porque basta con empezar a responder dentro del plazo. La cuenta se detiene al juzgar o cerrar los pulsadores, y vuelve a empezar si otro equipo gana el toque tras una reapertura.
 - **Correcta o incorrecta.**
   - "Correcta" suma el valor de la pregunta (con el multiplicador de la ronda) al equipo que respondió y cierra los pulsadores.
   - "Incorrecta" le resta ese valor y reabre los pulsadores para los demás equipos. Un equipo que ya falló en esa pregunta no puede volver a pulsar. Si no quedan equipos, los pulsadores se cierran.
@@ -31,10 +32,11 @@ Roadmap encadenado, cada cambio sobre la rama del anterior:
 
 ## Notas de versión
 
-**v1.1.0** (minor). Si para `app-escritorio` se elige v0.7.0 en lugar de v1.0.0, esta versión pasa a ser **v0.8.0** (minor).
+**v1.1.0** (minor).
 
 - Pulsadores: en la app de escritorio, cada invitado escanea el QR, elige su equipo y usa su celular como botón.
 - El operador activa los pulsadores después de leer la pregunta. Si alguien toca antes, queda bloqueado un instante.
+- El equipo que pulsa tiene 5 segundos para responder, con la cuenta regresiva a la vista de todos.
 - Una respuesta incorrecta resta los puntos y le da la oportunidad a los demás equipos.
 - En la TV se ve qué equipo responde y quién elige la siguiente pregunta.
 - En el Final, cada equipo envía su apuesta y su respuesta en secreto desde el celular. Ya no hace falta papel.
@@ -42,17 +44,17 @@ Roadmap encadenado, cada cambio sobre la rama del anterior:
 ## Capabilities
 
 ### New Capabilities
-- `buzzers`: los pulsadores desde los celulares. Cubre la opción al iniciar, unirse a un equipo, armar y bloquear, el primer toque, juzgar correcta o incorrecta con reapertura, el Daily Double sin pulsadores, el indicador de quién elige, los estados del celular, la apuesta y la respuesta del Final desde el celular, la privacidad de los celulares, y la reconexión.
+- `buzzers`: los pulsadores desde los celulares. Cubre la opción al iniciar, unirse a un equipo, armar y bloquear, el primer toque, el tiempo para responder, juzgar correcta o incorrecta con reapertura, el Daily Double sin pulsadores, el indicador de quién elige, los estados del celular, la apuesta y la respuesta del Final desde el celular, la privacidad de los celulares, y la reconexión.
 
 ### Modified Capabilities
-- `game-session`: "Recuperar el juego en curso" agrega el estado de los pulsadores, el equipo que elige y los envíos del Final.
-- `game-presentation`: se agrega mostrar el estado de los pulsadores y quién elige. "Presentar el Final" agrega la respuesta escrita del equipo en turno, y "No exponer el Final antes de tiempo" agrega las respuestas enviadas.
+- `game-session`: "Recuperar el juego en curso" agrega el estado de los pulsadores (incluido cuándo empezó el tiempo para responder), el equipo que elige y los envíos del Final.
+- `game-presentation`: se agrega mostrar el estado de los pulsadores, con la cuenta regresiva para responder, y quién elige. "Presentar el Final" agrega la respuesta escrita del equipo en turno, y "No exponer el Final antes de tiempo" agrega las respuestas enviadas.
 - `lan-connection`: "Dispositivos conectados" agrega el equipo de cada dispositivo, y "No exponer datos a la red" pasa a permitir la información mínima que necesita el pulsador.
 
 ## Fuera de alcance
 
 - Pulsadores en la versión web. Siguen requiriendo el servidor de la app de escritorio.
-- Temporizador para responder después de pulsar (unos 5 s en el programa). El operador decide cuándo se acabó el tiempo.
+- Descontar puntos automáticamente al agotarse los 5 s, o configurar esa duración.
 - Sonidos y animaciones, incluido el sonido del pulsador. Tendrán su propio cambio. El celular solo vibra si el navegador lo permite.
 - La TV como dispositivo de la red. Sigue siendo una ventana de la misma app.
 - Nombres de jugador. El celular se identifica con su etiqueta de dispositivo ("Android 2").

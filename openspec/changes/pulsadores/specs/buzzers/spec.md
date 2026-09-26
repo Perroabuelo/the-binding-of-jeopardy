@@ -75,6 +75,25 @@ Con los pulsadores activos, el primer toque válido que llegue a la app SHALL ga
 - **WHEN** "Tíos" ya falló en la pregunta y un celular de "Tíos" toca con los pulsadores reabiertos
 - **THEN** su toque no cuenta
 
+### Requirement: Tiempo para responder
+Cuando un equipo gana el toque, el sistema SHALL iniciar una cuenta regresiva fija de 5 segundos para responder, visible en la vista de operador y en los celulares. Al llegar a 0, la vista de operador y los celulares SHALL indicar "¡Tiempo!" y la vista de operador SHALL resaltar la opción de marcar la respuesta como incorrecta. Llegar a 0 MUST NOT cambiar puntajes ni el estado de los pulsadores: el operador decide y SHALL poder marcar la respuesta como correcta o incorrecta después de agotado el tiempo. La cuenta regresiva MUST terminar cuando el operador juzga la respuesta o cierra los pulsadores, y MUST empezar de nuevo en 5 segundos cuando otro equipo gana el toque tras una reapertura.
+
+#### Scenario: Cuenta regresiva al ganar el toque
+- **WHEN** gana el toque de "Tíos"
+- **THEN** la vista de operador y los celulares muestran una cuenta regresiva que empieza en 5 segundos
+
+#### Scenario: Tiempo agotado
+- **WHEN** pasan 5 segundos desde que "Tíos" ganó el toque sin que el operador juzgue
+- **THEN** la vista de operador y los celulares muestran "¡Tiempo!", la opción de marcar incorrecta queda resaltada, y el puntaje de "Tíos" y el estado de los pulsadores no cambian
+
+#### Scenario: Correcta después del tiempo
+- **WHEN** con el tiempo agotado el operador marca correcta la respuesta de "Tíos", que tenía 0 puntos, en la pregunta de 200
+- **THEN** "Tíos" pasa a 200
+
+#### Scenario: Reapertura reinicia la cuenta
+- **WHEN** el operador marca incorrecta la respuesta de "Tíos" y luego gana el toque de "Primos"
+- **THEN** la cuenta regresiva empieza de nuevo en 5 segundos para "Primos"
+
 ### Requirement: Juzgar la respuesta del pulsador
 Con un equipo respondiendo por pulsador, el sistema SHALL ofrecer al operador marcar la respuesta como correcta o incorrecta. Correcta MUST sumar al equipo el valor de la pregunta multiplicado por el multiplicador de la ronda en curso y cerrar los pulsadores. Incorrecta MUST restar ese valor al equipo y reabrir los pulsadores para los equipos que aún no fallaron en esa pregunta. Si no queda ningún equipo que pueda responder, los pulsadores MUST quedar cerrados. Los botones manuales para sumar o restar puntos y la corrección de puntajes MUST seguir disponibles.
 

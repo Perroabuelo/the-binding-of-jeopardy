@@ -36,7 +36,7 @@ Estado relevante del código que condiciona el diseño:
 - El juego web y el juego de escritorio sin pulsadores se comportan exactamente como antes.
 
 **Non-Goals:**
-- Un temporizador para responder tras pulsar, compensar latencias o nombres de jugador (ver "Fuera de alcance").
+- Descontar puntos automáticamente al agotarse el tiempo para responder, configurar su duración, compensar latencias o nombres de jugador (ver "Fuera de alcance").
 - Que el proceso principal persista estado del juego.
 
 ## Decisions
@@ -67,7 +67,7 @@ interface GameSession {
 
 interface BuzzState {
   status: 'closed' | 'armed' | 'answering';
-  answering?: { teamId: string; deviceId: string; deviceLabel: string };  // solo en 'answering'
+  answering?: { teamId: string; deviceId: string; deviceLabel: string; startedAt: number };  // solo en 'answering'; startedAt = now del buzz
   failedTeamIds: string[];             // fallaron en esta pregunta
 }
 
@@ -97,7 +97,7 @@ type GameAction = ...
 ```
 
 - **`armBuzzers`**: válida en `clue` con `buzz.status === 'closed'` y al menos un equipo fuera de `failedTeamIds`.
-- **`buzz`**: válida solo en `armed`, con un equipo existente que no esté en `failedTeamIds`. Pasa a `answering`.
+- **`buzz`**: válida solo en `armed`, con un equipo existente que no esté en `failedTeamIds`. Pasa a `answering` con `startedAt = now`.
 - **`judgeBuzz`**:
   - `correct: true` suma `clueValueInPlay`, fija `controlTeamId` y pasa a `closed`.
   - `correct: false` resta `clueValueInPlay`, agrega el equipo a `failedTeamIds` y pasa a `armed` si queda algún equipo por responder, o a `closed` si no.
@@ -110,6 +110,16 @@ type GameAction = ...
 - `judgeFinal` no cambia. El operador ve la respuesta enviada para decidir.
 
 *Alternativa descartada:* que el operador no pueda corregir una apuesta enviada por un celular. Un invitado que se equivoca de número no tendría arreglo, y la regla del primer envío existe para coordinar a los celulares del equipo, no para limitar al operador.
+
+### 3b. Tiempo para responder (5 s, solo informativo)
+
+- `BUZZ_ANSWER_MS = 5000` y `buzzTimeRemaining(buzz, now)` son puras, igual que `FINAL_TIMER_MS` y `finalTimeRemaining`. Devuelven `null` fuera de `answering` y nunca menos de 0.
+- **Llegar a 0 no dispara ninguna acción.** El reducer no mira el tiempo en `judgeBuzz`, `award` ni `closeBuzzers`: el operador puede marcar "Correcta" en el segundo 6 si el equipo empezó a responder a tiempo. La regla del programa es empezar a responder dentro del plazo, y eso lo juzga una persona.
+- La cuenta "se detiene" sola: al juzgar o cerrar, `answering` desaparece y con él `startedAt`. Tras un "Incorrecta" que reabre, el siguiente `buzz` fija un `startedAt` nuevo, así que la cuenta vuelve a empezar en 5 s.
+- `startedAt` va en la sesión, así que una recarga del operador retoma la cuenta con el tiempo restante (o ya en "¡Tiempo!").
+- Las proyecciones publican `answerEndsAt = startedAt + BUZZ_ANSWER_MS`. La TV corre en el mismo equipo y lo usa tal cual; los celulares lo corrigen con el desfase de la decisión 7.
+
+*Alternativa descartada:* que al llegar a 0 cuente como incorrecta sola. Es más rápido, pero se equivoca justo en los casos límite (alguien que alcanzó a responder en el segundo 4,9) y obliga a corregir puntajes a mano.
 
 ### 4. Hub: equipo, bloqueo y envío por equipo
 
@@ -132,7 +142,7 @@ interface DeviceGameView {
     teams: { id: string; name: string }[];
     buzzersEnabled: boolean;
     stage: 'board' | 'clue' | 'dailyDouble' | 'roundBreak' | 'final' | 'finished';
-    buzz?: { status: 'closed' | 'armed' | 'answering'; answeringTeamId?: string; failedTeamIds: string[] };
+    buzz?: { status: 'closed' | 'armed' | 'answering'; answeringTeamId?: string; answerEndsAt?: number; failedTeamIds: string[] };
     controlTeamId?: string;
     final?: { stage: 'wagers' | 'clue' | 'reveal'; category: string; timerEndsAt?: number };
   };
@@ -192,7 +202,7 @@ type DeviceEvent =
 ### 7. Reloj: desfase solo para la cuenta regresiva
 
 - El orden de los toques **no** usa relojes: gana el que llega primero al hub.
-- Para la cuenta regresiva del Final en el celular, `timerEndsAt` y `lockedUntil` vienen en el reloj del proceso principal, que es el mismo equipo que el operador. El celular calcula `offset = serverTime - Date.now()` con cada `welcome` y `ping` (media móvil simple) y muestra `timerEndsAt - (Date.now() + offset)`. Es una función pura `remainingWithOffset` con tests.
+- Para las cuentas regresivas en el celular (la del Final y la de 5 s para responder), `timerEndsAt`, `answerEndsAt` y `lockedUntil` vienen en el reloj del proceso principal, que es el mismo equipo que el operador. El celular calcula `offset = serverTime - Date.now()` con cada `welcome` y `ping` (media móvil simple) y muestra `timerEndsAt - (Date.now() + offset)`. Es una función pura `remainingWithOffset` con tests.
 - El celular deshabilita el envío de la respuesta al llegar a 0, pero quien decide es el reducer (`submitFinalAnswer` con `finalTimeRemaining`).
 
 ### 8. UI
@@ -201,21 +211,21 @@ type DeviceEvent =
 - **`CluePanel` (operador), con `buzz`:**
   - `closed`: "Activar pulsadores".
   - `armed`: "Pulsadores activos…" y "Cerrar pulsadores".
-  - `answering`: "Responde: Tíos (Android 2)", con "Correcta (+600)", "Incorrecta (−600)" y "Cerrar pulsadores".
+  - `answering`: "Responde: Tíos (Android 2)" con la cuenta regresiva de 5 s, "Correcta (+600)", "Incorrecta (−600)" y "Cerrar pulsadores". Al llegar a 0 muestra "¡Tiempo!" y resalta "Incorrecta", sin aplicarla.
   - La lista de equipos fallados.
   - Los +/- manuales siguen debajo.
 - **`OperatorScreen`:** "Elige: Primos" junto a los puntajes.
 - **Panel del Final (operador):** en `wagers`, cada participante muestra "Enviada desde Android" o "Pendiente", y el campo manual sigue disponible. En `clue`, marca qué equipos respondieron (sin mostrar el texto hasta la revelación, para que el operador no lo lea en voz alta por error). En `reveal`, muestra la respuesta enviada del equipo en turno.
 - **`ConnectDevicesPanel`:** cada dispositivo con su equipo o "Sin equipo".
-- **`TvScreen`:** banda "¡Pulsadores activos!" y "Responde: Tíos" en la pregunta, "Elige: Primos" junto a los puntajes, y en la revelación del Final la respuesta escrita del equipo en turno y de los ya juzgados.
+- **`TvScreen`:** banda "¡Pulsadores activos!" y "Responde: Tíos" con la cuenta regresiva de 5 s (y "¡Tiempo!" en 0) en la pregunta, "Elige: Primos" junto a los puntajes, y en la revelación del Final la respuesta escrita del equipo en turno y de los ya juzgados.
 - **`PhoneScreen` (`#/unirse`, reemplaza a `JoinScreen`):**
   - Sin juego: "Esperando a que empiece el juego".
   - Sin equipo: la lista de equipos para elegir. Un botón "Cambiar de equipo" siempre visible, con confirmación.
-  - Con equipo: un botón grande que ocupa la pantalla con los estados esperando, activo, bloqueado, ganaste, "Responde Tíos" y "Tu equipo ya falló".
+  - Con equipo: un botón grande que ocupa la pantalla con los estados esperando, activo, bloqueado, ganaste, "Responde Tíos" y "Tu equipo ya falló". En ganaste y "Responde …" se ve la cuenta regresiva de 5 s y luego "¡Tiempo!".
   - En el Final: formulario de apuesta (con el máximo), luego formulario de respuesta con la cuenta regresiva, o "Enviada por Android: 500".
   - `navigator.vibrate` al activarse y al ganar, si existe.
   - El equipo elegido se guarda en `localStorage` con try/catch, junto al `deviceId`.
-- **`TvProjection`:** `projectForTv` agrega `buzz?: { status; answeringTeamName? }`, `controlTeamName?` y, en `final`/`reveal`, `answer` por equipo juzgado y `currentTeamAnswer?`. Las respuestas enviadas de equipos que todavía no estuvieron en turno no salen.
+- **`TvProjection`:** `projectForTv` agrega `buzz?: { status; answeringTeamName?; answerEndsAt? }`, `controlTeamName?` y, en `final`/`reveal`, `answer` por equipo juzgado y `currentTeamAnswer?`. Las respuestas enviadas de equipos que todavía no estuvieron en turno no salen.
 
 ## Estrategia de pruebas
 
@@ -226,6 +236,7 @@ type DeviceEvent =
     - `judgeBuzz(true)` suma `clueValueInPlay` (también en x2) y fija `controlTeamId`.
     - `judgeBuzz(false)` resta, agrega a `failedTeamIds` y rearma. Con todos fallados queda `closed`, y `armBuzzers` sin equipos disponibles devuelve la misma referencia.
     - Un `buzz` de un equipo fallado no cuenta. `closeBuzzers` no cambia puntajes.
+    - `buzz` fija `startedAt`; `buzzTimeRemaining` baja de 5000 a 0 y no pasa de 0; con el tiempo en 0 la sesión no cambia sola y `judgeBuzz(true)` sigue sumando; tras `judgeBuzz(false)` el siguiente `buzz` tiene un `startedAt` nuevo.
     - `submitFinalWager`: el primero queda y el segundo no; fuera de rango o de un no participante no hace nada; `setFinalWager` sobrescribe y borra `wagerSources`.
     - `submitFinalAnswer`: solo en `clue`, no después de 0, el primero queda.
     - Una sesión sin campos nuevos sigue funcionando.
@@ -263,6 +274,7 @@ No se agregan jobs. Los tests unitarios y de componentes entran en los pasos exi
 - [El celular se apaga la pantalla (sin `wakeLock` en `http://`)] → La página sugiere ajustar el tiempo de pantalla. Al volver, el WebSocket se reconecta y muestra el estado actual.
 - [Un invitado cambia de equipo para pulsar por otro] → Es un juego de cumpleaños: el operador ve el equipo de cada dispositivo en la lista y puede corregir puntajes.
 - [Un invitado escribe algo inapropiado en la respuesta del Final] → La TV la muestra recién en la revelación. El operador la ve antes en su panel de revelación y puede decidir.
+- [El operador no mira la cuenta de 5 s] → La TV y los celulares también muestran "¡Tiempo!", así que los invitados lo notan. Igual no se descuenta nada solo.
 - [Respuestas enviadas un instante después de llegar a 0] → Decide el reducer con el reloj del operador, que es el mismo que el del temporizador.
 
 ## Migration Plan

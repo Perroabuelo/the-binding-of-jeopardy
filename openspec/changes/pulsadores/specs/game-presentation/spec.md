@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Estado de los pulsadores en la TV
-En un juego con pulsadores y una pregunta abierta, la vista de presentación SHALL indicar cuando los pulsadores están activos y, cuando un equipo gana el toque, SHALL mostrar qué equipo responde. Cada cambio MUST verse en la presentación en menos de 1 segundo. En un juego sin pulsadores, la presentación MUST NOT mostrar indicaciones de pulsadores.
+En un juego con pulsadores y una pregunta abierta, la vista de presentación SHALL indicar cuando los pulsadores están activos y, cuando un equipo gana el toque, SHALL mostrar qué equipo responde junto a la cuenta regresiva de 5 segundos para responder, e indicar "¡Tiempo!" cuando llega a 0. Cada cambio MUST verse en la presentación en menos de 1 segundo. En un juego sin pulsadores, la presentación MUST NOT mostrar indicaciones de pulsadores.
 
 #### Scenario: Pulsadores activos
 - **WHEN** el operador activa los pulsadores
@@ -9,7 +9,11 @@ En un juego con pulsadores y una pregunta abierta, la vista de presentación SHA
 
 #### Scenario: Equipo respondiendo
 - **WHEN** gana el toque de "Tíos"
-- **THEN** en menos de 1 segundo la presentación muestra que responde "Tíos"
+- **THEN** en menos de 1 segundo la presentación muestra que responde "Tíos" con una cuenta regresiva que empieza en 5 segundos
+
+#### Scenario: Tiempo agotado en la TV
+- **WHEN** pasan 5 segundos desde que "Tíos" ganó el toque sin que el operador juzgue
+- **THEN** la presentación muestra "¡Tiempo!"
 
 #### Scenario: Juego sin pulsadores
 - **WHEN** en un juego sin pulsadores hay una pregunta abierta
