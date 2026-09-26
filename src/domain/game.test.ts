@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import { allClueKeys, clueKey, type Board, type ClueKey } from './board';
 import {
+  clueValueInPlay,
   endBoard,
   FINAL_TIMER_MS,
   finalClueOf,
@@ -425,6 +426,59 @@ describe('gameReducer: award', () => {
   it('ignora un equipo inexistente', () => {
     const session = play(newGame(), openClue('c0-r0'));
     expect(gameReducer(session, { type: 'award', teamId: 'nope', direction: 1 }, T1)).toBe(session);
+  });
+});
+
+describe('valores multiplicados', () => {
+  /** Ronda 2 de 2, en x2, con los puntajes dados. c0-r2 (300) puede ser Daily Double. */
+  function inRound2(scores: [number, number] = [0, 0], dailyDouble = false): GameSession {
+    const boards = roundBoards(2);
+    boards[1]!.categories[0]!.clues[2]!.dailyDouble = dailyDouble;
+    const session: GameSession = { ...roundsGame([1, 2], { boards }), roundIndex: 1 };
+    return play(
+      session,
+      { type: 'setScore', teamId: 't0', score: scores[0] },
+      { type: 'setScore', teamId: 't1', score: scores[1] },
+    );
+  }
+
+  it('clueValueInPlay multiplica el valor de la celda', () => {
+    const session = inRound2();
+    const clue = session.rounds[1]!.boardSnapshot.categories[0]!.clues[3]!;
+    expect(clueValueInPlay(session, clue)).toBe(800);
+    expect(clueValueInPlay(newGame(), clue)).toBe(400);
+  });
+
+  it('en x2, award sobre la celda de 400 suma 800', () => {
+    const next = play(inRound2([100, 0]), openClue('c0-r3'), {
+      type: 'award',
+      teamId: 't0',
+      direction: 1,
+    });
+    expect(scoreOf(next, 't0')).toBe(900);
+  });
+
+  it('en un Daily Double en x2, award sigue usando la apuesta', () => {
+    const next = play(
+      inRound2([1200, 0], true),
+      openClue('c0-r2'),
+      { type: 'placeWager', teamId: 't0', amount: 700 },
+      { type: 'award', teamId: 't0', direction: 1 },
+    );
+    expect(scoreOf(next, 't0')).toBe(1900);
+  });
+
+  it('en x2 con un tablero de 100 a 500, maxWager usa 1000 como tope del tablero', () => {
+    const session = inRound2([300, 1200], true);
+    expect(maxWager(session, 't0')).toBe(1000);
+    expect(maxWager(session, 't1')).toBe(1200);
+    const waiting = play(session, openClue('c0-r2'));
+    expect(gameReducer(waiting, { type: 'placeWager', teamId: 't0', amount: 1100 }, T1)).toBe(
+      waiting,
+    );
+    expect(play(waiting, { type: 'placeWager', teamId: 't0', amount: 1000 }).phase).toMatchObject({
+      wager: { teamId: 't0', amount: 1000 },
+    });
   });
 });
 

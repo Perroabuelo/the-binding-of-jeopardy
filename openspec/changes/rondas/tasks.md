@@ -12,7 +12,7 @@
   - Se rechazan 6 rondas, un tablero repetido, un tablero no listo y los multiplicadores 0, 11 y 1.5, con un mensaje en español.
   - `withFinal` se rechaza si solo la primera ronda tiene pista final, y se acepta si la tiene la última.
   - `finalClueOf` devuelve la pista final de la última ronda.
-- [ ] 1.3 Agregar `clueValueInPlay` y aplicarla en `award`, y aplicar el multiplicador en `maxWager`. Verificar con tests unitarios:
+- [x] 1.3 Agregar `clueValueInPlay` y aplicarla en `award`, y aplicar el multiplicador en `maxWager`. Verificar con tests unitarios:
   - En x2, `award` sobre la celda de 400 suma 800.
   - En un Daily Double en x2, `award` sigue usando la apuesta.
   - En x2 con un tablero de 100 a 500, `maxWager` es 1000 para un equipo con 300 y 1200 para uno con 1200, y `placeWager` rechaza 1100 para el equipo con 300.

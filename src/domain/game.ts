@@ -3,6 +3,7 @@ import {
   getClue,
   maxClueValue,
   type Board,
+  type Clue,
   type ClueKey,
   type ClueValue,
   type FinalClue,
@@ -336,13 +337,19 @@ export function nextFinalTeamId(phase: FinalPhase): string | undefined {
   return phase.participants[phase.judged.length]?.teamId;
 }
 
+/** Valor de la celda en la ronda en curso: su valor en el tablero por el multiplicador. */
+export function clueValueInPlay(session: GameSession, clue: Clue): number {
+  return clue.value * currentRound(session).multiplier;
+}
+
 /**
- * Apuesta máxima de un Daily Double para el equipo: su puntaje o el valor más alto del tablero,
- * lo que sea mayor. Si el equipo no existe, devuelve el valor más alto del tablero.
+ * Apuesta máxima de un Daily Double para el equipo: su puntaje o el valor más alto del tablero de
+ * la ronda en curso ya multiplicado, lo que sea mayor. Si el equipo no existe, devuelve ese valor.
  */
 export function maxWager(session: GameSession, teamId: string): number {
   const team = session.teams.find((t) => t.id === teamId);
-  const boardMax = maxClueValue(currentRound(session).boardSnapshot);
+  const round = currentRound(session);
+  const boardMax = maxClueValue(round.boardSnapshot) * round.multiplier;
   return team ? Math.max(team.score, boardMax) : boardMax;
 }
 
@@ -464,7 +471,7 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       const clue = getClue(currentRound(session).boardSnapshot, phase.clueKey);
       if (!clue) return session;
       if (phase.wager && phase.wager.teamId !== action.teamId) return session;
-      const points = phase.wager ? phase.wager.amount : clue.value;
+      const points = phase.wager ? phase.wager.amount : clueValueInPlay(session, clue);
       return updateTeamScore(
         session,
         action.teamId,
