@@ -30,7 +30,7 @@
 
 ## 2. Inicio del juego
 
-- [ ] 2.1 En `TeamSetupScreen`, agregar la casilla "Jugar con rondas" y la lista de rondas: la ronda 1 con el tablero actual, "Agregar ronda" hasta 5, un selector de tableros listos que deshabilita los ya usados, un multiplicador que parte en el número de ronda, "Quitar" cuando hay más de 2, errores en vivo con `validateRounds` y la casilla del Final según la última ronda. Verificar con tests de componentes en `TeamSetupScreen.test.tsx`:
+- [x] 2.1 En `TeamSetupScreen`, agregar la casilla "Jugar con rondas" y la lista de rondas: la ronda 1 con el tablero actual, "Agregar ronda" hasta 5, un selector de tableros listos que deshabilita los ya usados, un multiplicador que parte en el número de ronda, "Quitar" cuando hay más de 2, errores en vivo con `validateRounds` y la casilla del Final según la última ronda. Verificar con tests de componentes en `TeamSetupScreen.test.tsx`:
   - Sin activar rondas, la sesión guardada tiene una ronda x1 con el tablero actual.
   - Al activar, se muestran la ronda 1 con el tablero actual y la ronda 2 con x2 por defecto.
   - Un tablero no listo no aparece en el selector, y uno ya elegido está deshabilitado en otra ronda.
