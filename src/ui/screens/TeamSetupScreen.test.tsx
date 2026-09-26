@@ -46,7 +46,7 @@ describe('TeamSetupScreen', () => {
       ['Primos', 0],
       ['Tíos', 0],
     ]);
-    expect(session?.boardSnapshot.title).toBe(board.title);
+    expect(session?.rounds[0]!.boardSnapshot.title).toBe(board.title);
   });
 
   it('sin equipos no inicia e indica que se requiere al menos uno', async () => {

@@ -62,11 +62,21 @@ export type GamePhase =
   | FinalPhase
   | { kind: 'finished'; finalSkipped?: FinalSkipReason };
 
-export interface GameSession {
-  id: string;
+export interface GameRound {
   /** Copia del tablero al iniciar: editar el original no afecta el juego. */
   boardSnapshot: Board;
+  /** Entero de MIN_MULTIPLIER a MAX_MULTIPLIER. */
+  multiplier: number;
+}
+
+export interface GameSession {
+  id: string;
+  /** Una sola en un juego sin rondas. */
+  rounds: GameRound[];
+  /** Ronda en curso, desde 0. */
+  roundIndex: number;
   teams: Team[];
+  /** Celdas usadas de la ronda en curso. */
   usedClues: ClueKey[];
   phase: GamePhase;
   /** Se juega el Final al terminar el tablero. Ausente = false. */
@@ -189,7 +199,8 @@ export function startGame(
   }
   return {
     id: sessionId,
-    boardSnapshot: cloneBoard(board),
+    rounds: [{ boardSnapshot: cloneBoard(board), multiplier: 1 }],
+    roundIndex: 0,
     teams: names.map((name, index) => ({ id: makeTeamId(index), name, score: 0 })),
     usedClues: [],
     phase: { kind: 'board' },
@@ -198,9 +209,30 @@ export function startGame(
   };
 }
 
+/** Ronda en curso. */
+export function currentRound(session: GameSession): GameRound {
+  return session.rounds[session.roundIndex]!;
+}
+
+/** Tableros de todas las rondas de la sesión. */
+export function sessionBoards(session: GameSession): Board[] {
+  return session.rounds.map((round) => round.boardSnapshot);
+}
+
+/**
+ * Acepta una sesión guardada con la forma anterior a las rondas (`{ boardSnapshot }`) y la
+ * devuelve como un juego de una ronda en x1. Una sesión con `rounds` se devuelve igual.
+ */
+export function normalizeSession(raw: unknown): GameSession {
+  const stored = raw as GameSession & { boardSnapshot?: Board };
+  if (stored.rounds !== undefined || stored.boardSnapshot === undefined) return stored;
+  const { boardSnapshot, ...rest } = stored;
+  return { ...rest, rounds: [{ boardSnapshot, multiplier: 1 }], roundIndex: 0 };
+}
+
 /** Pista final con la que se juega el Final de la sesión. */
 export function finalClueOf(session: GameSession): FinalClue | undefined {
-  return session.boardSnapshot.final;
+  return currentRound(session).boardSnapshot.final;
 }
 
 /**
@@ -255,7 +287,7 @@ export function nextFinalTeamId(phase: FinalPhase): string | undefined {
  */
 export function maxWager(session: GameSession, teamId: string): number {
   const team = session.teams.find((t) => t.id === teamId);
-  const boardMax = maxClueValue(session.boardSnapshot);
+  const boardMax = maxClueValue(currentRound(session).boardSnapshot);
   return team ? Math.max(team.score, boardMax) : boardMax;
 }
 
@@ -272,7 +304,7 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
   switch (action.type) {
     case 'openClue': {
       if (phase.kind !== 'board') return session;
-      const clue = getClue(session.boardSnapshot, action.clueKey);
+      const clue = getClue(currentRound(session).boardSnapshot, action.clueKey);
       if (!clue) return session;
       if (session.usedClues.includes(action.clueKey)) return session;
       return {
@@ -307,7 +339,9 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
     case 'backToBoard': {
       if (phase.kind !== 'clue' && phase.kind !== 'wager') return session;
       const usedClues = withOpenClueUsed(session);
-      const allUsed = allClueKeys(session.boardSnapshot).every((key) => usedClues.includes(key));
+      const allUsed = allClueKeys(currentRound(session).boardSnapshot).every((key) =>
+        usedClues.includes(key),
+      );
       if (allUsed) return endBoard({ ...session, usedClues }, now);
       return { ...session, usedClues, phase: { kind: 'board' }, updatedAt: now };
     }
@@ -372,7 +406,7 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
     }
     case 'award': {
       if (phase.kind !== 'clue') return session;
-      const clue = getClue(session.boardSnapshot, phase.clueKey);
+      const clue = getClue(currentRound(session).boardSnapshot, phase.clueKey);
       if (!clue) return session;
       if (phase.wager && phase.wager.teamId !== action.teamId) return session;
       const points = phase.wager ? phase.wager.amount : clue.value;

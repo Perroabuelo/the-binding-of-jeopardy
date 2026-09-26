@@ -23,7 +23,7 @@ function openClue(key: ClueKey): GameAction {
 }
 
 function allAnswers(session: GameSession): string[] {
-  return session.boardSnapshot.categories.flatMap((category) =>
+  return session.rounds[0]!.boardSnapshot.categories.flatMap((category) =>
     category.clues.map((clue) => clue.answer),
   );
 }

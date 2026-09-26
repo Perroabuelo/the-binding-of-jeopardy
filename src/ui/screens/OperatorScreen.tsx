@@ -1,6 +1,12 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { allClueKeys, getClue, parseClueKey, type Clue, type ClueKey } from '../../domain/board';
-import { gameReducer, maxWager, type GameAction, type GameSession } from '../../domain/game';
+import {
+  currentRound,
+  gameReducer,
+  maxWager,
+  type GameAction,
+  type GameSession,
+} from '../../domain/game';
 import { projectForTv } from '../../domain/projection';
 import { rankTeams } from '../../domain/ranking';
 import { getSession, saveSession } from '../../storage/db';
@@ -68,7 +74,7 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
       )}
       {session && (
         <>
-          <h2 className={styles.title}>{session.boardSnapshot.title}</h2>
+          <h2 className={styles.title}>{currentRound(session).boardSnapshot.title}</h2>
           <TvLauncher sessionId={sessionId} />
           {session.phase.kind !== 'finished' && (
             <section aria-label="Equipos" className={styles.section}>
@@ -145,12 +151,15 @@ function allFinalJudged(session: GameSession): boolean {
 }
 
 function pendingCount(session: GameSession): number {
-  const total = session.boardSnapshot.categories.reduce((n, c) => n + c.clues.length, 0);
+  const total = currentRound(session).boardSnapshot.categories.reduce(
+    (n, c) => n + c.clues.length,
+    0,
+  );
   return total - session.usedClues.length;
 }
 
 function dailyDoubleKeys(session: GameSession): Set<ClueKey> {
-  const board = session.boardSnapshot;
+  const board = currentRound(session).boardSnapshot;
   return new Set(allClueKeys(board).filter((key) => getClue(board, key)?.dailyDouble === true));
 }
 
@@ -160,10 +169,11 @@ interface OpenClue {
 }
 
 function findOpenClue(session: GameSession, key: ClueKey): OpenClue | null {
-  const clue = getClue(session.boardSnapshot, key);
+  const board = currentRound(session).boardSnapshot;
+  const clue = getClue(board, key);
   const position = parseClueKey(key);
   if (!clue || !position) return null;
-  return { clue, categoryName: session.boardSnapshot.categories[position.categoryIndex]?.name };
+  return { clue, categoryName: board.categories[position.categoryIndex]?.name };
 }
 
 /** Pregunta, respuesta y sus imágenes, que solo ve el operador. */

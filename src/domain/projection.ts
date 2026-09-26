@@ -1,5 +1,6 @@
 import { clueKey, getClue, type FinalClue } from './board';
 import {
+  currentRound,
   FINAL_TIMER_MS,
   finalClueOf,
   nextFinalTeamId,
@@ -17,7 +18,8 @@ import { rankTeams } from './ranking';
  * la pregunta ni sus imágenes. En el Final, ver `projectFinal`.
  */
 export function projectForTv(session: GameSession): TvView {
-  const { boardSnapshot: board, phase } = session;
+  const { phase } = session;
+  const board = currentRound(session).boardSnapshot;
   const teams = session.teams.map((team) => ({ ...team }));
 
   const categories = board.categories.map((category, c) => ({

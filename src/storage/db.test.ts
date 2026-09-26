@@ -27,10 +27,11 @@ function makeBoardWithImages(id: string, imageIds: string[]): Board {
   return board;
 }
 
-function makeSession(id: string, boardSnapshot: Board): GameSession {
+function makeSession(id: string, ...boards: Board[]): GameSession {
   return {
     id,
-    boardSnapshot,
+    rounds: boards.map((boardSnapshot, i) => ({ boardSnapshot, multiplier: i + 1 })),
+    roundIndex: 0,
     teams: [
       { id: 't1', name: 'Equipo Rojo', score: 300 },
       { id: 't2', name: 'Equipo Azul', score: -100 },
@@ -39,6 +40,14 @@ function makeSession(id: string, boardSnapshot: Board): GameSession {
     phase: { kind: 'clue', clueKey: 'c2-r4', revealed: false },
     updatedAt: 1_700_000_500_000,
   };
+}
+
+/** Sesión guardada antes de las rondas: un único `boardSnapshot`. */
+function legacySession(id: string, boardSnapshot: Board): GameSession {
+  const legacy: Record<string, unknown> = { ...makeSession(id, boardSnapshot), boardSnapshot };
+  delete legacy.rounds;
+  delete legacy.roundIndex;
+  return legacy as unknown as GameSession;
 }
 
 function imageBlob(content: string): Blob {
@@ -148,6 +157,14 @@ describe('sesiones', () => {
   it('devuelve null para una sesión inexistente', async () => {
     expect(await getSession('no-existe')).toBeNull();
   });
+
+  it('devuelve normalizada una sesión guardada con la forma anterior', async () => {
+    const board = makeCompleteBoard({ id: 'b1' });
+    await saveSession(legacySession('s1', board));
+    const stored = await getSession('s1');
+    expect(stored).toEqual(makeSession('s1', board));
+    expect(stored).not.toHaveProperty('boardSnapshot');
+  });
 });
 
 describe('borrado en cascada', () => {
@@ -172,6 +189,30 @@ describe('borrado en cascada', () => {
     expect(await getBoard('b1')).toBeNull();
     expect(await getImage('img-sesion')).not.toBeNull();
     expect(await getImage('img-libre')).toBeNull();
+  });
+
+  it('conserva una imagen que solo usa la segunda ronda de una sesión guardada', async () => {
+    await saveBoard(makeBoardWithImages('b1', ['img-ronda-2', 'img-libre']));
+    await putImage('img-ronda-2', imageBlob('2'));
+    await putImage('img-libre', imageBlob('l'));
+    const round2 = makeBoardWithImages('b2', []);
+    round2.categories[1]!.clues[3]!.imageId = 'img-ronda-2';
+    await saveSession(makeSession('s1', makeCompleteBoard({ id: 'b3' }), round2));
+
+    await deleteBoard('b1');
+
+    expect(await getImage('img-ronda-2')).not.toBeNull();
+    expect(await getImage('img-libre')).toBeNull();
+  });
+
+  it('conserva las imágenes de una sesión guardada con la forma anterior', async () => {
+    await saveBoard(makeBoardWithImages('b1', ['img-1']));
+    await putImage('img-1', imageBlob('1'));
+    await saveSession(legacySession('s1', makeBoardWithImages('b1', ['img-1'])));
+
+    await deleteBoard('b1');
+
+    expect(await getImage('img-1')).not.toBeNull();
   });
 
   it('conserva la imagen de respuesta que usa una sesión guardada', async () => {

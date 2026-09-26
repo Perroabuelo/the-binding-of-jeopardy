@@ -10,6 +10,8 @@ import {
   MAX_TEAMS,
   maxWager,
   nextFinalTeamId,
+  normalizeSession,
+  sessionBoards,
   startGame,
   type FinalPhase,
   type GameAction,
@@ -90,13 +92,41 @@ describe('startGame', () => {
       now: T0,
       makeTeamId: () => 't0',
     });
-    expect(session.boardSnapshot).toEqual(board);
+    expect(session.rounds[0]!.boardSnapshot).toEqual(board);
     board.title = 'Cambiado';
     board.categories[0]!.name = 'Cambiada';
     board.categories[0]!.clues[0]!.question = 'Cambiada';
-    expect(session.boardSnapshot.title).toBe('Tablero de prueba');
-    expect(session.boardSnapshot.categories[0]!.name).toBe('Categoría 1');
-    expect(session.boardSnapshot.categories[0]!.clues[0]!.question).toBe('Pregunta 1-1');
+    expect(session.rounds[0]!.boardSnapshot.title).toBe('Tablero de prueba');
+    expect(session.rounds[0]!.boardSnapshot.categories[0]!.name).toBe('Categoría 1');
+    expect(session.rounds[0]!.boardSnapshot.categories[0]!.clues[0]!.question).toBe('Pregunta 1-1');
+  });
+
+  it('crea una sola ronda en x1', () => {
+    const session = newGame();
+    expect(session.rounds).toHaveLength(1);
+    expect(session.rounds[0]!.multiplier).toBe(1);
+    expect(session.roundIndex).toBe(0);
+    expect(sessionBoards(session)).toEqual([makeCompleteBoard()]);
+  });
+});
+
+describe('normalizeSession', () => {
+  it('convierte una sesión con boardSnapshot en una ronda x1', () => {
+    const session = play(newGame(), openClue('c0-r0'));
+    const legacy: Record<string, unknown> = {
+      ...session,
+      boardSnapshot: session.rounds[0]!.boardSnapshot,
+    };
+    delete legacy.rounds;
+    delete legacy.roundIndex;
+    const normalized = normalizeSession(legacy);
+    expect(normalized).toEqual(session);
+    expect(normalized).not.toHaveProperty('boardSnapshot');
+  });
+
+  it('deja igual una sesión con rondas', () => {
+    const session = newGame();
+    expect(normalizeSession(session)).toBe(session);
   });
 });
 
@@ -521,7 +551,7 @@ describe('Final: inicio', () => {
 describe('Final: entrada', () => {
   it('backToBoard tras la última celda entra al Final en vez del podio', () => {
     let session = gameWithFinal({ Primos: 500 });
-    const keys = allClueKeys(session.boardSnapshot);
+    const keys = allClueKeys(session.rounds[0]!.boardSnapshot);
     for (const key of keys) session = play(session, openClue(key), { type: 'backToBoard' });
     expect(session.usedClues).toHaveLength(keys.length);
     expect(session.phase).toEqual({
@@ -574,7 +604,7 @@ describe('Final: entrada', () => {
     expect(session.phase).toEqual({ kind: 'finished', finalSkipped: 'noPositiveScores' });
 
     let byCells = gameWithFinal({ Tíos: 0 });
-    for (const key of allClueKeys(byCells.boardSnapshot)) {
+    for (const key of allClueKeys(byCells.rounds[0]!.boardSnapshot)) {
       byCells = play(byCells, openClue(key), { type: 'backToBoard' });
     }
     expect(byCells.phase).toEqual({ kind: 'finished', finalSkipped: 'noPositiveScores' });

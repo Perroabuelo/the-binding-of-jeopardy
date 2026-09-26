@@ -159,7 +159,7 @@ describe('OperatorScreen', () => {
   it('muestra la imagen de la pregunta', async () => {
     const user = userEvent.setup();
     const session = makeSession();
-    session.boardSnapshot.categories[0]!.clues[0]!.imageId = 'imagen-1';
+    session.rounds[0]!.boardSnapshot.categories[0]!.clues[0]!.imageId = 'imagen-1';
     await putImage('imagen-1', new Blob(['png'], { type: 'image/png' }));
     await renderOperator(session);
 
@@ -173,7 +173,7 @@ describe('OperatorScreen', () => {
   it('muestra la imagen de la respuesta junto a la respuesta antes de revelarla', async () => {
     const user = userEvent.setup();
     const session = makeSession();
-    const clue = session.boardSnapshot.categories[0]!.clues[0]!;
+    const clue = session.rounds[0]!.boardSnapshot.categories[0]!.clues[0]!;
     clue.imageId = 'imagen-pregunta';
     clue.answerImageId = 'imagen-respuesta';
     await putImage('imagen-pregunta', new Blob(['p'], { type: 'image/png' }));
@@ -291,7 +291,7 @@ describe('OperatorScreen: Daily Double', () => {
   // Categoría 1, 200 (c0-r1) es Daily Double. Primos tiene 1200 y Tíos 300.
   function dailyDoubleSession() {
     const session = makeSession();
-    session.boardSnapshot.categories[0]!.clues[1]!.dailyDouble = true;
+    session.rounds[0]!.boardSnapshot.categories[0]!.clues[1]!.dailyDouble = true;
     session.teams = session.teams.map((team, i) => ({ ...team, score: [1200, 300][i]! }));
     return session;
   }

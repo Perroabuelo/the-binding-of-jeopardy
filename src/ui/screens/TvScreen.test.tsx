@@ -86,7 +86,7 @@ describe('TvScreen', () => {
     await putImage('imagen-1', new Blob(['png'], { type: 'image/png' }));
     const { container } = render(<TvScreen sessionId={SESSION_ID} />);
     const session = makeSession();
-    session.boardSnapshot.categories[2]!.clues[1]!.imageId = 'imagen-1';
+    session.rounds[0]!.boardSnapshot.categories[2]!.clues[1]!.imageId = 'imagen-1';
     session.phase = { kind: 'clue', clueKey: 'c2-r1', revealed: false };
     await sendView(projectForTv(session));
 
@@ -114,7 +114,7 @@ describe('TvScreen', () => {
     await putImage('imagen-respuesta', new Blob(['rr'], { type: 'image/png' }));
     render(<TvScreen sessionId={SESSION_ID} />);
     const session = makeSession();
-    const clue = session.boardSnapshot.categories[2]!.clues[1]!;
+    const clue = session.rounds[0]!.boardSnapshot.categories[2]!.clues[1]!;
     clue.imageId = 'imagen-pregunta';
     clue.answerImageId = 'imagen-respuesta';
     session.phase = { kind: 'clue', clueKey: 'c2-r1', revealed: false };
@@ -186,7 +186,7 @@ describe('TvScreen: Daily Double', () => {
   // Categoría 3, 200 (c2-r1) es Daily Double, con imagen de pregunta.
   function dailyDoubleSession(): GameSession {
     const session = makeSession();
-    const clue = session.boardSnapshot.categories[2]!.clues[1]!;
+    const clue = session.rounds[0]!.boardSnapshot.categories[2]!.clues[1]!;
     clue.dailyDouble = true;
     clue.imageId = 'imagen-dd';
     return session;
@@ -269,7 +269,7 @@ describe('operador y TV juntos', () => {
   it('un Daily Double se anuncia sin la pregunta y la muestra tras la apuesta', async () => {
     const user = userEvent.setup();
     const session = makeSession();
-    session.boardSnapshot.categories[1]!.clues[2]!.dailyDouble = true;
+    session.rounds[0]!.boardSnapshot.categories[1]!.clues[2]!.dailyDouble = true;
     await saveSession(session);
     const tvView = render(<TvScreen sessionId={SESSION_ID} />);
     const tv = within(tvView.container);

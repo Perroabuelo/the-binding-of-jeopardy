@@ -2,7 +2,7 @@
 
 ## 1. Dominio
 
-- [ ] 1.1 En `src/domain/game.ts`, reemplazar `boardSnapshot` por `rounds: GameRound[]` y `roundIndex`, con `currentRound`, `sessionBoards` y `normalizeSession`. Adaptar `gameReducer`, `projectForTv`, `OperatorScreen`, `storage/db.ts` (`getSession` normaliza, y `deleteBoard` recorre `sessionBoards` de sesiones normalizadas) y `ui/editor/imageCleanup.ts`, sin cambiar el comportamiento: `startGame` crea una sola ronda en x1. Verificar con tests unitarios:
+- [x] 1.1 En `src/domain/game.ts`, reemplazar `boardSnapshot` por `rounds: GameRound[]` y `roundIndex`, con `currentRound`, `sessionBoards` y `normalizeSession`. Adaptar `gameReducer`, `projectForTv`, `OperatorScreen`, `storage/db.ts` (`getSession` normaliza, y `deleteBoard` recorre `sessionBoards` de sesiones normalizadas) y `ui/editor/imageCleanup.ts`, sin cambiar el comportamiento: `startGame` crea una sola ronda en x1. Verificar con tests unitarios:
   - Todos los tests existentes de `game`, `projection` y `db` pasan con la forma nueva.
   - `normalizeSession` convierte una sesión con `boardSnapshot` en una ronda x1 con `roundIndex: 0`, y deja igual una sesión con `rounds`.
   - `deleteBoard` conserva una imagen que solo usa la segunda ronda de una sesión guardada.
