@@ -10,7 +10,7 @@
 
 - [x] 2.1 Hacer dinámica la grilla del editor (`--columns` en línea y `minmax(8rem, 1fr)` con desplazamiento horizontal) y agregar "Agregar categoría" (deshabilitado en 8) y las flechas "Mover categoría N a la izquierda/derecha" (deshabilitadas en los extremos, con el foco siguiendo a la columna movida). Verificar con tests de componentes en `EditorScreen.test.tsx`: agregar hasta 8, el estado de las flechas en los extremos, el nuevo orden tras mover, el foco después de mover, y que el panel de faltantes nombra la categoría 7 después de agregarla.
 - [x] 2.2 Mover `ConfirmDialog` a `ui/lib/` y agregar "Quitar categoría N" (deshabilitado en 3). Si la columna tiene contenido, se confirma con `ConfirmDialog`; si no, se quita directamente. Después de guardar, se llama a `deleteImageIfUnused` para las imágenes de la categoría quitada. Verificar con tests de componentes: una columna vacía se quita sin diálogo; al cancelar no hay cambios; al confirmar se quita; "Quitar" está deshabilitado con 3 columnas. Verificar con un test de almacenamiento (fake-indexeddb) que la imagen de la columna quitada se borra si nada más la usa, y se conserva si la usa otro tablero.
-- [ ] 2.3 Agregar un e2e en `e2e/editor.spec.ts`: crear un tablero (6 columnas), agregar una séptima, mover la primera a la derecha, quitar una categoría con contenido confirmando, recargar y verificar la cantidad, el orden y el contenido. Verificar que `npm run test:e2e` pasa.
+- [x] 2.3 Agregar un e2e en `e2e/editor.spec.ts`: crear un tablero (6 columnas), agregar una séptima, mover la primera a la derecha, quitar una categoría con contenido confirmando, recargar y verificar la cantidad, el orden y el contenido. Verificar que `npm run test:e2e` pasa.
 
 ## 3. Juego y TV
 
