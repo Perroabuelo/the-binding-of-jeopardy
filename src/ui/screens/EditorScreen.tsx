@@ -9,9 +9,16 @@ import {
 import { validateBoard } from '../../domain/validation';
 import { BoardGrid } from '../editor/BoardGrid';
 import { ClueDialog } from '../editor/ClueDialog';
+import { FinalClueEditor } from '../editor/FinalClueEditor';
 import { deleteImageIfUnused } from '../editor/imageCleanup';
 import { ReadinessPanel } from '../editor/ReadinessPanel';
-import { withCategoryName, withClue, withTitle, type CluePatch } from '../editor/boardEdits';
+import {
+  withCategoryName,
+  withClue,
+  withFinal,
+  withTitle,
+  type CluePatch,
+} from '../editor/boardEdits';
 import { useBoardEditor, type SaveStatus } from '../editor/useBoardEditor';
 import { ConfirmDialog } from '../lib/ConfirmDialog';
 import { navigate, routeHref } from '../router';
@@ -109,8 +116,22 @@ export function EditorScreen({ boardId }: { boardId: string }) {
           }}
         />
 
+        <FinalClueEditor
+          final={board.final}
+          onChange={(patch) => update((b) => withFinal(b, patch))}
+          onImageChange={(imageId) => {
+            update((b) => withFinal(b, { imageId }));
+            return flush();
+          }}
+          onAnswerImageChange={(answerImageId) => {
+            update((b) => withFinal(b, { answerImageId }));
+            return flush();
+          }}
+        />
+
         <ReadinessPanel
           validation={validateBoard(board)}
+          final={board.final}
           onPlay={async () => {
             // Si falla el guardado queda el aviso y no se juega con una versión vieja.
             if (await flush()) navigate({ name: 'teamSetup', boardId: board.id });

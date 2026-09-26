@@ -31,7 +31,7 @@
 
 ## 2. Editor e inicio
 
-- [ ] 2.1 Agregar la sección "Pista final" en el editor: categoría, pregunta, respuesta y dos `ClueImageField`, con parches en `boardEdits.ts` que eliminan `final` si queda vacía. Agregar la línea de estado en `ReadinessPanel`. Verificar con tests de componentes en `EditorScreen.test.tsx`:
+- [x] 2.1 Agregar la sección "Pista final" en el editor: categoría, pregunta, respuesta y dos `ClueImageField`, con parches en `boardEdits.ts` que eliminan `final` si queda vacía. Agregar la línea de estado en `ReadinessPanel`. Verificar con tests de componentes en `EditorScreen.test.tsx`:
   - Completar la pista final persiste tras volver a montar y muestra "completa".
   - Solo la categoría muestra "incompleta" y jugar sigue habilitado.
   - Un tablero sin `final` muestra "sin pista final".

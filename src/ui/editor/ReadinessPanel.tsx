@@ -1,14 +1,22 @@
 import { useId } from 'react';
-import type { BoardValidation } from '../../domain/validation';
+import type { FinalClue } from '../../domain/board';
+import { isFinalComplete, type BoardValidation } from '../../domain/validation';
 import { describeMissing } from './missing';
 import styles from './ReadinessPanel.module.css';
 
 interface ReadinessPanelProps {
   validation: BoardValidation;
+  final: FinalClue | undefined;
   onPlay: () => void;
 }
 
-export function ReadinessPanel({ validation, onPlay }: ReadinessPanelProps) {
+function finalStatusText(final: FinalClue | undefined): string {
+  if (!final) return 'Pista final: sin pista final (es opcional).';
+  if (isFinalComplete(final)) return 'Pista final: completa.';
+  return 'Pista final: incompleta. Falta la categoría, la pregunta o la respuesta para jugar el Final.';
+}
+
+export function ReadinessPanel({ validation, final, onPlay }: ReadinessPanelProps) {
   const headingId = useId();
   const missing = describeMissing(validation.missing);
   return (
@@ -30,6 +38,7 @@ export function ReadinessPanel({ validation, onPlay }: ReadinessPanelProps) {
           ))}
         </ul>
       )}
+      <p className={styles.final}>{finalStatusText(final)}</p>
     </section>
   );
 }
