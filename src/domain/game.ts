@@ -1,4 +1,5 @@
 import { allClueKeys, getClue, type Board, type ClueKey, type ClueValue } from './board';
+import { validateBoard } from './validation';
 
 export const MIN_TEAMS = 1;
 export const MAX_TEAMS = 8;
@@ -72,6 +73,9 @@ export function startGame(
   teamNames: readonly string[],
   { sessionId, now, makeTeamId }: StartGameOptions,
 ): GameSession {
+  if (!validateBoard(board).ready) {
+    throw new Error('El tablero no está listo para jugar.');
+  }
   if (teamNames.length < MIN_TEAMS) {
     throw new Error(`Se requiere al menos ${MIN_TEAMS} equipo para iniciar el juego.`);
   }

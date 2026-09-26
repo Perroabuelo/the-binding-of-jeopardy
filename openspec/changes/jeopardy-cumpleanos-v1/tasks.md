@@ -12,20 +12,20 @@
 ## 2. Dominio: tablero
 
 - [x] 2.1 Implementar en `src/domain/board.ts` los tipos `Board`/`Category`/`Clue`, `createEmptyBoard()` (5x5, valores 100-500), las claves de celda y el fixture ficticio `tests/fixtures/board.ts` — verificar con tests unitarios la estructura y los valores del tablero vacío
-- [ ] 2.2 Implementar `validateBoard(board)`, que devuelve si está listo y la lista de faltantes (título, categorías sin nombre, celdas sin pregunta o respuesta) — verificar con tests unitarios para el tablero vacío, el tablero con una respuesta faltante y el fixture completo
-- [ ] 2.3 Implementar `validateImageFile({type, size})` (PNG/JPEG/GIF/WebP, ≤ 5 MB) — verificar con tests unitarios los formatos válidos, un PDF y un archivo de 8 MB
+- [x] 2.2 Implementar `validateBoard(board)`, que devuelve si está listo y la lista de faltantes (título, categorías sin nombre, celdas sin pregunta o respuesta) — verificar con tests unitarios para el tablero vacío, el tablero con una respuesta faltante y el fixture completo
+- [x] 2.3 Implementar `validateImageFile({type, size})` (PNG/JPEG/GIF/WebP, ≤ 5 MB) — verificar con tests unitarios los formatos válidos, un PDF y un archivo de 8 MB
 
 ## 3. Dominio: juego
 
-- [ ] 3.1 Implementar el tipo `GameSession`, `startGame(board, teamNames)` (1 a 8 equipos con nombre no vacío, puntajes en 0, copia del tablero) y `gameReducer` con `openClue`, `reveal`, `backToBoard` y `finish`, siguiendo la máquina de estados del diseño — verificar con tests unitarios cada transición válida, que las inválidas devuelven la misma referencia, que una celda usada no se reabre y que el juego termina automáticamente con las 25 usadas
-- [ ] 3.2 Agregar al reducer `award(teamId, ±1)` y `setScore(teamId, n)` — verificar con tests unitarios la suma, la resta con resultado negativo, que `award` es inválida fuera de fase `clue` y que `setScore` funciona en `board` y en `clue`
-- [ ] 3.3 Implementar `rankTeams(teams)` con ranking de competencia (1, 1, 3) — verificar con tests unitarios el orden, los empates y un solo equipo
-- [ ] 3.4 Implementar `projectForTv(session)` — verificar con tests unitarios que el resultado, serializado a JSON, no contiene ninguna respuesta en fase `board` ni en `clue` sin revelar, y que contiene solo la respuesta abierta cuando `revealed` es verdadero
+- [x] 3.1 Implementar el tipo `GameSession`, `startGame(board, teamNames)` (1 a 8 equipos con nombre no vacío, puntajes en 0, copia del tablero) y `gameReducer` con `openClue`, `reveal`, `backToBoard` y `finish`, siguiendo la máquina de estados del diseño — verificar con tests unitarios cada transición válida, que las inválidas devuelven la misma referencia, que una celda usada no se reabre y que el juego termina automáticamente con las 25 usadas
+- [x] 3.2 Agregar al reducer `award(teamId, ±1)` y `setScore(teamId, n)` — verificar con tests unitarios la suma, la resta con resultado negativo, que `award` es inválida fuera de fase `clue` y que `setScore` funciona en `board` y en `clue`
+- [x] 3.3 Implementar `rankTeams(teams)` con ranking de competencia (1, 1, 3) — verificar con tests unitarios el orden, los empates y un solo equipo
+- [x] 3.4 Implementar `projectForTv(session)` — verificar con tests unitarios que el resultado, serializado a JSON, no contiene ninguna respuesta en fase `board` ni en `clue` sin revelar, y que contiene solo la respuesta abierta cuando `revealed` es verdadero
 
 ## 4. Almacenamiento
 
-- [ ] 4.1 Implementar `src/storage/db.ts` con `idb` (almacenes `boards`, `images`, `sessions`), las funciones del repositorio y el error `StorageUnavailable` — verificar con tests en `fake-indexeddb` el CRUD, el orden de `listBoards` por `updatedAt`, el borrado en cascada de imágenes y el mapeo de un error de cuota simulado
-- [ ] 4.2 Implementar en `src/domain/exchange.ts` `exportBoard(board, images)` e `importBoard(json)` con validación zod e ids nuevos — verificar con tests unitarios la ida y vuelta (mismo contenido e imágenes, ids distintos), la doble importación con ids distintos y el rechazo de un JSON ajeno, de una versión desconocida, de una estructura que no es 5x5 y de una data URL de tipo no permitido
+- [x] 4.1 Implementar `src/storage/db.ts` con `idb` (almacenes `boards`, `images`, `sessions`), las funciones del repositorio y el error `StorageUnavailable` — verificar con tests en `fake-indexeddb` el CRUD, el orden de `listBoards` por `updatedAt`, el borrado en cascada de imágenes y el mapeo de un error de cuota simulado
+- [x] 4.2 Implementar en `src/domain/exchange.ts` `exportBoard(board, images)` e `importBoard(json)` con validación zod e ids nuevos — verificar con tests unitarios la ida y vuelta (mismo contenido e imágenes, ids distintos), la doble importación con ids distintos y el rechazo de un JSON ajeno, de una versión desconocida, de una estructura que no es 5x5 y de una data URL de tipo no permitido
 
 ## 5. UI: tema, ruteo y tableros
 
@@ -39,7 +39,7 @@
 ## 6. UI: juego con dos ventanas
 
 - [ ] 6.1 Implementar la configuración de equipos y la vista de operador (tablero, pregunta con respuesta, "Revelar", +/- por equipo, editar puntaje, volver al tablero, terminar con confirmación y podio), persistiendo la sesión en cada cambio — verificar con tests de componentes el flujo de una pregunta y con un e2e que juega dos preguntas, recarga el operador y reanuda con los mismos puntajes
-- [ ] 6.2 Implementar `src/sync` (`SyncTransport`, transporte `BroadcastChannel`, transporte en memoria y protocolo `hello/state/ping/bye` con timeout de 10 s) — verificar con tests unitarios (transporte en memoria y timers falsos) la respuesta a `hello`, el envío de estado en cada cambio y la pantalla de espera tras `bye` o timeout
+- [x] 6.2 Implementar `src/sync` (`SyncTransport`, transporte `BroadcastChannel`, transporte en memoria y protocolo `hello/state/ping/bye` con timeout de 10 s) — verificar con tests unitarios (transporte en memoria y timers falsos) la respuesta a `hello`, el envío de estado en cada cambio y la pantalla de espera tras `bye` o timeout
 - [ ] 6.3 Implementar la vista de presentación de solo lectura (tablero, pregunta con imagen, respuesta revelada, puntajes, podio y pantalla de espera, con imágenes leídas de IndexedDB) y el botón "Abrir pantalla de TV" con aviso de popup bloqueado y la URL para copiar — verificar con tests de componentes el render por fase y que un click en la TV no emite acciones
 - [ ] 6.4 Agregar el e2e de dos ventanas: abrir la TV (evento `popup`), abrir una celda, comprobar que el DOM de la TV no contiene la respuesta, revelar y verla en menos de 1 s, sumar puntos, recargar la TV y ver el estado actual, cerrar el operador y ver la pantalla de espera, y terminar el juego y ver el podio en ambas ventanas — verificar que `npm run test:e2e` pasa
 

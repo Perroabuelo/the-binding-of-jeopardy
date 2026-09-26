@@ -54,6 +54,14 @@ describe('startGame', () => {
     expect(() => newGame(nine)).toThrow(/más de 8/);
   });
 
+  it('impide iniciar con un tablero incompleto', () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.answer = '';
+    expect(() =>
+      startGame(board, ['Equipo A'], { sessionId: 's1', now: T0, makeTeamId: () => 't0' }),
+    ).toThrow(/no está listo/);
+  });
+
   it('impide nombres vacíos o solo con espacios', () => {
     expect(() => newGame(['Equipo A', ''])).toThrow(/equipo 2/);
     expect(() => newGame(['   '])).toThrow(/equipo 1/);
