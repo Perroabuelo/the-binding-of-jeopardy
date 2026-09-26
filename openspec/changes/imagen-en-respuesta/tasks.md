@@ -15,7 +15,7 @@
 
 - [x] 3.1 Parametrizar `ClueImageField` con `label` y textos derivados ("Imagen de la pregunta" y "Imagen de la respuesta", con su vista previa y su botón para quitar). Ubicar un campo bajo cada textarea en `ClueDialog`, conectar `answerImageId` en `EditorScreen` y generalizar `applyCluePatch` para borrar la clave cuando el valor es `undefined`. Actualizar los selectores de `EditorScreen.test.tsx`, `e2e/editor.spec.ts` y `e2e/persistence.spec.ts`. Verificar con tests de componentes que se puede adjuntar, quitar y rechazar (PDF y archivo de 8 MB) en la respuesta sin afectar la imagen de la pregunta, y con un e2e en `editor.spec` que la imagen de respuesta sigue tras recargar.
 - [x] 3.2 Mostrar la imagen de la respuesta en `CluePanel` (`OperatorScreen`), dentro de la sección "Respuesta", esté revelada o no. Verificar con un test de componentes que se ve antes de revelar.
-- [ ] 3.3 Usar `imageRole` en `TvScreen` para el texto alternativo de la imagen ("Imagen de la pregunta" o "Imagen de la respuesta"). Verificar con tests de componentes que, sin revelar, se muestra la imagen de la pregunta y no la de la respuesta, y que, revelada, se muestra la de la respuesta en su lugar.
+- [x] 3.3 Usar `imageRole` en `TvScreen` para el texto alternativo de la imagen ("Imagen de la pregunta" o "Imagen de la respuesta"). Verificar con tests de componentes que, sin revelar, se muestra la imagen de la pregunta y no la de la respuesta, y que, revelada, se muestra la de la respuesta en su lugar.
 
 ## 4. Integración de punta a punta
 

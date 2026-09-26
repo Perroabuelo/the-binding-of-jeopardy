@@ -100,6 +100,37 @@ describe('TvScreen', () => {
     expect(screen.getByRole('region', { name: 'Respuesta' })).toHaveTextContent('Respuesta 3-2');
   });
 
+  it('la imagen de la respuesta reemplaza a la de la pregunta solo al revelar', async () => {
+    // Una URL distinta por carga, en orden: 1 es la pregunta y 2 la respuesta.
+    let loads = 0;
+    URL.createObjectURL = vi.fn(() => `blob:imagen-${++loads}`);
+    await putImage('imagen-pregunta', new Blob(['p'], { type: 'image/png' }));
+    await putImage('imagen-respuesta', new Blob(['rr'], { type: 'image/png' }));
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = makeSession();
+    const clue = session.boardSnapshot.categories[2]!.clues[1]!;
+    clue.imageId = 'imagen-pregunta';
+    clue.answerImageId = 'imagen-respuesta';
+    session.phase = { kind: 'clue', clueKey: 'c2-r1', revealed: false };
+    await sendView(projectForTv(session));
+
+    const region = screen.getByRole('region', { name: 'Pregunta' });
+    expect(
+      await within(region).findByRole('img', { name: 'Imagen de la pregunta' }),
+    ).toHaveAttribute('src', 'blob:imagen-1');
+    expect(within(region).getAllByRole('img')).toHaveLength(1);
+    expect(screen.queryByRole('img', { name: 'Imagen de la respuesta' })).not.toBeInTheDocument();
+
+    session.phase = { kind: 'clue', clueKey: 'c2-r1', revealed: true };
+    await sendView(projectForTv(session));
+
+    expect(
+      await within(region).findByRole('img', { name: 'Imagen de la respuesta' }),
+    ).toHaveAttribute('src', 'blob:imagen-2');
+    expect(within(region).getAllByRole('img')).toHaveLength(1);
+    expect(screen.queryByRole('img', { name: 'Imagen de la pregunta' })).not.toBeInTheDocument();
+  });
+
   it('con el juego terminado muestra el podio', async () => {
     render(<TvScreen sessionId={SESSION_ID} />);
     const session = makeSession();
