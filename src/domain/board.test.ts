@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest';
+import { makeCompleteBoard } from '../../tests/fixtures/board';
+import {
+  allClueKeys,
+  clueKey,
+  CLUE_VALUES,
+  createEmptyBoard,
+  getClue,
+  parseClueKey,
+} from './board';
+
+describe('createEmptyBoard', () => {
+  it('crea 5 categorías vacías con 5 celdas de valores 100 a 500', () => {
+    const board = createEmptyBoard('b1', 123);
+    expect(board.id).toBe('b1');
+    expect(board.title).toBe('');
+    expect(board.createdAt).toBe(123);
+    expect(board.updatedAt).toBe(123);
+    expect(board.categories).toHaveLength(5);
+    for (const category of board.categories) {
+      expect(category.name).toBe('');
+      expect(category.clues.map((clue) => clue.value)).toEqual([100, 200, 300, 400, 500]);
+      for (const clue of category.clues) {
+        expect(clue.question).toBe('');
+        expect(clue.answer).toBe('');
+        expect(clue.imageId).toBeUndefined();
+      }
+    }
+  });
+
+  it('no comparte referencias entre categorías', () => {
+    const board = createEmptyBoard('b1', 0);
+    board.categories[0]!.clues[0]!.question = 'x';
+    expect(board.categories[1]!.clues[0]!.question).toBe('');
+  });
+});
+
+describe('claves de celda', () => {
+  it('ida y vuelta entre clave e índices', () => {
+    expect(clueKey(2, 3)).toBe('c2-r3');
+    expect(parseClueKey('c2-r3')).toEqual({ categoryIndex: 2, rowIndex: 3 });
+  });
+
+  it('rechaza claves inválidas o fuera de rango', () => {
+    expect(parseClueKey('x')).toBeNull();
+    expect(parseClueKey('c5-r0')).toBeNull();
+    expect(parseClueKey('c0-r5')).toBeNull();
+  });
+
+  it('allClueKeys devuelve las 25 celdas sin repetir', () => {
+    const keys = allClueKeys();
+    expect(keys).toHaveLength(25);
+    expect(new Set(keys).size).toBe(25);
+  });
+
+  it('getClue devuelve la celda correspondiente', () => {
+    const board = makeCompleteBoard();
+    expect(getClue(board, 'c1-r2')).toMatchObject({
+      value: CLUE_VALUES[2],
+      question: 'Pregunta 2-3',
+    });
+    expect(getClue(board, 'nope')).toBeNull();
+  });
+});

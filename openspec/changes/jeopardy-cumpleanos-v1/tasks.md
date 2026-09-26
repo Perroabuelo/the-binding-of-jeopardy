@@ -11,7 +11,7 @@
 
 ## 2. Dominio: tablero
 
-- [ ] 2.1 Implementar en `src/domain/board.ts` los tipos `Board`/`Category`/`Clue`, `createEmptyBoard()` (5x5, valores 100-500), las claves de celda y el fixture ficticio `tests/fixtures/board.ts` — verificar con tests unitarios la estructura y los valores del tablero vacío
+- [x] 2.1 Implementar en `src/domain/board.ts` los tipos `Board`/`Category`/`Clue`, `createEmptyBoard()` (5x5, valores 100-500), las claves de celda y el fixture ficticio `tests/fixtures/board.ts` — verificar con tests unitarios la estructura y los valores del tablero vacío
 - [ ] 2.2 Implementar `validateBoard(board)`, que devuelve si está listo y la lista de faltantes (título, categorías sin nombre, celdas sin pregunta o respuesta) — verificar con tests unitarios para el tablero vacío, el tablero con una respuesta faltante y el fixture completo
 - [ ] 2.3 Implementar `validateImageFile({type, size})` (PNG/JPEG/GIF/WebP, ≤ 5 MB) — verificar con tests unitarios los formatos válidos, un PDF y un archivo de 8 MB
 
