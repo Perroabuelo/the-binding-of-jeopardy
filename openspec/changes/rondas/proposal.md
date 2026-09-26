@@ -2,7 +2,7 @@
 
 Hoy una partida es un solo tablero con valores fijos. El programa original juega en rondas: **Jeopardy!** y después **Double Jeopardy!**, un tablero nuevo con los valores al doble, que es donde se da vuelta el marcador. Este cambio permite armar una partida con varias rondas, cada una con un tablero que ya existe y su propio multiplicador. Es opcional: quien no lo active juega exactamente como hoy.
 
-**Rama del cambio:** `change/rondas`. Se crea desde `change/final-jeopardy` porque depende de `daily-double` y de `final-jeopardy`: se archiva después de ambos y se integra por PR con CI en verde.
+**Rama del cambio:** `change/rondas`. Se creó desde `change/final-jeopardy`, porque depende de `daily-double` y de `final-jeopardy`, y tras la integración de ambos (v0.4.0 y v0.5.0) quedó rebasada sobre `main`. Se integra por PR con CI en verde.
 
 Roadmap encadenado, cada cambio sobre la rama del anterior:
 
