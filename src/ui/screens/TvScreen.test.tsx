@@ -26,7 +26,7 @@ const SESSION_ID = 'sesion-tv';
 
 function makeSession(): GameSession {
   let n = 0;
-  return startGame(makeCompleteBoard(), ['Primos', 'Tíos'], {
+  return startGame([{ board: makeCompleteBoard(), multiplier: 1 }], ['Primos', 'Tíos'], {
     sessionId: SESSION_ID,
     now: 1_700_000_000_000,
     makeTeamId: () => `equipo-${++n}`,
@@ -86,7 +86,7 @@ describe('TvScreen', () => {
     await putImage('imagen-1', new Blob(['png'], { type: 'image/png' }));
     const { container } = render(<TvScreen sessionId={SESSION_ID} />);
     const session = makeSession();
-    session.boardSnapshot.categories[2]!.clues[1]!.imageId = 'imagen-1';
+    session.rounds[0]!.boardSnapshot.categories[2]!.clues[1]!.imageId = 'imagen-1';
     session.phase = { kind: 'clue', clueKey: 'c2-r1', revealed: false };
     await sendView(projectForTv(session));
 
@@ -114,7 +114,7 @@ describe('TvScreen', () => {
     await putImage('imagen-respuesta', new Blob(['rr'], { type: 'image/png' }));
     render(<TvScreen sessionId={SESSION_ID} />);
     const session = makeSession();
-    const clue = session.boardSnapshot.categories[2]!.clues[1]!;
+    const clue = session.rounds[0]!.boardSnapshot.categories[2]!.clues[1]!;
     clue.imageId = 'imagen-pregunta';
     clue.answerImageId = 'imagen-respuesta';
     session.phase = { kind: 'clue', clueKey: 'c2-r1', revealed: false };
@@ -186,7 +186,7 @@ describe('TvScreen: Daily Double', () => {
   // Categoría 3, 200 (c2-r1) es Daily Double, con imagen de pregunta.
   function dailyDoubleSession(): GameSession {
     const session = makeSession();
-    const clue = session.boardSnapshot.categories[2]!.clues[1]!;
+    const clue = session.rounds[0]!.boardSnapshot.categories[2]!.clues[1]!;
     clue.dailyDouble = true;
     clue.imageId = 'imagen-dd';
     return session;
@@ -269,7 +269,7 @@ describe('operador y TV juntos', () => {
   it('un Daily Double se anuncia sin la pregunta y la muestra tras la apuesta', async () => {
     const user = userEvent.setup();
     const session = makeSession();
-    session.boardSnapshot.categories[1]!.clues[2]!.dailyDouble = true;
+    session.rounds[0]!.boardSnapshot.categories[1]!.clues[2]!.dailyDouble = true;
     await saveSession(session);
     const tvView = render(<TvScreen sessionId={SESSION_ID} />);
     const tv = within(tvView.container);
@@ -312,12 +312,16 @@ describe('TvScreen: Final', () => {
   /** Primos 1200 apuesta 777 y Tíos 400 apuesta 333, en la etapa indicada. */
   function finalSession(stage: 'wagers' | 'clue' | 'reveal'): GameSession {
     let n = 0;
-    let session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos', 'Tíos'], {
-      sessionId: SESSION_ID,
-      now: 0,
-      makeTeamId: () => `equipo-${++n}`,
-      withFinal: true,
-    });
+    let session = startGame(
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
+      ['Primos', 'Tíos'],
+      {
+        sessionId: SESSION_ID,
+        now: 0,
+        makeTeamId: () => `equipo-${++n}`,
+        withFinal: true,
+      },
+    );
     const actions: GameAction[] = [
       { type: 'setScore', teamId: 'equipo-1', score: 1200 },
       { type: 'setScore', teamId: 'equipo-2', score: 400 },
@@ -421,16 +425,82 @@ describe('TvScreen: Final', () => {
 
   it('en el podio avisa que el Final se saltó', async () => {
     render(<TvScreen sessionId={SESSION_ID} />);
-    const session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos'], {
-      sessionId: SESSION_ID,
-      now: 0,
-      makeTeamId: () => 'equipo-1',
-      withFinal: true,
-    });
+    const session = startGame(
+      [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
+      ['Primos'],
+      {
+        sessionId: SESSION_ID,
+        now: 0,
+        makeTeamId: () => 'equipo-1',
+        withFinal: true,
+      },
+    );
     await sendView(projectForTv(gameReducer(session, { type: 'finish' }, 1)));
     expect(screen.getByRole('list', { name: 'Podio' })).toBeInTheDocument();
     expect(screen.getByRole('note')).toHaveTextContent(
       'El Final se saltó porque ningún equipo tenía puntaje positivo.',
     );
+  });
+});
+
+describe('TvScreen: rondas', () => {
+  /** "Cumple A" en x1 y "Cumple B" en x2. */
+  function twoRounds(): GameSession {
+    let n = 0;
+    return startGame(
+      [
+        { board: makeCompleteBoard({ id: 'a', title: 'Cumple A' }), multiplier: 1 },
+        { board: makeCompleteBoard({ id: 'b', title: 'Cumple B' }), multiplier: 2 },
+      ],
+      ['Primos', 'Tíos'],
+      { sessionId: SESSION_ID, now: 0, makeTeamId: () => `equipo-${++n}` },
+    );
+  }
+
+  it('muestra el indicador de ronda solo en un juego con rondas', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(makeSession()));
+    expect(screen.getByRole('table', { name: 'Tablero' })).toBeInTheDocument();
+    expect(screen.queryByText(/^Ronda \d de \d/)).not.toBeInTheDocument();
+
+    await sendView(projectForTv(twoRounds()));
+    expect(screen.getByText('Ronda 1 de 2 · x1')).toBeInTheDocument();
+  });
+
+  it('la transición muestra la ronda, el multiplicador, el título y los puntajes sin el tablero', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = gameReducer(
+      gameReducer(twoRounds(), { type: 'setScore', teamId: 'equipo-1', score: 1500 }, 1),
+      { type: 'finishRound' },
+      1,
+    );
+    await sendView(projectForTv(session));
+
+    const transition = screen.getByRole('region', { name: 'Transición entre rondas' });
+    expect(within(transition).getByRole('heading', { name: 'Ronda 2 de 2' })).toBeInTheDocument();
+    expect(transition).toHaveTextContent('x2');
+    expect(transition).toHaveTextContent('Cumple B');
+    expect(screen.getByRole('listitem', { name: 'Primos: 1500 puntos' })).toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'Tablero' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Cumple A' })).not.toBeInTheDocument();
+  });
+
+  it('en x2 el tablero muestra los valores de 200 a 1000', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const inRound2 = gameReducer(
+      gameReducer(twoRounds(), { type: 'finishRound' }, 1),
+      { type: 'startNextRound' },
+      1,
+    );
+    await sendView(projectForTv(inRound2));
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Cumple B' })).toBeInTheDocument();
+    expect(screen.getByText('Ronda 2 de 2 · x2')).toBeInTheDocument();
+    const board = screen.getByRole('table', { name: 'Tablero' });
+    for (const value of [200, 400, 600, 800, 1000]) {
+      expect(within(board).getAllByRole('cell', { name: String(value) })).toHaveLength(6);
+    }
+    expect(within(board).queryByRole('cell', { name: '100' })).not.toBeInTheDocument();
+    expect(board.style.getPropertyValue('--digits')).toBe('4');
   });
 });

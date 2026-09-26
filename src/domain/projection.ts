@@ -1,5 +1,7 @@
 import { clueKey, getClue, type FinalClue } from './board';
 import {
+  clueValueInPlay,
+  currentRound,
   FINAL_TIMER_MS,
   finalClueOf,
   nextFinalTeamId,
@@ -12,19 +14,21 @@ import {
 import { rankTeams } from './ranking';
 
 /**
- * Vista para la TV. Solo incluye la respuesta de la celda abierta, y su imagen, cuando ya fue
+ * Vista para la TV, con los valores de la ronda en curso ya multiplicados. Solo incluye la respuesta de la celda abierta, y su imagen, cuando ya fue
  * revelada. Nunca indica qué celdas son Daily Double, y un Daily Double sin apuesta no incluye
- * la pregunta ni sus imágenes. En el Final, ver `projectFinal`.
+ * la pregunta ni sus imágenes. En la transición entre rondas, del tablero siguiente solo va su
+ * título. En el Final, ver `projectFinal`.
  */
 export function projectForTv(session: GameSession): TvView {
-  const { boardSnapshot: board, phase } = session;
+  const { phase } = session;
+  const board = currentRound(session).boardSnapshot;
   const teams = session.teams.map((team) => ({ ...team }));
 
   const categories = board.categories.map((category, c) => ({
     name: category.name,
     clues: category.clues.map((clue, r) => {
       const key = clueKey(c, r);
-      return { key, value: clue.value, used: session.usedClues.includes(key) };
+      return { key, value: clueValueInPlay(session, clue), used: session.usedClues.includes(key) };
     }),
   }));
 
@@ -35,12 +39,29 @@ export function projectForTv(session: GameSession): TvView {
       ranking: rankTeams(teams),
       ...(phase.finalSkipped && { finalSkipped: phase.finalSkipped }),
     };
+  } else if (phase.kind === 'roundBreak') {
+    const next = session.rounds[phase.nextRoundIndex];
+    if (next) {
+      tvPhase = {
+        kind: 'roundBreak',
+        number: phase.nextRoundIndex + 1,
+        count: session.rounds.length,
+        multiplier: next.multiplier,
+        title: next.boardSnapshot.title,
+      };
+    }
   } else if (phase.kind === 'final') {
     const final = finalClueOf(session);
     if (final) tvPhase = projectFinal(phase, final, teams);
   } else if (phase.kind === 'wager') {
     const clue = getClue(board, phase.clueKey);
-    if (clue) tvPhase = { kind: 'dailyDouble', clueKey: phase.clueKey, value: clue.value };
+    if (clue) {
+      tvPhase = {
+        kind: 'dailyDouble',
+        clueKey: phase.clueKey,
+        value: clueValueInPlay(session, clue),
+      };
+    }
   } else if (phase.kind === 'clue') {
     const clue = getClue(board, phase.clueKey);
     if (clue) {
@@ -56,7 +77,7 @@ export function projectForTv(session: GameSession): TvView {
       tvPhase = {
         kind: 'clue',
         clueKey: phase.clueKey,
-        value: clue.value,
+        value: clueValueInPlay(session, clue),
         question: clue.question,
         ...image,
         ...(phase.revealed && { answer: clue.answer }),
@@ -65,7 +86,23 @@ export function projectForTv(session: GameSession): TvView {
     }
   }
 
-  return { sessionId: session.id, title: board.title, categories, teams, phase: tvPhase };
+  const round =
+    session.rounds.length > 1
+      ? {
+          number: session.roundIndex + 1,
+          count: session.rounds.length,
+          multiplier: currentRound(session).multiplier,
+        }
+      : undefined;
+
+  return {
+    sessionId: session.id,
+    title: board.title,
+    categories,
+    teams,
+    ...(round && { round }),
+    phase: tvPhase,
+  };
 }
 
 function projectFinal(phase: FinalPhase, final: FinalClue, teams: Team[]): TvFinalPhase {

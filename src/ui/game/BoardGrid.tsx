@@ -15,12 +15,17 @@ export interface BoardGridProps {
 export function BoardGrid({ categories, onOpen, size = 'normal', dailyDoubles }: BoardGridProps) {
   const rowCount = Math.max(0, ...categories.map((category) => category.clues.length));
   const rows = Array.from({ length: rowCount }, (_, r) => r);
+  // Cifras del valor más largo: con multiplicadores llegan a 4 (hasta 5000).
+  const digits = Math.max(
+    1,
+    ...categories.flatMap((category) => category.clues.map((clue) => String(clue.value).length)),
+  );
   return (
     <table
       aria-label="Tablero"
       className={`${styles.grid} ${size === 'tv' ? styles.tv : ''}`}
       data-columns={categories.length}
-      style={{ '--columns': categories.length } as CSSProperties}
+      style={{ '--columns': categories.length, '--digits': digits } as CSSProperties}
     >
       <thead>
         <tr>

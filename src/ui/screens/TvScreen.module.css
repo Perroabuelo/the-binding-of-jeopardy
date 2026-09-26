@@ -17,6 +17,20 @@
   white-space: nowrap;
 }
 
+.header {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
+}
+
+.round {
+  margin: 0;
+  font-size: var(--tv-category-font);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
 .title {
   margin: 0;
   text-align: center;

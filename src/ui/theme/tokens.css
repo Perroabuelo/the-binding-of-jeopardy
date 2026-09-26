@@ -39,11 +39,17 @@
 }
 
 /*
- * El tablero de la TV achica la letra según su número de columnas (`--columns`, 5 si no hay).
- * Se declara también en [data-columns] para que var(--columns) se resuelva en el tablero.
+ * El tablero de la TV achica la letra según su número de columnas (`--columns`, 5 si no hay) y,
+ * en los valores, según las cifras del más largo (`--digits`, 3 si no hay): cada cifra ocupa
+ * cerca de 0,7em y el valor no debe pasar del ancho de su columna.
+ * Se declara también en [data-columns] para que las variables se resuelvan en el tablero.
  */
 :root,
 [data-columns] {
-  --tv-cell-font: clamp(1.25rem, calc(20vw / var(--columns, 5)), 5rem);
+  --tv-cell-font: clamp(
+    1.25rem,
+    min(calc(20vw / var(--columns, 5)), calc(90vw / (var(--columns, 5) * var(--digits, 3)))),
+    5rem
+  );
   --tv-category-font: clamp(0.9rem, calc(10vw / var(--columns, 5)), 2.5rem);
 }

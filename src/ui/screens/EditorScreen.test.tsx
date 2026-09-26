@@ -358,7 +358,8 @@ describe('EditorScreen: imagen por pregunta', () => {
     const imageId = await uploadAndGetId(user, dialog);
     await saveSession({
       id: 'sesion-en-curso',
-      boardSnapshot: await storedBoard(),
+      rounds: [{ boardSnapshot: await storedBoard(), multiplier: 1 }],
+      roundIndex: 0,
       teams: [{ id: 't1', name: 'Equipo Azul', score: 0 }],
       usedClues: [],
       phase: { kind: 'board' },

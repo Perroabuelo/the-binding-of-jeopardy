@@ -45,10 +45,21 @@ function Waiting() {
 }
 
 function TvContent({ view }: { view: TvView }) {
-  const { phase } = view;
+  const { phase, round } = view;
   return (
     <>
-      <h2 className={styles.title}>{view.title}</h2>
+      {phase.kind === 'roundBreak' ? (
+        <TvRoundBreak phase={phase} />
+      ) : (
+        <header className={styles.header}>
+          <h2 className={styles.title}>{view.title}</h2>
+          {round && (
+            <p className={styles.round}>
+              {`Ronda ${round.number} de ${round.count} · x${round.multiplier}`}
+            </p>
+          )}
+        </header>
+      )}
       {phase.kind === 'board' && <BoardGrid categories={view.categories} size="tv" />}
       {phase.kind === 'dailyDouble' && <TvDailyDouble view={view} phase={phase} />}
       {phase.kind === 'clue' && <TvClue view={view} phase={phase} />}
@@ -64,6 +75,18 @@ function TvContent({ view }: { view: TvView }) {
 
 type CluePhase = Extract<TvView['phase'], { kind: 'clue' }>;
 type DailyDoublePhase = Extract<TvView['phase'], { kind: 'dailyDouble' }>;
+type RoundBreakPhase = Extract<TvView['phase'], { kind: 'roundBreak' }>;
+
+/** Transición hacia la ronda siguiente: la vista trae solo su número, multiplicador y título. */
+function TvRoundBreak({ phase }: { phase: RoundBreakPhase }) {
+  return (
+    <section aria-label="Transición entre rondas" className={styles.clue}>
+      <h2 className={styles.finalTitle}>{`Ronda ${phase.number} de ${phase.count}`}</h2>
+      <p className={styles.dailyDouble}>{`x${phase.multiplier}`}</p>
+      <p className={styles.question}>{phase.title}</p>
+    </section>
+  );
+}
 
 function categoryName(view: TvView, key: string): string | undefined {
   const position = parseClueKey(key);

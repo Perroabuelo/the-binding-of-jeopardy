@@ -39,7 +39,8 @@ describe('deleteImageIfUnused', () => {
     snapshot.categories[0]!.clues[0]!.answerImageId = 'img-1';
     await saveSession({
       id: 's1',
-      boardSnapshot: snapshot,
+      rounds: [{ boardSnapshot: snapshot, multiplier: 1 }],
+      roundIndex: 0,
       teams: [{ id: 't1', name: 'Equipo Azul', score: 0 }],
       usedClues: [],
       phase: { kind: 'board' },

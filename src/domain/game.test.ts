@@ -1,16 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
-import { allClueKeys, clueKey, type ClueKey } from './board';
+import { allClueKeys, clueKey, type Board, type ClueKey } from './board';
 import {
+  clueValueInPlay,
   endBoard,
+  endRound,
   FINAL_TIMER_MS,
   finalClueOf,
   finalTimeRemaining,
   gameReducer,
+  MAX_ROUNDS,
   MAX_TEAMS,
   maxWager,
   nextFinalTeamId,
+  normalizeSession,
+  sessionBoards,
   startGame,
+  validateRounds,
   type FinalPhase,
   type GameAction,
   type GameSession,
@@ -18,16 +24,36 @@ import {
 
 const T0 = 1_000;
 const T1 = 2_000;
+const FINAL = { category: 'Cumpleañero', question: 'Pregunta final', answer: 'Respuesta final' };
 
 function newGame(
   teamNames: string[] = ['Equipo A', 'Equipo B'],
   board = makeCompleteBoard(),
 ): GameSession {
-  return startGame(board, teamNames, {
+  return startGame([{ board, multiplier: 1 }], teamNames, {
     sessionId: 's1',
     now: T0,
     makeTeamId: (index) => `t${index}`,
   });
+}
+
+/** Tableros listos de 3 categorías, con id y título propios: b1 "Ronda 1", b2 "Ronda 2"… */
+function roundBoards(count: number, overrides: Partial<Board> = {}): Board[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeCompleteBoard({ id: `b${i + 1}`, title: `Ronda ${i + 1}`, ...overrides }, 3),
+  );
+}
+
+/** Juego con una ronda por multiplicador, en orden, con los equipos t0 y t1. */
+function roundsGame(
+  multipliers: number[] = [1, 2],
+  { withFinal = false, boards = roundBoards(multipliers.length) } = {},
+): GameSession {
+  return startGame(
+    multipliers.map((multiplier, i) => ({ board: boards[i]!, multiplier })),
+    ['Equipo A', 'Equipo B'],
+    { sessionId: 's1', now: T0, makeTeamId: (index) => `t${index}`, withFinal },
+  );
 }
 
 function play(session: GameSession, ...actions: GameAction[]): GameSession {
@@ -74,7 +100,11 @@ describe('startGame', () => {
     const board = makeCompleteBoard();
     board.categories[0]!.clues[0]!.answer = '';
     expect(() =>
-      startGame(board, ['Equipo A'], { sessionId: 's1', now: T0, makeTeamId: () => 't0' }),
+      startGame([{ board, multiplier: 1 }], ['Equipo A'], {
+        sessionId: 's1',
+        now: T0,
+        makeTeamId: () => 't0',
+      }),
     ).toThrow(/no está listo/);
   });
 
@@ -85,18 +115,152 @@ describe('startGame', () => {
 
   it('copia el tablero de forma independiente', () => {
     const board = makeCompleteBoard();
-    const session = startGame(board, ['Equipo A'], {
+    const session = startGame([{ board, multiplier: 1 }], ['Equipo A'], {
       sessionId: 's1',
       now: T0,
       makeTeamId: () => 't0',
     });
-    expect(session.boardSnapshot).toEqual(board);
+    expect(session.rounds[0]!.boardSnapshot).toEqual(board);
     board.title = 'Cambiado';
     board.categories[0]!.name = 'Cambiada';
     board.categories[0]!.clues[0]!.question = 'Cambiada';
-    expect(session.boardSnapshot.title).toBe('Tablero de prueba');
-    expect(session.boardSnapshot.categories[0]!.name).toBe('Categoría 1');
-    expect(session.boardSnapshot.categories[0]!.clues[0]!.question).toBe('Pregunta 1-1');
+    expect(session.rounds[0]!.boardSnapshot.title).toBe('Tablero de prueba');
+    expect(session.rounds[0]!.boardSnapshot.categories[0]!.name).toBe('Categoría 1');
+    expect(session.rounds[0]!.boardSnapshot.categories[0]!.clues[0]!.question).toBe('Pregunta 1-1');
+  });
+
+  it('crea una sola ronda en x1', () => {
+    const session = newGame();
+    expect(session.rounds).toHaveLength(1);
+    expect(session.rounds[0]!.multiplier).toBe(1);
+    expect(session.roundIndex).toBe(0);
+    expect(sessionBoards(session)).toEqual([makeCompleteBoard()]);
+  });
+});
+
+describe('startGame con rondas', () => {
+  const opts = { sessionId: 's1', now: T0, makeTeamId: (index: number) => `t${index}` };
+
+  it('una sola ronda en x1 produce la misma sesión que antes', () => {
+    const board = makeCompleteBoard();
+    expect(startGame([{ board, multiplier: 1 }], ['Equipo A'], opts)).toEqual({
+      id: 's1',
+      rounds: [{ boardSnapshot: board, multiplier: 1 }],
+      roundIndex: 0,
+      teams: [{ id: 't0', name: 'Equipo A', score: 0 }],
+      usedClues: [],
+      phase: { kind: 'board' },
+      finalEnabled: false,
+      updatedAt: T0,
+    });
+  });
+
+  it('guarda las rondas con su tablero y multiplicador, y empieza en la primera', () => {
+    const session = roundsGame([1, 3, 2]);
+    expect(session.rounds.map((r) => [r.boardSnapshot.id, r.multiplier])).toEqual([
+      ['b1', 1],
+      ['b2', 3],
+      ['b3', 2],
+    ]);
+    expect(session.roundIndex).toBe(0);
+  });
+
+  it(`acepta ${MAX_ROUNDS} rondas y rechaza 6`, () => {
+    expect(roundsGame([1, 2, 3, 4, 5]).rounds).toHaveLength(5);
+    expect(() => roundsGame([1, 2, 3, 4, 5, 6])).toThrow('No se pueden tener más de 5 rondas.');
+  });
+
+  it('rechaza un tablero repetido', () => {
+    const [b1, b2] = roundBoards(2);
+    expect(() => roundsGame([1, 2, 3], { boards: [b1!, b2!, b1!] })).toThrow(
+      'Cada ronda necesita un tablero distinto: la ronda 3 repite el de la ronda 1.',
+    );
+  });
+
+  it('rechaza un tablero no listo', () => {
+    const boards = roundBoards(2);
+    boards[1]!.categories[0]!.clues[0]!.answer = '';
+    expect(() => roundsGame([1, 2], { boards })).toThrow(
+      'El tablero de la ronda 2 no está listo para jugar.',
+    );
+  });
+
+  it.each([0, 11, 1.5])('rechaza el multiplicador %s', (multiplier) => {
+    expect(() => roundsGame([1, multiplier])).toThrow(
+      'El multiplicador de la ronda 2 va de 1 a 10, en números enteros.',
+    );
+  });
+
+  it('acepta los multiplicadores 1 y 10', () => {
+    expect(roundsGame([10, 1]).rounds.map((r) => r.multiplier)).toEqual([10, 1]);
+  });
+
+  it('rechaza withFinal si solo la primera ronda tiene pista final', () => {
+    const boards = roundBoards(2);
+    boards[0]!.final = { ...FINAL };
+    expect(() => roundsGame([1, 2], { boards, withFinal: true })).toThrow(
+      'El tablero de la última ronda no tiene una pista final completa para jugar el Final.',
+    );
+  });
+
+  it('acepta withFinal si la última ronda tiene pista final', () => {
+    const boards = roundBoards(2);
+    boards[1]!.final = { ...FINAL };
+    expect(roundsGame([1, 2], { boards, withFinal: true }).finalEnabled).toBe(true);
+  });
+
+  it('finalClueOf devuelve la pista final de la última ronda', () => {
+    const boards = roundBoards(2);
+    boards[0]!.final = { ...FINAL, question: 'De la ronda 1' };
+    boards[1]!.final = { ...FINAL, question: 'De la ronda 2' };
+    expect(finalClueOf(roundsGame([1, 2], { boards }))?.question).toBe('De la ronda 2');
+  });
+});
+
+describe('validateRounds', () => {
+  it('devuelve null con rondas válidas', () => {
+    const [b1, b2] = roundBoards(2);
+    expect(validateRounds([{ board: b1!, multiplier: 1 }])).toBeNull();
+    expect(
+      validateRounds([
+        { board: b1!, multiplier: 1 },
+        { board: b2!, multiplier: 2 },
+      ]),
+    ).toBeNull();
+  });
+
+  it('indica la ronda sin tablero', () => {
+    const [b1] = roundBoards(1);
+    expect(
+      validateRounds([
+        { board: b1!, multiplier: 1 },
+        { board: null, multiplier: 2 },
+      ]),
+    ).toBe('Elige un tablero para la ronda 2.');
+  });
+
+  it('exige al menos una ronda', () => {
+    expect(validateRounds([])).toMatch(/al menos 1 ronda/);
+  });
+});
+
+describe('normalizeSession', () => {
+  it('convierte una sesión con boardSnapshot en una ronda x1', () => {
+    const session = play(newGame(), openClue('c0-r0'));
+    const legacy: Record<string, unknown> = {
+      ...session,
+      boardSnapshot: session.rounds[0]!.boardSnapshot,
+    };
+    delete legacy.rounds;
+    delete legacy.roundIndex;
+    const normalized = normalizeSession(legacy);
+    expect(normalized).toEqual(session);
+    expect(normalized).not.toHaveProperty('boardSnapshot');
+  });
+
+  it('deja igual una sesión con rondas', () => {
+    const session = newGame();
+    expect(normalizeSession(session)).toBe(session);
   });
 });
 
@@ -263,6 +427,205 @@ describe('gameReducer: award', () => {
   it('ignora un equipo inexistente', () => {
     const session = play(newGame(), openClue('c0-r0'));
     expect(gameReducer(session, { type: 'award', teamId: 'nope', direction: 1 }, T1)).toBe(session);
+  });
+});
+
+describe('valores multiplicados', () => {
+  /** Ronda 2 de 2, en x2, con los puntajes dados. c0-r2 (300) puede ser Daily Double. */
+  function inRound2(scores: [number, number] = [0, 0], dailyDouble = false): GameSession {
+    const boards = roundBoards(2);
+    boards[1]!.categories[0]!.clues[2]!.dailyDouble = dailyDouble;
+    const session: GameSession = { ...roundsGame([1, 2], { boards }), roundIndex: 1 };
+    return play(
+      session,
+      { type: 'setScore', teamId: 't0', score: scores[0] },
+      { type: 'setScore', teamId: 't1', score: scores[1] },
+    );
+  }
+
+  it('clueValueInPlay multiplica el valor de la celda', () => {
+    const session = inRound2();
+    const clue = session.rounds[1]!.boardSnapshot.categories[0]!.clues[3]!;
+    expect(clueValueInPlay(session, clue)).toBe(800);
+    expect(clueValueInPlay(newGame(), clue)).toBe(400);
+  });
+
+  it('en x2, award sobre la celda de 400 suma 800', () => {
+    const next = play(inRound2([100, 0]), openClue('c0-r3'), {
+      type: 'award',
+      teamId: 't0',
+      direction: 1,
+    });
+    expect(scoreOf(next, 't0')).toBe(900);
+  });
+
+  it('en un Daily Double en x2, award sigue usando la apuesta', () => {
+    const next = play(
+      inRound2([1200, 0], true),
+      openClue('c0-r2'),
+      { type: 'placeWager', teamId: 't0', amount: 700 },
+      { type: 'award', teamId: 't0', direction: 1 },
+    );
+    expect(scoreOf(next, 't0')).toBe(1900);
+  });
+
+  it('en x2 con un tablero de 100 a 500, maxWager usa 1000 como tope del tablero', () => {
+    const session = inRound2([300, 1200], true);
+    expect(maxWager(session, 't0')).toBe(1000);
+    expect(maxWager(session, 't1')).toBe(1200);
+    const waiting = play(session, openClue('c0-r2'));
+    expect(gameReducer(waiting, { type: 'placeWager', teamId: 't0', amount: 1100 }, T1)).toBe(
+      waiting,
+    );
+    expect(play(waiting, { type: 'placeWager', teamId: 't0', amount: 1000 }).phase).toMatchObject({
+      wager: { teamId: 't0', amount: 1000 },
+    });
+  });
+});
+
+describe('rondas: transición', () => {
+  /** Usa todas las celdas de la ronda en curso, volviendo al tablero tras cada una. */
+  function playWholeRound(session: GameSession): GameSession {
+    const keys = allClueKeys(session.rounds[session.roundIndex]!.boardSnapshot);
+    return keys.reduce(
+      (current, key) => play(current, openClue(key), { type: 'backToBoard' }),
+      session,
+    );
+  }
+
+  function withScore(session: GameSession, score: number): GameSession {
+    return play(session, { type: 'setScore', teamId: 't0', score });
+  }
+
+  function finalOnLastBoard(count: number): Board[] {
+    const boards = roundBoards(count);
+    boards.at(-1)!.final = { ...FINAL };
+    return boards;
+  }
+
+  it('la última celda de la ronda 1 de 2 lleva a la transición hacia la ronda 2', () => {
+    const session = playWholeRound(roundsGame([1, 2]));
+    expect(session.phase).toEqual({ kind: 'roundBreak', nextRoundIndex: 1 });
+    expect(session.roundIndex).toBe(0);
+    expect(session.usedClues).toHaveLength(15);
+    expect(session.updatedAt).toBe(T1);
+  });
+
+  it('startNextRound avanza de ronda, vacía las celdas usadas y conserva los puntajes', () => {
+    const inBreak = playWholeRound(withScore(roundsGame([1, 2]), 1500));
+    const next = gameReducer(inBreak, { type: 'startNextRound' }, T1);
+    expect(next.roundIndex).toBe(1);
+    expect(next.usedClues).toEqual([]);
+    expect(next.phase).toEqual({ kind: 'board' });
+    expect(next.teams).toEqual(inBreak.teams);
+    expect(scoreOf(next, 't0')).toBe(1500);
+  });
+
+  it('la última celda de la ronda 2 de 2 va al podio sin Final', () => {
+    const inRound2 = play(playWholeRound(roundsGame([1, 2])), { type: 'startNextRound' });
+    expect(playWholeRound(inRound2).phase).toEqual({ kind: 'finished' });
+  });
+
+  it('la última celda de la ronda 2 de 2 va al Final activo con puntaje positivo', () => {
+    const session = withScore(
+      roundsGame([1, 2], { boards: finalOnLastBoard(2), withFinal: true }),
+      500,
+    );
+    const inRound2 = play(playWholeRound(session), { type: 'startNextRound' });
+    expect(finalPhase(playWholeRound(inRound2)).participants).toEqual([
+      { teamId: 't0', entryScore: 500 },
+    ]);
+  });
+
+  it('finishRound desde el tablero pasa a la transición', () => {
+    const next = play(
+      roundsGame([1, 2, 3]),
+      openClue('c0-r0'),
+      { type: 'backToBoard' },
+      {
+        type: 'finishRound',
+      },
+    );
+    expect(next.phase).toEqual({ kind: 'roundBreak', nextRoundIndex: 1 });
+    expect(next.usedClues).toEqual(['c0-r0']);
+  });
+
+  it('finishRound con una pregunta abierta la deja usada', () => {
+    const next = play(roundsGame([1, 2]), openClue('c1-r2'), { type: 'finishRound' });
+    expect(next.phase).toEqual({ kind: 'roundBreak', nextRoundIndex: 1 });
+    expect(next.usedClues).toEqual(['c1-r2']);
+  });
+
+  it('finishRound en la última ronda o sin rondas devuelve la misma referencia', () => {
+    const lastRound = play(roundsGame([1, 2]), { type: 'finishRound' }, { type: 'startNextRound' });
+    expect(lastRound.roundIndex).toBe(1);
+    expect(gameReducer(lastRound, { type: 'finishRound' }, T1)).toBe(lastRound);
+    const single = newGame();
+    expect(gameReducer(single, { type: 'finishRound' }, T1)).toBe(single);
+  });
+
+  it('finishRound no vale en la transición, el Final ni el podio', () => {
+    const inBreak = play(roundsGame([1, 2, 3]), { type: 'finishRound' });
+    expect(gameReducer(inBreak, { type: 'finishRound' }, T1)).toBe(inBreak);
+    const session = withScore(
+      roundsGame([1, 2], { boards: finalOnLastBoard(2), withFinal: true }),
+      500,
+    );
+    const final = play(session, { type: 'finish' });
+    expect(gameReducer(final, { type: 'finishRound' }, T1)).toBe(final);
+    const finished = play(roundsGame([1, 2]), { type: 'finish' });
+    expect(gameReducer(finished, { type: 'finishRound' }, T1)).toBe(finished);
+  });
+
+  it('finish en la ronda 1 de 3 va al podio sin Final', () => {
+    expect(play(withScore(roundsGame([1, 2, 3]), 500), { type: 'finish' }).phase).toEqual({
+      kind: 'finished',
+    });
+  });
+
+  it('finish en la ronda 1 de 3 va al Final con Final activo', () => {
+    const session = withScore(
+      roundsGame([1, 2, 3], { boards: finalOnLastBoard(3), withFinal: true }),
+      500,
+    );
+    expect(finalPhase(play(session, { type: 'finish' })).stage).toBe('wagers');
+  });
+
+  it('finish en la transición termina el juego', () => {
+    const inBreak = play(roundsGame([1, 2]), { type: 'finishRound' });
+    expect(play(inBreak, { type: 'finish' }).phase).toEqual({ kind: 'finished' });
+  });
+
+  it('en la transición, las acciones del tablero no hacen nada y setScore sí', () => {
+    const inBreak = play(roundsGame([1, 2]), { type: 'finishRound' });
+    for (const action of [
+      openClue('c1-r1'),
+      { type: 'reveal' },
+      { type: 'award', teamId: 't0', direction: 1 },
+      { type: 'placeWager', teamId: 't0', amount: 100 },
+      { type: 'backToBoard' },
+      { type: 'showFinalClue' },
+    ] as GameAction[]) {
+      expect(gameReducer(inBreak, action, T1)).toBe(inBreak);
+    }
+    const scored = play(inBreak, { type: 'setScore', teamId: 't1', score: 700 });
+    expect(scoreOf(scored, 't1')).toBe(700);
+    expect(scored.phase).toEqual(inBreak.phase);
+  });
+
+  it('startNextRound fuera de la transición devuelve la misma referencia', () => {
+    const session = roundsGame([1, 2]);
+    expect(gameReducer(session, { type: 'startNextRound' }, T1)).toBe(session);
+    const open = play(session, openClue('c0-r0'));
+    expect(gameReducer(open, { type: 'startNextRound' }, T1)).toBe(open);
+  });
+
+  it('endRound sin ronda siguiente termina el tablero', () => {
+    expect(endRound(newGame(), T1).phase).toEqual({ kind: 'finished' });
+    expect(endRound(roundsGame([1, 2]), T1).phase).toEqual({
+      kind: 'roundBreak',
+      nextRoundIndex: 1,
+    });
   });
 });
 
@@ -465,8 +828,6 @@ describe('Daily Double: award', () => {
   });
 });
 
-const FINAL = { category: 'Cumpleañero', question: 'Pregunta final', answer: 'Respuesta final' };
-
 function finalBoard() {
   return makeCompleteBoard({ final: { ...FINAL } }, 3);
 }
@@ -474,7 +835,7 @@ function finalBoard() {
 /** Juego con Final activo y los puntajes indicados, todavía en el tablero. */
 function gameWithFinal(scores: Record<string, number>): GameSession {
   const names = Object.keys(scores);
-  let session = startGame(finalBoard(), names, {
+  let session = startGame([{ board: finalBoard(), multiplier: 1 }], names, {
     sessionId: 's1',
     now: T0,
     makeTeamId: (index) => `t${index}`,
@@ -499,20 +860,30 @@ describe('Final: inicio', () => {
   it('startGame guarda finalEnabled según withFinal', () => {
     const board = finalBoard();
     const opts = { sessionId: 's1', now: T0, makeTeamId: () => 't0' };
-    expect(startGame(board, ['A'], { ...opts, withFinal: true }).finalEnabled).toBe(true);
-    expect(startGame(board, ['A'], opts).finalEnabled).toBe(false);
+    expect(
+      startGame([{ board, multiplier: 1 }], ['A'], { ...opts, withFinal: true }).finalEnabled,
+    ).toBe(true);
+    expect(startGame([{ board, multiplier: 1 }], ['A'], opts).finalEnabled).toBe(false);
   });
 
   it('startGame rechaza withFinal sin pista final completa', () => {
     const opts = { sessionId: 's1', now: T0, makeTeamId: () => 't0', withFinal: true };
-    expect(() => startGame(makeCompleteBoard(), ['A'], opts)).toThrow(/pista final/);
+    expect(() => startGame([{ board: makeCompleteBoard(), multiplier: 1 }], ['A'], opts)).toThrow(
+      /pista final/,
+    );
     const incomplete = makeCompleteBoard({ final: { ...FINAL, answer: ' ' } });
-    expect(() => startGame(incomplete, ['A'], opts)).toThrow(/pista final/);
+    expect(() => startGame([{ board: incomplete, multiplier: 1 }], ['A'], opts)).toThrow(
+      /pista final/,
+    );
   });
 
   it('copia la pista final de forma independiente', () => {
     const board = finalBoard();
-    const session = startGame(board, ['A'], { sessionId: 's1', now: T0, makeTeamId: () => 't0' });
+    const session = startGame([{ board, multiplier: 1 }], ['A'], {
+      sessionId: 's1',
+      now: T0,
+      makeTeamId: () => 't0',
+    });
     board.final!.question = 'Cambiada';
     expect(finalClueOf(session)).toEqual(FINAL);
   });
@@ -521,7 +892,7 @@ describe('Final: inicio', () => {
 describe('Final: entrada', () => {
   it('backToBoard tras la última celda entra al Final en vez del podio', () => {
     let session = gameWithFinal({ Primos: 500 });
-    const keys = allClueKeys(session.boardSnapshot);
+    const keys = allClueKeys(session.rounds[0]!.boardSnapshot);
     for (const key of keys) session = play(session, openClue(key), { type: 'backToBoard' });
     expect(session.usedClues).toHaveLength(keys.length);
     expect(session.phase).toEqual({
@@ -541,7 +912,7 @@ describe('Final: entrada', () => {
   });
 
   it('sin Final activo, terminar el tablero va al podio', () => {
-    const session = startGame(finalBoard(), ['A'], {
+    const session = startGame([{ board: finalBoard(), multiplier: 1 }], ['A'], {
       sessionId: 's1',
       now: T0,
       makeTeamId: () => 't0',
@@ -574,7 +945,7 @@ describe('Final: entrada', () => {
     expect(session.phase).toEqual({ kind: 'finished', finalSkipped: 'noPositiveScores' });
 
     let byCells = gameWithFinal({ Tíos: 0 });
-    for (const key of allClueKeys(byCells.boardSnapshot)) {
+    for (const key of allClueKeys(byCells.rounds[0]!.boardSnapshot)) {
       byCells = play(byCells, openClue(key), { type: 'backToBoard' });
     }
     expect(byCells.phase).toEqual({ kind: 'finished', finalSkipped: 'noPositiveScores' });

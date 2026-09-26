@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { boardImageIds, type Board } from '../domain/board';
-import type { GameSession } from '../domain/game';
+import { normalizeSession, sessionBoards, type GameSession } from '../domain/game';
 
 export const DB_NAME = 'jeopardy';
 export const DB_VERSION = 1;
@@ -110,7 +110,10 @@ export function saveBoard(board: Board): Promise<void> {
   });
 }
 
-/** Borra el tablero y sus imágenes, salvo las que siga usando otro tablero o una sesión guardada. */
+/**
+ * Borra el tablero y sus imágenes, salvo las que siga usando otro tablero o alguna ronda de una
+ * sesión guardada.
+ */
 export function deleteBoard(id: string): Promise<void> {
   return withDb(async (db) => {
     const tx = db.transaction(['boards', 'images', 'sessions'], 'readwrite');
@@ -119,7 +122,10 @@ export function deleteBoard(id: string): Promise<void> {
       const orphanIds = boardImageIds(board);
       const others = (await tx.objectStore('boards').getAll()).filter((other) => other.id !== id);
       const sessions = await tx.objectStore('sessions').getAll();
-      for (const other of [...others, ...sessions.map((session) => session.boardSnapshot)]) {
+      const sessionSnapshots = sessions.flatMap((session) =>
+        sessionBoards(normalizeSession(session)),
+      );
+      for (const other of [...others, ...sessionSnapshots]) {
         for (const imageId of boardImageIds(other)) orphanIds.delete(imageId);
       }
       const images = tx.objectStore('images');
@@ -150,6 +156,10 @@ export function saveSession(session: GameSession): Promise<void> {
   });
 }
 
+/** Devuelve la sesión normalizada: las guardadas antes de las rondas quedan con una ronda x1. */
 export function getSession(id: string): Promise<GameSession | null> {
-  return withDb(async (db) => (await db.get('sessions', id)) ?? null);
+  return withDb(async (db) => {
+    const stored = await db.get('sessions', id);
+    return stored ? normalizeSession(stored) : null;
+  });
 }

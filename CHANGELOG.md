@@ -8,6 +8,14 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+### Agregado
+
+- Rondas: arma una partida de 2 a 5 rondas, cada una con uno de tus tableros y su propio
+  multiplicador (por ejemplo, Double Jeopardy! con los valores al doble).
+- Entre ronda y ronda, la TV muestra una pantalla de transición y los puntajes se mantienen.
+- El Final Jeopardy! sale del tablero de la última ronda.
+- Ahora puedes terminar solo la ronda en curso, o el juego completo.
+
 ## [0.5.0] - 2026-09-26
 
 ### Agregado
