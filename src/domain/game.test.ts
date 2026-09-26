@@ -4,6 +4,7 @@ import { allClueKeys, clueKey, type Board, type ClueKey } from './board';
 import {
   clueValueInPlay,
   endBoard,
+  endRound,
   FINAL_TIMER_MS,
   finalClueOf,
   finalTimeRemaining,
@@ -478,6 +479,152 @@ describe('valores multiplicados', () => {
     );
     expect(play(waiting, { type: 'placeWager', teamId: 't0', amount: 1000 }).phase).toMatchObject({
       wager: { teamId: 't0', amount: 1000 },
+    });
+  });
+});
+
+describe('rondas: transición', () => {
+  /** Usa todas las celdas de la ronda en curso, volviendo al tablero tras cada una. */
+  function playWholeRound(session: GameSession): GameSession {
+    const keys = allClueKeys(session.rounds[session.roundIndex]!.boardSnapshot);
+    return keys.reduce(
+      (current, key) => play(current, openClue(key), { type: 'backToBoard' }),
+      session,
+    );
+  }
+
+  function withScore(session: GameSession, score: number): GameSession {
+    return play(session, { type: 'setScore', teamId: 't0', score });
+  }
+
+  function finalOnLastBoard(count: number): Board[] {
+    const boards = roundBoards(count);
+    boards.at(-1)!.final = { ...FINAL };
+    return boards;
+  }
+
+  it('la última celda de la ronda 1 de 2 lleva a la transición hacia la ronda 2', () => {
+    const session = playWholeRound(roundsGame([1, 2]));
+    expect(session.phase).toEqual({ kind: 'roundBreak', nextRoundIndex: 1 });
+    expect(session.roundIndex).toBe(0);
+    expect(session.usedClues).toHaveLength(15);
+    expect(session.updatedAt).toBe(T1);
+  });
+
+  it('startNextRound avanza de ronda, vacía las celdas usadas y conserva los puntajes', () => {
+    const inBreak = playWholeRound(withScore(roundsGame([1, 2]), 1500));
+    const next = gameReducer(inBreak, { type: 'startNextRound' }, T1);
+    expect(next.roundIndex).toBe(1);
+    expect(next.usedClues).toEqual([]);
+    expect(next.phase).toEqual({ kind: 'board' });
+    expect(next.teams).toEqual(inBreak.teams);
+    expect(scoreOf(next, 't0')).toBe(1500);
+  });
+
+  it('la última celda de la ronda 2 de 2 va al podio sin Final', () => {
+    const inRound2 = play(playWholeRound(roundsGame([1, 2])), { type: 'startNextRound' });
+    expect(playWholeRound(inRound2).phase).toEqual({ kind: 'finished' });
+  });
+
+  it('la última celda de la ronda 2 de 2 va al Final activo con puntaje positivo', () => {
+    const session = withScore(
+      roundsGame([1, 2], { boards: finalOnLastBoard(2), withFinal: true }),
+      500,
+    );
+    const inRound2 = play(playWholeRound(session), { type: 'startNextRound' });
+    expect(finalPhase(playWholeRound(inRound2)).participants).toEqual([
+      { teamId: 't0', entryScore: 500 },
+    ]);
+  });
+
+  it('finishRound desde el tablero pasa a la transición', () => {
+    const next = play(
+      roundsGame([1, 2, 3]),
+      openClue('c0-r0'),
+      { type: 'backToBoard' },
+      {
+        type: 'finishRound',
+      },
+    );
+    expect(next.phase).toEqual({ kind: 'roundBreak', nextRoundIndex: 1 });
+    expect(next.usedClues).toEqual(['c0-r0']);
+  });
+
+  it('finishRound con una pregunta abierta la deja usada', () => {
+    const next = play(roundsGame([1, 2]), openClue('c1-r2'), { type: 'finishRound' });
+    expect(next.phase).toEqual({ kind: 'roundBreak', nextRoundIndex: 1 });
+    expect(next.usedClues).toEqual(['c1-r2']);
+  });
+
+  it('finishRound en la última ronda o sin rondas devuelve la misma referencia', () => {
+    const lastRound = play(roundsGame([1, 2]), { type: 'finishRound' }, { type: 'startNextRound' });
+    expect(lastRound.roundIndex).toBe(1);
+    expect(gameReducer(lastRound, { type: 'finishRound' }, T1)).toBe(lastRound);
+    const single = newGame();
+    expect(gameReducer(single, { type: 'finishRound' }, T1)).toBe(single);
+  });
+
+  it('finishRound no vale en la transición, el Final ni el podio', () => {
+    const inBreak = play(roundsGame([1, 2, 3]), { type: 'finishRound' });
+    expect(gameReducer(inBreak, { type: 'finishRound' }, T1)).toBe(inBreak);
+    const session = withScore(
+      roundsGame([1, 2], { boards: finalOnLastBoard(2), withFinal: true }),
+      500,
+    );
+    const final = play(session, { type: 'finish' });
+    expect(gameReducer(final, { type: 'finishRound' }, T1)).toBe(final);
+    const finished = play(roundsGame([1, 2]), { type: 'finish' });
+    expect(gameReducer(finished, { type: 'finishRound' }, T1)).toBe(finished);
+  });
+
+  it('finish en la ronda 1 de 3 va al podio sin Final', () => {
+    expect(play(withScore(roundsGame([1, 2, 3]), 500), { type: 'finish' }).phase).toEqual({
+      kind: 'finished',
+    });
+  });
+
+  it('finish en la ronda 1 de 3 va al Final con Final activo', () => {
+    const session = withScore(
+      roundsGame([1, 2, 3], { boards: finalOnLastBoard(3), withFinal: true }),
+      500,
+    );
+    expect(finalPhase(play(session, { type: 'finish' })).stage).toBe('wagers');
+  });
+
+  it('finish en la transición termina el juego', () => {
+    const inBreak = play(roundsGame([1, 2]), { type: 'finishRound' });
+    expect(play(inBreak, { type: 'finish' }).phase).toEqual({ kind: 'finished' });
+  });
+
+  it('en la transición, las acciones del tablero no hacen nada y setScore sí', () => {
+    const inBreak = play(roundsGame([1, 2]), { type: 'finishRound' });
+    for (const action of [
+      openClue('c1-r1'),
+      { type: 'reveal' },
+      { type: 'award', teamId: 't0', direction: 1 },
+      { type: 'placeWager', teamId: 't0', amount: 100 },
+      { type: 'backToBoard' },
+      { type: 'showFinalClue' },
+    ] as GameAction[]) {
+      expect(gameReducer(inBreak, action, T1)).toBe(inBreak);
+    }
+    const scored = play(inBreak, { type: 'setScore', teamId: 't1', score: 700 });
+    expect(scoreOf(scored, 't1')).toBe(700);
+    expect(scored.phase).toEqual(inBreak.phase);
+  });
+
+  it('startNextRound fuera de la transición devuelve la misma referencia', () => {
+    const session = roundsGame([1, 2]);
+    expect(gameReducer(session, { type: 'startNextRound' }, T1)).toBe(session);
+    const open = play(session, openClue('c0-r0'));
+    expect(gameReducer(open, { type: 'startNextRound' }, T1)).toBe(open);
+  });
+
+  it('endRound sin ronda siguiente termina el tablero', () => {
+    expect(endRound(newGame(), T1).phase).toEqual({ kind: 'finished' });
+    expect(endRound(roundsGame([1, 2]), T1).phase).toEqual({
+      kind: 'roundBreak',
+      nextRoundIndex: 1,
     });
   });
 });

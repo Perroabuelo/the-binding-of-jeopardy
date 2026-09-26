@@ -16,7 +16,7 @@
   - En x2, `award` sobre la celda de 400 suma 800.
   - En un Daily Double en x2, `award` sigue usando la apuesta.
   - En x2 con un tablero de 100 a 500, `maxWager` es 1000 para un equipo con 300 y 1200 para uno con 1200, y `placeWager` rechaza 1100 para el equipo con 300.
-- [ ] 1.4 Agregar la fase `roundBreak`, `endRound` y las acciones `finishRound` y `startNextRound`, y hacer que `backToBoard` use `endRound`. Verificar con tests unitarios en `game.test.ts`:
+- [x] 1.4 Agregar la fase `roundBreak`, `endRound` y las acciones `finishRound` y `startNextRound`, y hacer que `backToBoard` use `endRound`. Verificar con tests unitarios en `game.test.ts`:
   - La última celda de la ronda 1 de 2 lleva a `roundBreak` con `nextRoundIndex: 1`.
   - La última celda de la ronda 2 de 2 va al Final (activo y con puntaje positivo) o al podio.
   - `finishRound` desde `board` y desde `clue` (la celda queda usada) lleva a `roundBreak`, y en la última ronda devuelve la misma referencia.

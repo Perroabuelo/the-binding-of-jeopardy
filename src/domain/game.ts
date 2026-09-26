@@ -65,6 +65,8 @@ export type GamePhase =
       /** Presente solo en un Daily Double. */
       wager?: Wager;
     }
+  /** Transición entre rondas: espera a que el operador inicie la siguiente. */
+  | { kind: 'roundBreak'; nextRoundIndex: number }
   | FinalPhase
   | { kind: 'finished'; finalSkipped?: FinalSkipReason };
 
@@ -99,6 +101,9 @@ export type GameAction =
   | { type: 'setScore'; teamId: string; score: number }
   | { type: 'backToBoard' }
   | { type: 'finish' }
+  /** Terminar la ronda en curso y pasar a la transición hacia la siguiente. */
+  | { type: 'finishRound' }
+  | { type: 'startNextRound' }
   | { type: 'setFinalWager'; teamId: string; amount: number }
   | { type: 'showFinalClue' }
   | { type: 'startFinalTimer' }
@@ -323,6 +328,24 @@ export function endBoard(session: GameSession, now: number): GameSession {
   };
 }
 
+/** Hay una ronda después de la ronda en curso. */
+export function hasNextRound(session: GameSession): boolean {
+  return session.roundIndex < session.rounds.length - 1;
+}
+
+/**
+ * Termina la ronda en curso: si queda otra, pasa a la transición hacia ella. Si no, termina el
+ * tablero (ver `endBoard`).
+ */
+export function endRound(session: GameSession, now: number): GameSession {
+  if (!hasNextRound(session)) return endBoard(session, now);
+  return {
+    ...session,
+    phase: { kind: 'roundBreak', nextRoundIndex: session.roundIndex + 1 },
+    updatedAt: now,
+  };
+}
+
 /**
  * Milisegundos que le quedan al temporizador del Final, entre 0 y FINAL_TIMER_MS.
  * null si no hay un temporizador iniciado.
@@ -404,7 +427,7 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       const allUsed = allClueKeys(currentRound(session).boardSnapshot).every((key) =>
         usedClues.includes(key),
       );
-      if (allUsed) return endBoard({ ...session, usedClues }, now);
+      if (allUsed) return endRound({ ...session, usedClues }, now);
       return { ...session, usedClues, phase: { kind: 'board' }, updatedAt: now };
     }
     case 'finish': {
@@ -413,6 +436,23 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       if (phase.kind === 'final')
         return { ...session, phase: { kind: 'finished' }, updatedAt: now };
       return endBoard({ ...session, usedClues: withOpenClueUsed(session) }, now);
+    }
+    case 'finishRound': {
+      if (phase.kind !== 'board' && phase.kind !== 'wager' && phase.kind !== 'clue') {
+        return session;
+      }
+      if (!hasNextRound(session)) return session;
+      return endRound({ ...session, usedClues: withOpenClueUsed(session) }, now);
+    }
+    case 'startNextRound': {
+      if (phase.kind !== 'roundBreak') return session;
+      return {
+        ...session,
+        roundIndex: phase.nextRoundIndex,
+        usedClues: [],
+        phase: { kind: 'board' },
+        updatedAt: now,
+      };
     }
     case 'setFinalWager': {
       if (phase.kind !== 'final' || phase.stage !== 'wagers') return session;
