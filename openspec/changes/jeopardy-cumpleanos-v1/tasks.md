@@ -2,7 +2,7 @@
 
 ## 1. Base del proyecto y CI
 
-- [ ] 1.1 Crear el proyecto Vite + React + TypeScript estricto (`.nvmrc` con Node 22, `base: '/the-binding-of-jeopardy/'` en una constante compartida, estructura `src/domain`, `src/storage`, `src/sync`, `src/ui`) con una pantalla "Hola" — verificar que `npm run build` genera `dist/` y `npm run dev` muestra la pantalla
+- [x] 1.1 Crear el proyecto Vite + React + TypeScript estricto (`.nvmrc` con Node 22, `base: '/the-binding-of-jeopardy/'` en una constante compartida, estructura `src/domain`, `src/storage`, `src/sync`, `src/ui`) con una pantalla "Hola" — verificar que `npm run build` genera `dist/` y `npm run dev` muestra la pantalla
 - [ ] 1.2 Configurar ESLint (typescript-eslint, react-hooks, `no-restricted-imports` que impide a `src/domain/**` importar React, DOM o las capas `storage`/`sync`/`ui`) y Prettier, con los scripts `lint` y `typecheck` — verificar que ambos pasan y que un import prohibido de prueba en `domain` hace fallar `lint`
 - [ ] 1.3 Configurar Vitest (proyectos node y jsdom) con Testing Library y un test inicial de la pantalla "Hola" — verificar que `npm test` pasa
 - [ ] 1.4 Configurar Playwright (solo Chromium, `webServer` con `vite preview` usando la base real, SW bloqueado por defecto) con un e2e que abre la app — verificar que `npm run test:e2e` pasa localmente
