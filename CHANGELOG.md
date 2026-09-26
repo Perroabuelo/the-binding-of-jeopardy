@@ -8,6 +8,8 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [0.4.0] - 2026-09-26
+
 ### Agregado
 
 - Daily Double: marca las celdas que quieras en el editor. Al abrirlas, la TV anuncia "DAILY
