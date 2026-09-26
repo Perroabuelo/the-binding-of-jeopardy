@@ -8,6 +8,12 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+### Agregado
+
+- Los tableros pueden tener entre 3 y 8 categorías. Los tableros nuevos se crean con 6, como en el
+  Jeopardy original.
+- Las categorías se pueden reordenar con flechas en el editor.
+
 ## [0.2.0] - 2026-09-26
 
 ### Agregado
