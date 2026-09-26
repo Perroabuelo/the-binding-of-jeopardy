@@ -3,7 +3,7 @@ import { createEmptyBoard, type Board } from '../../domain/board';
 import { deleteBoard, listBoards, saveBoard } from '../../storage/db';
 import { BoardListItem } from '../boards/BoardListItem';
 import { downloadBoardFile, importBoardFile } from '../boards/boardFiles';
-import { ConfirmDialog } from '../boards/ConfirmDialog';
+import { ConfirmDialog } from '../lib/ConfirmDialog';
 import { errorMessage } from '../boards/errors';
 import { boardDisplayTitle } from '../boards/format';
 import { newId } from '../lib/ids';

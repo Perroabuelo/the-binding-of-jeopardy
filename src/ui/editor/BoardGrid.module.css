@@ -29,8 +29,11 @@
 
 .toolbar {
   display: flex;
-  justify-content: space-between;
   gap: var(--space-1);
+}
+
+.toolbar .tool:last-child {
+  margin-left: auto;
 }
 
 .tool {

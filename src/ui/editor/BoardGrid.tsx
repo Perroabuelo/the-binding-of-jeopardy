@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, type CSSProperties, type MouseEvent } from 'react';
-import { MAX_CATEGORIES, type Board } from '../../domain/board';
+import { MAX_CATEGORIES, MIN_CATEGORIES, type Board } from '../../domain/board';
 import { isClueComplete } from './boardEdits';
 import styles from './BoardGrid.module.css';
 
@@ -15,6 +15,7 @@ interface BoardGridProps {
   ) => void;
   onAddCategory: () => void;
   onMoveCategory: (from: number, to: number) => void;
+  onRemoveCategory: (categoryIndex: number) => void;
 }
 
 export function BoardGrid({
@@ -23,6 +24,7 @@ export function BoardGrid({
   onOpenClue,
   onAddCategory,
   onMoveCategory,
+  onRemoveCategory,
 }: BoardGridProps) {
   const idPrefix = useId();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -83,6 +85,15 @@ export function BoardGrid({
                     onClick={() => move(c, 'right')}
                   >
                     →
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.tool}
+                    aria-label={`Quitar categoría ${c + 1}`}
+                    disabled={columns <= MIN_CATEGORIES}
+                    onClick={() => onRemoveCategory(c)}
+                  >
+                    Quitar
                   </button>
                 </div>
                 <label htmlFor={inputId} className={styles.categoryLabel}>

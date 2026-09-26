@@ -3,7 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLUE_VALUES, createEmptyBoard } from '../../domain/board';
 import * as db from '../../storage/db';
-import { getBoard, getImage, saveBoard, saveSession, StorageUnavailable } from '../../storage/db';
+import {
+  getBoard,
+  getImage,
+  putImage,
+  saveBoard,
+  saveSession,
+  StorageUnavailable,
+} from '../../storage/db';
 import * as cleanup from '../editor/imageCleanup';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import { EditorScreen } from './EditorScreen';
@@ -508,6 +515,135 @@ describe('EditorScreen: agregar y mover categorías', () => {
     // En el extremo la flecha queda deshabilitada y el foco pasa a la otra.
     expect(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' })).toHaveFocus();
     expect(categoryNames()[0]).toBe('Categoría 3');
+  });
+});
+
+describe('EditorScreen: quitar categorías', () => {
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    const user = userEvent.setup();
+    render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user };
+  }
+
+  function categoryNames() {
+    return screen
+      .getAllByLabelText(/^Nombre de la categoría \d$/)
+      .map((input) => (input as HTMLInputElement).value);
+  }
+
+  async function stored() {
+    const board = await getBoard('fixture-board');
+    if (!board) throw new Error('El tablero no está guardado');
+    return board;
+  }
+
+  it('quita una columna vacía sin pedir confirmación', async () => {
+    const board = makeCompleteBoard();
+    board.categories.push(createEmptyBoard('x', 0, 1).categories[0]!);
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 7' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(categoryNames()).toHaveLength(6);
+    await waitFor(async () => expect((await stored()).categories).toHaveLength(6));
+  });
+
+  it('pide confirmación para quitar una columna con contenido y al cancelar no cambia nada', async () => {
+    const { user } = await renderSeeded();
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 2' }));
+    const dialog = screen.getByRole('dialog', { name: '¿Quitar la categoría Categoría 2?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(categoryNames()).toEqual(makeCompleteBoard().categories.map((c) => c.name));
+    expect((await stored()).categories).toEqual(makeCompleteBoard().categories);
+  });
+
+  it('pide confirmación aunque la columna solo tenga una imagen', async () => {
+    const board = makeCompleteBoard();
+    const extra = createEmptyBoard('x', 0, 1).categories[0]!;
+    extra.clues[4]!.answerImageId = 'img-r';
+    board.categories.push(extra);
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 7' }));
+
+    expect(screen.getByRole('dialog', { name: '¿Quitar la categoría 7?' })).toBeInTheDocument();
+  });
+
+  it('al confirmar quita la columna y las demás conservan su contenido y su orden', async () => {
+    const { user } = await renderSeeded();
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 2' }));
+    const dialog = screen.getByRole('dialog', { name: '¿Quitar la categoría Categoría 2?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar' }));
+
+    const expected = makeCompleteBoard().categories.filter((_, c) => c !== 1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(categoryNames()).toEqual(expected.map((c) => c.name));
+    await waitFor(async () => expect((await stored()).categories).toEqual(expected));
+  });
+
+  it('deshabilita Quitar en todas las columnas cuando quedan 3', async () => {
+    await renderSeeded(makeCompleteBoard({}, 3));
+    for (let c = 1; c <= 3; c++) {
+      expect(screen.getByRole('button', { name: `Quitar categoría ${c}` })).toBeDisabled();
+    }
+  });
+
+  it('borra las imágenes de la columna quitada si nada más las usa', async () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-p';
+    board.categories[0]!.clues[4]!.answerImageId = 'img-r';
+    await putImage('img-p', new Blob(['p'], { type: 'image/png' }));
+    await putImage('img-r', new Blob(['r'], { type: 'image/png' }));
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 1' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+
+    await waitFor(async () => expect(await getImage('img-p')).toBeNull());
+    await waitFor(async () => expect(await getImage('img-r')).toBeNull());
+    expect((await stored()).categories).toHaveLength(5);
+  });
+
+  it('conserva la imagen de la columna quitada si la usa otro tablero', async () => {
+    const cleanupSpy = vi.spyOn(cleanup, 'deleteImageIfUnused');
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-compartida';
+    const other = makeCompleteBoard({ id: 'otro-tablero' });
+    other.categories[3]!.clues[1]!.imageId = 'img-compartida';
+    await saveBoard(other);
+    await putImage('img-compartida', new Blob(['p'], { type: 'image/png' }));
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 1' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+
+    await waitFor(() => expect(cleanupSpy).toHaveBeenCalledWith('img-compartida'));
+    expect(await cleanupSpy.mock.results[0]!.value).toBe(false);
+    expect(await getImage('img-compartida')).not.toBeNull();
+    expect((await stored()).categories).toHaveLength(5);
+  });
+
+  it('no borra las imágenes si falla el guardado del tablero', async () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-p';
+    await putImage('img-p', new Blob(['p'], { type: 'image/png' }));
+    const { user } = await renderSeeded(board);
+    vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
+    const cleanupSpy = vi.spyOn(cleanup, 'deleteImageIfUnused');
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 1' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(cleanupSpy).not.toHaveBeenCalled();
+    expect(await getImage('img-p')).not.toBeNull();
   });
 });
 
