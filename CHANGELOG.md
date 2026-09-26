@@ -8,6 +8,8 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [0.3.0] - 2026-09-26
+
 ### Agregado
 
 - Los tableros pueden tener entre 3 y 8 categorías. Los tableros nuevos se crean con 6, como en el

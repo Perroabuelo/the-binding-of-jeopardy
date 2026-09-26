@@ -65,11 +65,19 @@ Con una pregunta abierta, el sistema SHALL permitir al operador volver al tabler
 - **THEN** el tablero muestra esa celda como usada
 
 ### Requirement: Fin del juego y podio
-El sistema SHALL terminar el juego cuando las 25 celdas estén usadas, o antes si el operador lo decide y lo confirma. Al terminar, MUST mostrar un podio con los equipos ordenados por puntaje de mayor a menor, y los equipos empatados MUST compartir la misma posición.
+El sistema SHALL terminar el juego cuando todas las celdas del tablero estén usadas, cualquiera sea su número de categorías, o antes si el operador lo decide y lo confirma. Al terminar, MUST mostrar un podio con los equipos ordenados por puntaje de mayor a menor, y los equipos empatados MUST compartir la misma posición.
 
 #### Scenario: Todas las celdas usadas
 - **WHEN** el operador vuelve al tablero tras la última celda no usada
 - **THEN** el juego termina y se muestra el podio
+
+#### Scenario: Todas las celdas usadas en un tablero de 3 categorías
+- **WHEN** en un tablero de 3 categorías el operador vuelve al tablero tras usar la celda número 15
+- **THEN** el juego termina y se muestra el podio
+
+#### Scenario: Celdas pendientes en un tablero de 8 categorías
+- **WHEN** en un tablero de 8 categorías el operador vuelve al tablero tras usar 25 celdas
+- **THEN** el juego sigue en el tablero con 15 celdas disponibles
 
 #### Scenario: Empate
 - **WHEN** el juego termina con "Primos" 800, "Tíos" 800 y "Abuelos" 300

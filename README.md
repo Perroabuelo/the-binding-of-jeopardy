@@ -67,3 +67,8 @@ La app queda publicada en `https://perroabuelo.github.io/the-binding-of-jeopardy
 
 El repositorio es público. Nunca commitees tableros reales ni sus exportaciones (`*.jeopardy.json`):
 los fixtures de pruebas usan solo contenido ficticio.
+
+## Agradecimientos
+
+La idea de jugar con dos pantallas, una para quien conduce y otra para la TV, salió del repositorio
+[pfroud/jeopardy](https://github.com/pfroud/jeopardy). ¡Gracias!
