@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { registerSW } from 'virtual:pwa-register';
 import './ui/theme/tokens.css';
 import './ui/theme/base.css';
 import { App } from './ui/App';
@@ -12,3 +13,7 @@ createRoot(root).render(
     <App />
   </StrictMode>,
 );
+
+// Deja la app disponible sin conexión. Las versiones nuevas esperan a que se cierren todas las
+// pestañas: no se fuerza la actualización para no interrumpir un juego.
+registerSW({ immediate: true });
