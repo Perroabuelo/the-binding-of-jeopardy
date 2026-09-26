@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { MAX_TEAMS } from '../../domain/game';
@@ -103,5 +103,56 @@ describe('TeamSetupScreen', () => {
   it('avisa si el tablero no existe', async () => {
     render(<TeamSetupScreen boardId="no-existe" />);
     expect(await screen.findByRole('alert')).toHaveTextContent('No se encontró el tablero.');
+  });
+
+  describe('Final Jeopardy!', () => {
+    const FINAL = { category: 'Cumpleañero', question: 'Pregunta final', answer: 'Respuesta' };
+
+    async function startWith(board = makeCompleteBoard({ final: { ...FINAL } }), uncheck = false) {
+      const user = userEvent.setup();
+      await renderWithBoard(board);
+      if (uncheck)
+        await user.click(screen.getByRole('checkbox', { name: 'Jugar Final Jeopardy!' }));
+      await user.type(screen.getByLabelText('Nombre del equipo 1'), 'Primos');
+      await user.click(screen.getByRole('button', { name: 'Quitar equipo 2' }));
+      await user.click(screen.getByRole('button', { name: 'Comenzar juego' }));
+      await waitFor(() => expect(window.location.hash).toMatch(/^#\/play\//));
+      const sessionId = /^#\/play\/(.+)$/.exec(window.location.hash)![1]!;
+      return getSession(decodeURIComponent(sessionId));
+    }
+
+    it('con una pista final completa la casilla está habilitada y marcada', async () => {
+      await renderWithBoard(makeCompleteBoard({ final: { ...FINAL } }));
+      const checkbox = screen.getByRole('checkbox', { name: 'Jugar Final Jeopardy!' });
+      expect(checkbox).toBeEnabled();
+      expect(checkbox).toBeChecked();
+    });
+
+    it('marcada, la sesión se guarda con finalEnabled en true', async () => {
+      const session = await startWith();
+      expect(session?.finalEnabled).toBe(true);
+    });
+
+    it('desmarcada, la sesión se guarda con finalEnabled en false', async () => {
+      const session = await startWith(undefined, true);
+      expect(session?.finalEnabled).toBe(false);
+    });
+
+    it.each([
+      ['ausente', undefined],
+      ['incompleta', { ...FINAL, answer: '' }],
+    ])('con la pista final %s la casilla no está disponible', async (_, final) => {
+      const board = makeCompleteBoard(final ? { final } : {});
+      await renderWithBoard(board);
+      const checkbox = screen.getByRole('checkbox', { name: 'Jugar Final Jeopardy!' });
+      expect(checkbox).toBeDisabled();
+      expect(checkbox).not.toBeChecked();
+      expect(checkbox).toHaveAccessibleDescription(/completa la pista final/);
+    });
+
+    it('con la pista final incompleta el juego se inicia sin Final', async () => {
+      const session = await startWith(makeCompleteBoard({ final: { ...FINAL, question: ' ' } }));
+      expect(session?.finalEnabled).toBe(false);
+    });
   });
 });

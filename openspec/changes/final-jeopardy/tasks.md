@@ -36,7 +36,7 @@
   - Solo la categoría muestra "incompleta" y jugar sigue habilitado.
   - Un tablero sin `final` muestra "sin pista final".
   - Un PDF en la imagen de la pista final muestra el error y no cambia nada.
-- [ ] 2.2 En `TeamSetupScreen`, agregar la casilla "Jugar Final Jeopardy!" y pasar `withFinal` a `startGame`. Verificar con tests de componentes en `TeamSetupScreen.test.tsx`:
+- [x] 2.2 En `TeamSetupScreen`, agregar la casilla "Jugar Final Jeopardy!" y pasar `withFinal` a `startGame`. Verificar con tests de componentes en `TeamSetupScreen.test.tsx`:
   - Con una pista final completa, la casilla está habilitada y marcada, y la sesión guardada tiene `finalEnabled: true`.
   - Desmarcada, la sesión se guarda con `finalEnabled` en `false`.
   - Con una pista final incompleta o ausente, la casilla no está disponible.
