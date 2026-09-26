@@ -7,13 +7,15 @@ solo en el navegador de quien los crea.
 ## Cómo se usa
 
 1. Abre la app en Chrome o Edge y crea un tablero con **Nuevo tablero**.
-2. Completa el título, las 5 categorías y las 25 preguntas con su respuesta. Cada pregunta puede
-   tener una imagen (PNG, JPEG, GIF o WebP de hasta 5 MB). Todo se guarda solo.
+2. Completa el título, las 5 categorías y las 25 preguntas con su respuesta. Cada pregunta y cada
+   respuesta puede tener su propia imagen (PNG, JPEG, GIF o WebP de hasta 5 MB). Todo se guarda
+   solo.
 3. Cuando el tablero está completo, **Jugar** te lleva a configurar los equipos (de 1 a 8).
 4. En la vista de operador, **Abrir pantalla de TV** abre la ventana para los invitados: arrástrala
    a la TV y ponla en pantalla completa (F11). Si el navegador bloquea la ventana, permite las
    ventanas emergentes para el sitio o abre la dirección que muestra el operador.
-5. El operador ve la respuesta antes que nadie, la revela cuando quiere y suma o resta puntos. Si
+5. El operador ve la respuesta (y su imagen) antes que nadie, la revela cuando quiere y suma o
+   resta puntos. Al revelar, la imagen de la respuesta reemplaza en la TV a la de la pregunta. Si
    recargas cualquiera de las dos ventanas, el juego sigue donde estaba.
 
 Los tableros viven solo en el navegador donde se crearon. Para llevarlos a otro computador o
@@ -39,6 +41,9 @@ npm run build        # build de producción en dist/
 - Cada cambio de OpenSpec vive en su rama `change/<nombre-del-cambio>`, creada desde `main`.
 - Un commit por tarea, con lint, typecheck y tests pasando.
 - Se integra a `main` solo mediante PR con el CI en verde.
+- Cada propuesta declara sus notas de versión. Al archivar el cambio pasan a
+  [`CHANGELOG.md`](CHANGELOG.md), se sube la versión en `package.json` y se crea el tag `vX.Y.Z`
+  sobre el merge a `main`.
 
 ## CI y deploy
 
