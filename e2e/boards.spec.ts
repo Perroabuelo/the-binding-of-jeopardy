@@ -217,3 +217,30 @@ test('importar un tablero de 9 categorías muestra la estructura permitida', asy
   await expect(page.getByRole('listitem')).toHaveCount(1);
   expect(await readStorage(page)).toEqual(before);
 });
+
+test('exportar e importar un tablero con Daily Double conserva las celdas marcadas', async ({
+  page,
+}) => {
+  const source = makeCompleteBoard({ id: 'e2e-dd', title: 'Trivia con apuestas' });
+  source.categories[0]!.clues[2]!.dailyDouble = true;
+  source.categories[3]!.clues[4]!.dailyDouble = true;
+  await openListWith(page, [source]);
+
+  const file = await exportBoard(page, 'Trivia con apuestas');
+  await page.getByLabel('Importar tablero').setInputFiles(file);
+
+  await expect(page.getByRole('status')).toHaveText('Se importó "Trivia con apuestas".');
+  const { boards } = await readStorage(page);
+  const imported = boards.find((board) => board.id !== source.id)!;
+  expect(imported.categories).toEqual(source.categories);
+
+  await page.getByRole('link', { name: 'Trivia con apuestas' }).last().click();
+  const marked = page.getByRole('button', { name: /, Daily Double$/ });
+  await expect(marked).toHaveCount(2);
+  await expect(
+    page.getByRole('button', { name: 'Categoría 1, 300, completa, Daily Double' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Categoría 4, 500, completa, Daily Double' }),
+  ).toBeVisible();
+});

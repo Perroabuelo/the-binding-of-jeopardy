@@ -1,6 +1,6 @@
-import { useEffect, useId, useState } from 'react';
-import { getClue, parseClueKey } from '../../domain/board';
-import { gameReducer, type GameAction, type GameSession } from '../../domain/game';
+import { useEffect, useId, useState, type FormEvent } from 'react';
+import { allClueKeys, getClue, parseClueKey, type Clue, type ClueKey } from '../../domain/board';
+import { gameReducer, maxWager, type GameAction, type GameSession } from '../../domain/game';
 import { projectForTv } from '../../domain/projection';
 import { rankTeams } from '../../domain/ranking';
 import { getSession, saveSession } from '../../storage/db';
@@ -80,8 +80,12 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
           {session.phase.kind === 'board' && (
             <BoardGrid
               categories={projectForTv(session).categories}
+              dailyDoubles={dailyDoubleKeys(session)}
               onOpen={(clueKey) => dispatch({ type: 'openClue', clueKey })}
             />
+          )}
+          {session.phase.kind === 'wager' && (
+            <WagerPanel key={session.phase.clueKey} session={session} dispatch={dispatch} />
           )}
           {session.phase.kind === 'clue' && <CluePanel session={session} dispatch={dispatch} />}
           {session.phase.kind === 'finished' && <Podium ranking={rankTeams(session.teams)} />}
@@ -128,25 +132,30 @@ function pendingCount(session: GameSession): number {
   return total - session.usedClues.length;
 }
 
-function CluePanel({
-  session,
-  dispatch,
-}: {
-  session: GameSession;
-  dispatch: (action: GameAction) => void;
-}) {
-  const answerId = useId();
-  const { phase } = session;
-  if (phase.kind !== 'clue') return null;
-  const clue = getClue(session.boardSnapshot, phase.clueKey);
-  const position = parseClueKey(phase.clueKey);
-  if (!clue || !position) return null;
-  const category = session.boardSnapshot.categories[position.categoryIndex];
+function dailyDoubleKeys(session: GameSession): Set<ClueKey> {
+  const board = session.boardSnapshot;
+  return new Set(allClueKeys(board).filter((key) => getClue(board, key)?.dailyDouble === true));
+}
 
+interface OpenClue {
+  clue: Clue;
+  categoryName: string | undefined;
+}
+
+function findOpenClue(session: GameSession, key: ClueKey): OpenClue | null {
+  const clue = getClue(session.boardSnapshot, key);
+  const position = parseClueKey(key);
+  if (!clue || !position) return null;
+  return { clue, categoryName: session.boardSnapshot.categories[position.categoryIndex]?.name };
+}
+
+/** Pregunta, respuesta y sus imágenes, que solo ve el operador. */
+function ClueDetails({ clue, categoryName, answerState }: OpenClue & { answerState: string }) {
+  const answerId = useId();
   return (
-    <section aria-label="Pregunta abierta" className={styles.clue}>
+    <>
       <p className={styles.clueMeta}>
-        <span>{category?.name}</span> · <span>{`Valor: ${clue.value}`}</span>
+        <span>{categoryName}</span> · <span>{`Valor: ${clue.value}`}</span>
       </p>
       <p className={styles.question}>{clue.question}</p>
       <ClueImage imageId={clue.imageId} className={styles.image} />
@@ -158,10 +167,114 @@ function CluePanel({
           alt="Imagen de la respuesta"
           className={styles.image}
         />
-        <p className={styles.revealState}>
-          {phase.revealed ? 'Revelada en la TV' : 'No revelada: solo la ves tú'}
-        </p>
+        <p className={styles.revealState}>{answerState}</p>
       </section>
+    </>
+  );
+}
+
+function WagerPanel({
+  session,
+  dispatch,
+}: {
+  session: GameSession;
+  dispatch: (action: GameAction) => void;
+}) {
+  const teamSelectId = useId();
+  const amountId = useId();
+  const limitId = useId();
+  const [teamId, setTeamId] = useState(session.teams[0]?.id ?? '');
+  const [draft, setDraft] = useState('');
+  const { phase } = session;
+  if (phase.kind !== 'wager') return null;
+  const open = findOpenClue(session, phase.clueKey);
+  if (!open) return null;
+
+  // Se recalcula con cada cambio de equipo o de puntaje; el reducer valida con la misma función.
+  const max = maxWager(session, teamId);
+  const amount = Number(draft);
+  const filled = draft.trim() !== '';
+  const valid = filled && Number.isSafeInteger(amount) && amount >= 0 && amount <= max;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (valid) dispatch({ type: 'placeWager', teamId, amount });
+  }
+
+  return (
+    <section aria-label="Daily Double" className={styles.clue}>
+      <h3 className={styles.dailyDouble}>Daily Double</h3>
+      <ClueDetails {...open} answerState="La TV muestra el anuncio, sin la pregunta" />
+      <form className={styles.wager} onSubmit={submit}>
+        <label htmlFor={teamSelectId}>Equipo que responde</label>
+        <select id={teamSelectId} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+          {session.teams.map((team) => (
+            <option key={team.id} value={team.id}>
+              {team.name}
+            </option>
+          ))}
+        </select>
+        <label htmlFor={amountId}>Apuesta</label>
+        <input
+          id={amountId}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={max}
+          step={1}
+          value={draft}
+          aria-describedby={limitId}
+          aria-invalid={filled && !valid}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <p id={limitId} className={filled && !valid ? styles.wagerError : styles.wagerLimit}>
+          {filled && !valid
+            ? `Apuesta no válida: debe ser un número entero, mínimo 0, máximo ${max}.`
+            : `Mínimo 0, máximo ${max}.`}
+        </p>
+        <div className={styles.actions}>
+          <button type="submit" className="primary" disabled={!valid}>
+            Registrar apuesta
+          </button>
+          <button type="button" onClick={() => dispatch({ type: 'backToBoard' })}>
+            Volver al tablero
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+function CluePanel({
+  session,
+  dispatch,
+}: {
+  session: GameSession;
+  dispatch: (action: GameAction) => void;
+}) {
+  const { phase } = session;
+  if (phase.kind !== 'clue') return null;
+  const open = findOpenClue(session, phase.clueKey);
+  if (!open) return null;
+  const { wager } = phase;
+  const wagerTeam = wager && session.teams.find((team) => team.id === wager.teamId);
+  // En un Daily Double solo suma o resta el equipo que apostó, y lo que apostó.
+  const awardTeams = wager
+    ? session.teams.filter((team) => team.id === wager.teamId)
+    : session.teams;
+  const points = wager ? wager.amount : open.clue.value;
+
+  return (
+    <section aria-label="Pregunta abierta" className={styles.clue}>
+      {wager && (
+        <p className={styles.dailyDouble}>
+          {`Daily Double: ${wagerTeam?.name ?? ''} apuesta ${wager.amount}`}
+        </p>
+      )}
+      <ClueDetails
+        {...open}
+        answerState={phase.revealed ? 'Revelada en la TV' : 'No revelada: solo la ves tú'}
+      />
       <div className={styles.actions}>
         {!phase.revealed && (
           <button type="button" className="primary" onClick={() => dispatch({ type: 'reveal' })}>
@@ -173,21 +286,21 @@ function CluePanel({
         </button>
       </div>
       <ul aria-label="Asignar puntos" className={styles.awards}>
-        {session.teams.map((team) => (
+        {awardTeams.map((team) => (
           <li key={team.id} className={styles.award}>
             <span>{team.name}</span>
             <button
               type="button"
               onClick={() => dispatch({ type: 'award', teamId: team.id, direction: 1 })}
             >
-              {`Sumar ${clue.value} a ${team.name}`}
+              {`Sumar ${points} a ${team.name}`}
             </button>
             <button
               type="button"
               className="danger"
               onClick={() => dispatch({ type: 'award', teamId: team.id, direction: -1 })}
             >
-              {`Restar ${clue.value} a ${team.name}`}
+              {`Restar ${points} a ${team.name}`}
             </button>
           </li>
         ))}

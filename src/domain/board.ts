@@ -14,6 +14,8 @@ export interface Clue {
   /** Imagen de la pregunta. */
   imageId?: string;
   answerImageId?: string;
+  /** Celda Daily Double. Ausente = false. */
+  dailyDouble?: boolean;
 }
 
 export interface Category {
@@ -61,6 +63,15 @@ export function getClue(board: Board, key: string): Clue | null {
   const parsed = parseClueKey(key);
   if (!parsed) return null;
   return board.categories[parsed.categoryIndex]?.clues[parsed.rowIndex] ?? null;
+}
+
+/** Valor más alto entre las celdas del tablero. */
+export function maxClueValue(board: Board): number {
+  let max = 0;
+  for (const category of board.categories) {
+    for (const clue of category.clues) max = Math.max(max, clue.value);
+  }
+  return max;
 }
 
 /** Ids de las imágenes que usa la celda. */

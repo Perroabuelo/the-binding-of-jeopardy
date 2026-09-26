@@ -140,6 +140,82 @@ describe('EditorScreen', () => {
   });
 });
 
+describe('EditorScreen: Daily Double', () => {
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    // Sin pausas entre eventos: marcar las 15 celdas son 45 clics.
+    const user = userEvent.setup({ delay: null });
+    const view = render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user, ...view };
+  }
+
+  async function storedClue(c: number, r: number) {
+    const board = await getBoard('fixture-board');
+    return board!.categories[c]!.clues[r]!;
+  }
+
+  it('marca una celda, muestra la marca y la conserva al volver a montar', async () => {
+    const { user, unmount } = await renderSeeded();
+    await user.click(screen.getByRole('button', { name: 'Categoría 2, 400, completa' }));
+    const dialog = screen.getByRole('dialog', { name: 'Categoría 2, 400' });
+    const checkbox = within(dialog).getByRole('checkbox', { name: 'Daily Double' });
+    expect(checkbox).not.toBeChecked();
+    await user.click(checkbox);
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+
+    const cell = screen.getByRole('button', { name: 'Categoría 2, 400, completa, Daily Double' });
+    expect(cell).toHaveTextContent('DD');
+    expect(screen.getAllByRole('button', { name: /, Daily Double$/ })).toHaveLength(1);
+    await waitFor(async () => expect((await storedClue(1, 3)).dailyDouble).toBe(true));
+
+    unmount();
+    render(<EditorScreen boardId="fixture-board" />);
+    expect(
+      await screen.findByRole('button', { name: 'Categoría 2, 400, completa, Daily Double' }),
+    ).toHaveTextContent('DD');
+  });
+
+  it('desmarca una celda sin cambiar su pregunta ni su respuesta', async () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.dailyDouble = true;
+    const { user } = await renderSeeded(board);
+    await user.click(
+      screen.getByRole('button', { name: 'Categoría 1, 100, completa, Daily Double' }),
+    );
+    const dialog = screen.getByRole('dialog', { name: 'Categoría 1, 100' });
+    const checkbox = within(dialog).getByRole('checkbox', { name: 'Daily Double' });
+    expect(checkbox).toBeChecked();
+    await user.click(checkbox);
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+
+    const cell = screen.getByRole('button', { name: 'Categoría 1, 100, completa' });
+    expect(cell).not.toHaveTextContent('DD');
+    await waitFor(async () => expect('dailyDouble' in (await storedClue(0, 0))).toBe(false));
+    expect(await storedClue(0, 0)).toMatchObject({
+      question: 'Pregunta 1-1',
+      answer: 'Respuesta 1-1',
+    });
+  });
+
+  it('con las 15 celdas marcadas en un tablero completo de 3 categorías se puede jugar', async () => {
+    const { user } = await renderSeeded(makeCompleteBoard({}, 3));
+    for (let c = 1; c <= 3; c++) {
+      for (const value of CLUE_VALUES) {
+        await user.click(
+          screen.getByRole('button', { name: `Categoría ${c}, ${value}, completa` }),
+        );
+        const dialog = screen.getByRole('dialog');
+        await user.click(within(dialog).getByRole('checkbox', { name: 'Daily Double' }));
+        await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+      }
+    }
+    expect(screen.getAllByRole('button', { name: /, Daily Double$/ })).toHaveLength(15);
+    expect(screen.getByRole('heading', { name: 'Listo para jugar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+  });
+});
+
 const TINY_PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 

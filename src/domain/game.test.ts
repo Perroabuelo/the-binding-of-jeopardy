@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import { allClueKeys, clueKey, type ClueKey } from './board';
-import { gameReducer, MAX_TEAMS, startGame, type GameAction, type GameSession } from './game';
+import {
+  gameReducer,
+  MAX_TEAMS,
+  maxWager,
+  startGame,
+  type GameAction,
+  type GameSession,
+} from './game';
 
 const T0 = 1_000;
 const T1 = 2_000;
@@ -285,5 +292,169 @@ describe('gameReducer: setScore', () => {
     for (const score of [1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(gameReducer(session, { type: 'setScore', teamId: 't0', score }, T1)).toBe(session);
     }
+  });
+});
+
+// c0-r1 (200) es Daily Double
+const DD: ClueKey = 'c0-r1';
+
+function dailyDoubleGame(scores: number[] = [0, 0]): GameSession {
+  const board = makeCompleteBoard();
+  board.categories[0]!.clues[1]!.dailyDouble = true;
+  const names = ['Primos', 'Tíos', 'Sobrinos', 'Abuelos'].slice(0, scores.length);
+  return play(
+    newGame(names, board),
+    ...scores.map((score, i): GameAction => ({ type: 'setScore', teamId: `t${i}`, score })),
+  );
+}
+
+function placeWager(teamId: string, amount: number): GameAction {
+  return { type: 'placeWager', teamId, amount };
+}
+
+describe('Daily Double: apertura', () => {
+  it('openClue sobre un Daily Double pasa a la espera de apuesta', () => {
+    const next = play(dailyDoubleGame(), openClue(DD));
+    expect(next.phase).toEqual({ kind: 'wager', clueKey: DD });
+    expect(next.updatedAt).toBe(T1);
+  });
+
+  it('openClue sobre una celda normal abre la pregunta como siempre', () => {
+    const next = play(dailyDoubleGame(), openClue('c0-r0'));
+    expect(next.phase).toEqual({ kind: 'clue', clueKey: 'c0-r0', revealed: false });
+  });
+
+  it('en la espera de apuesta, reveal y award no hacen nada', () => {
+    const session = play(dailyDoubleGame(), openClue(DD));
+    expect(gameReducer(session, { type: 'reveal' }, T1)).toBe(session);
+    expect(gameReducer(session, { type: 'award', teamId: 't0', direction: 1 }, T1)).toBe(session);
+    expect(gameReducer(session, openClue('c1-r1'), T1)).toBe(session);
+  });
+
+  it('volver al tablero sin apostar marca la celda usada sin cambiar puntajes', () => {
+    const session = dailyDoubleGame([100, 200]);
+    const next = play(session, openClue(DD), { type: 'backToBoard' });
+    expect(next.phase).toEqual({ kind: 'board' });
+    expect(next.usedClues).toEqual([DD]);
+    expect(next.teams).toEqual(session.teams);
+  });
+
+  it('terminar desde la espera de apuesta marca la celda usada', () => {
+    const next = play(dailyDoubleGame(), openClue(DD), { type: 'finish' });
+    expect(next.phase).toEqual({ kind: 'finished' });
+    expect(next.usedClues).toEqual([DD]);
+  });
+
+  it('setScore sigue disponible en la espera de apuesta', () => {
+    const next = play(dailyDoubleGame(), openClue(DD), {
+      type: 'setScore',
+      teamId: 't1',
+      score: 50,
+    });
+    expect(scoreOf(next, 't1')).toBe(50);
+    expect(next.phase).toEqual({ kind: 'wager', clueKey: DD });
+  });
+});
+
+describe('Daily Double: maxWager', () => {
+  it('es el puntaje del equipo o el valor más alto del tablero, lo que sea mayor', () => {
+    const session = dailyDoubleGame([1200, 300, -400]);
+    expect(maxWager(session, 't0')).toBe(1200);
+    expect(maxWager(session, 't1')).toBe(500);
+    expect(maxWager(session, 't2')).toBe(500);
+  });
+});
+
+describe('Daily Double: placeWager', () => {
+  it('registra una apuesta de 0', () => {
+    const next = play(dailyDoubleGame(), openClue(DD), placeWager('t0', 0));
+    expect(next.phase).toEqual({
+      kind: 'clue',
+      clueKey: DD,
+      revealed: false,
+      wager: { teamId: 't0', amount: 0 },
+    });
+    expect(next.updatedAt).toBe(T1);
+  });
+
+  it('registra una apuesta dentro del puntaje (1200 → 1000)', () => {
+    const next = play(dailyDoubleGame([1200]), openClue(DD), placeWager('t0', 1000));
+    expect(next.phase).toMatchObject({ kind: 'clue', wager: { teamId: 't0', amount: 1000 } });
+  });
+
+  it('permite apostar el puntaje completo', () => {
+    const next = play(dailyDoubleGame([1200]), openClue(DD), placeWager('t0', 1200));
+    expect(next.phase).toMatchObject({ wager: { amount: 1200 } });
+  });
+
+  it.each([300, -400])('con %i puntos permite apostar hasta el tope del tablero (500)', (score) => {
+    const next = play(dailyDoubleGame([score]), openClue(DD), placeWager('t0', 500));
+    expect(next.phase).toMatchObject({ kind: 'clue', wager: { teamId: 't0', amount: 500 } });
+  });
+
+  it.each([600, -100, 2.5, Number.NaN])('rechaza la apuesta %s', (amount) => {
+    const session = play(dailyDoubleGame([300]), openClue(DD));
+    expect(gameReducer(session, placeWager('t0', amount), T1)).toBe(session);
+  });
+
+  it('rechaza un equipo inexistente', () => {
+    const session = play(dailyDoubleGame(), openClue(DD));
+    expect(gameReducer(session, placeWager('nope', 100), T1)).toBe(session);
+  });
+
+  it('se ignora fuera de la espera de apuesta, incluso con la apuesta ya registrada', () => {
+    const board = dailyDoubleGame();
+    expect(gameReducer(board, placeWager('t0', 100), T1)).toBe(board);
+    const normal = play(dailyDoubleGame(), openClue('c0-r0'));
+    expect(gameReducer(normal, placeWager('t0', 100), T1)).toBe(normal);
+    const placed = play(dailyDoubleGame(), openClue(DD), placeWager('t0', 100));
+    expect(gameReducer(placed, placeWager('t1', 200), T1)).toBe(placed);
+  });
+
+  it('después de apostar se puede revelar y volver al tablero', () => {
+    const next = play(
+      dailyDoubleGame(),
+      openClue(DD),
+      placeWager('t0', 100),
+      { type: 'reveal' },
+      { type: 'backToBoard' },
+    );
+    expect(next.phase).toEqual({ kind: 'board' });
+    expect(next.usedClues).toEqual([DD]);
+  });
+});
+
+describe('Daily Double: award', () => {
+  it('un acierto suma la apuesta, no el valor de la celda (+1000 → 2200)', () => {
+    const next = play(dailyDoubleGame([1200]), openClue(DD), placeWager('t0', 1000), {
+      type: 'award',
+      teamId: 't0',
+      direction: 1,
+    });
+    expect(scoreOf(next, 't0')).toBe(2200);
+  });
+
+  it('un fallo resta la apuesta (-500 → -200)', () => {
+    const next = play(dailyDoubleGame([0, 300]), openClue(DD), placeWager('t1', 500), {
+      type: 'award',
+      teamId: 't1',
+      direction: -1,
+    });
+    expect(scoreOf(next, 't1')).toBe(-200);
+  });
+
+  it('ignora a los equipos que no apostaron', () => {
+    const session = play(dailyDoubleGame([1200, 300]), openClue(DD), placeWager('t0', 1000));
+    expect(gameReducer(session, { type: 'award', teamId: 't1', direction: 1 }, T1)).toBe(session);
+    expect(gameReducer(session, { type: 'award', teamId: 't1', direction: -1 }, T1)).toBe(session);
+  });
+
+  it('setScore sigue disponible para cualquier equipo', () => {
+    const next = play(dailyDoubleGame([1200, 300]), openClue(DD), placeWager('t0', 1000), {
+      type: 'setScore',
+      teamId: 't1',
+      score: 0,
+    });
+    expect(scoreOf(next, 't1')).toBe(0);
   });
 });

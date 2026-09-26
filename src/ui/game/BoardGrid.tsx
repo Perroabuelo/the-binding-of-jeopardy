@@ -8,9 +8,11 @@ export interface BoardGridProps {
   /** Sin `onOpen` el tablero es de solo lectura: no hay botones ni handlers. */
   onOpen?: (key: ClueKey) => void;
   size?: 'normal' | 'tv';
+  /** Celdas Daily Double a marcar. Solo lo pasa el operador: la TV nunca las conoce. */
+  dailyDoubles?: ReadonlySet<ClueKey>;
 }
 
-export function BoardGrid({ categories, onOpen, size = 'normal' }: BoardGridProps) {
+export function BoardGrid({ categories, onOpen, size = 'normal', dailyDoubles }: BoardGridProps) {
   const rowCount = Math.max(0, ...categories.map((category) => category.clues.length));
   const rows = Array.from({ length: rowCount }, (_, r) => r);
   return (
@@ -35,7 +37,8 @@ export function BoardGrid({ categories, onOpen, size = 'normal' }: BoardGridProp
             {categories.map((category, c) => {
               const clue = category.clues[r];
               if (!clue) return <td key={c} />;
-              const label = `${category.name}, ${clue.value}${clue.used ? ', usada' : ''}`;
+              const dailyDouble = !clue.used && dailyDoubles?.has(clue.key) === true;
+              const label = `${category.name}, ${clue.value}${clue.used ? ', usada' : ''}${dailyDouble ? ', Daily Double' : ''}`;
               const cellClass = `${styles.cell} ${clue.used ? styles.used : ''}`;
               return (
                 <td key={c}>
@@ -48,6 +51,11 @@ export function BoardGrid({ categories, onOpen, size = 'normal' }: BoardGridProp
                       onClick={() => onOpen(clue.key)}
                     >
                       {clue.used ? '' : clue.value}
+                      {dailyDouble && (
+                        <span className={styles.dailyDouble} aria-hidden="true">
+                          DD
+                        </span>
+                      )}
                     </button>
                   ) : (
                     <div className={cellClass}>

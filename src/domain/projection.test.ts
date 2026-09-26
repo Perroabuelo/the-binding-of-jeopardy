@@ -172,3 +172,63 @@ describe('projectForTv', () => {
     expect(answersIn(JSON.stringify(view), session)).toEqual([]);
   });
 });
+
+describe('projectForTv: Daily Double', () => {
+  // c2-r1 (200) es Daily Double y tiene imágenes de pregunta y de respuesta
+  const DD: ClueKey = 'c2-r1';
+
+  function dailyDoubleGame(): GameSession {
+    const board = makeCompleteBoard();
+    const clue = board.categories[2]!.clues[1]!;
+    clue.dailyDouble = true;
+    clue.imageId = 'img-pregunta';
+    clue.answerImageId = 'img-respuesta';
+    board.categories[4]!.clues[3]!.dailyDouble = true;
+    return startGame(board, ['Primos', 'Tíos'], {
+      sessionId: 's1',
+      now: 0,
+      makeTeamId: (index) => `t${index}`,
+    });
+  }
+
+  it('esperando la apuesta no envía la pregunta, la respuesta ni sus imágenes', () => {
+    const view = projectForTv(play(dailyDoubleGame(), openClue(DD)));
+    expect(view.phase).toEqual({ kind: 'dailyDouble', clueKey: DD, value: 200 });
+    const json = JSON.stringify(view);
+    expect(json).not.toContain('Pregunta 3-2');
+    expect(json).not.toContain('Respuesta 3-2');
+    expect(json).not.toContain('img-pregunta');
+    expect(json).not.toContain('img-respuesta');
+  });
+
+  it('en el tablero no identifica las celdas Daily Double', () => {
+    const view = projectForTv(dailyDoubleGame());
+    expect(JSON.stringify(view)).not.toContain('dailyDouble');
+    for (const category of view.categories) {
+      for (const clue of category.clues)
+        expect(Object.keys(clue).sort()).toEqual(['key', 'used', 'value']);
+    }
+  });
+
+  it('con la apuesta registrada incluye la pregunta, el equipo y el monto', () => {
+    const session = play(dailyDoubleGame(), openClue(DD), {
+      type: 'placeWager',
+      teamId: 't0',
+      amount: 400,
+    });
+    expect(projectForTv(session).phase).toEqual({
+      kind: 'clue',
+      clueKey: DD,
+      value: 200,
+      question: 'Pregunta 3-2',
+      imageId: 'img-pregunta',
+      imageRole: 'question',
+      dailyDouble: { teamName: 'Primos', wager: 400 },
+    });
+  });
+
+  it('una celda normal no incluye dailyDouble', () => {
+    const view = projectForTv(play(dailyDoubleGame(), openClue('c0-r0')));
+    expect(view.phase).not.toHaveProperty('dailyDouble');
+  });
+});

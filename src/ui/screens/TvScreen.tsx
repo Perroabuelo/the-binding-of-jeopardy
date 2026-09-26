@@ -49,6 +49,7 @@ function TvContent({ view }: { view: TvView }) {
     <>
       <h2 className={styles.title}>{view.title}</h2>
       {phase.kind === 'board' && <BoardGrid categories={view.categories} size="tv" />}
+      {phase.kind === 'dailyDouble' && <TvDailyDouble view={view} phase={phase} />}
       {phase.kind === 'clue' && <TvClue view={view} phase={phase} />}
       {phase.kind === 'finished' ? (
         <Podium ranking={phase.ranking} size="tv" />
@@ -60,16 +61,40 @@ function TvContent({ view }: { view: TvView }) {
 }
 
 type CluePhase = Extract<TvView['phase'], { kind: 'clue' }>;
+type DailyDoublePhase = Extract<TvView['phase'], { kind: 'dailyDouble' }>;
+
+function categoryName(view: TvView, key: string): string | undefined {
+  const position = parseClueKey(key);
+  return position ? view.categories[position.categoryIndex]?.name : undefined;
+}
+
+/** Anuncio del Daily Double: la vista no trae la pregunta hasta que se registra la apuesta. */
+function TvDailyDouble({ view, phase }: { view: TvView; phase: DailyDoublePhase }) {
+  const category = categoryName(view, phase.clueKey);
+  return (
+    <section aria-label="Daily Double" className={styles.clue}>
+      <p className={styles.dailyDouble}>DAILY DOUBLE!</p>
+      <p className={styles.clueMeta}>
+        {category !== undefined && <span>{category}</span>}
+        <span className={styles.value}>{phase.value}</span>
+      </p>
+    </section>
+  );
+}
 
 function TvClue({ view, phase }: { view: TvView; phase: CluePhase }) {
-  const position = parseClueKey(phase.clueKey);
-  const category = position ? view.categories[position.categoryIndex] : undefined;
+  const category = categoryName(view, phase.clueKey);
   return (
     <section aria-label="Pregunta" className={styles.clue}>
       <p className={styles.clueMeta}>
-        {category && <span>{category.name}</span>}
+        {category !== undefined && <span>{category}</span>}
         <span className={styles.value}>{phase.value}</span>
       </p>
+      {phase.dailyDouble && (
+        <p className={styles.wager}>
+          {`${phase.dailyDouble.teamName} apuesta ${phase.dailyDouble.wager}`}
+        </p>
+      )}
       <p className={styles.question}>{phase.question}</p>
       <ClueImage
         imageId={phase.imageId}

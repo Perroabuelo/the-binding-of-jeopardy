@@ -4,7 +4,8 @@ import { rankTeams } from './ranking';
 
 /**
  * Vista para la TV. Solo incluye la respuesta de la celda abierta, y su imagen, cuando ya fue
- * revelada.
+ * revelada. Nunca indica qué celdas son Daily Double, y un Daily Double sin apuesta no incluye
+ * la pregunta ni sus imágenes.
  */
 export function projectForTv(session: GameSession): TvView {
   const { boardSnapshot: board, phase } = session;
@@ -21,6 +22,9 @@ export function projectForTv(session: GameSession): TvView {
   let tvPhase: TvView['phase'] = { kind: 'board' };
   if (phase.kind === 'finished') {
     tvPhase = { kind: 'finished', ranking: rankTeams(teams) };
+  } else if (phase.kind === 'wager') {
+    const clue = getClue(board, phase.clueKey);
+    if (clue) tvPhase = { kind: 'dailyDouble', clueKey: phase.clueKey, value: clue.value };
   } else if (phase.kind === 'clue') {
     const clue = getClue(board, phase.clueKey);
     if (clue) {
@@ -31,6 +35,8 @@ export function projectForTv(session: GameSession): TvView {
           : clue.imageId !== undefined
             ? { imageId: clue.imageId, imageRole: 'question' as const }
             : {};
+      const wager = phase.wager;
+      const team = wager && teams.find((t) => t.id === wager.teamId);
       tvPhase = {
         kind: 'clue',
         clueKey: phase.clueKey,
@@ -38,6 +44,7 @@ export function projectForTv(session: GameSession): TvView {
         question: clue.question,
         ...image,
         ...(phase.revealed && { answer: clue.answer }),
+        ...(wager && team && { dailyDouble: { teamName: team.name, wager: wager.amount } }),
       };
     }
   }

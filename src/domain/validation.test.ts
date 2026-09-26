@@ -30,6 +30,19 @@ describe('validateBoard', () => {
     expect(validateBoard(makeCompleteBoard({}, count))).toEqual({ ready: true, missing: [] });
   });
 
+  it('las celdas Daily Double no cambian la validación', () => {
+    const complete = makeCompleteBoard({}, 3);
+    const incomplete = createEmptyBoard('b1', 0, 3);
+    const expectedIncomplete = validateBoard(incomplete);
+    for (const board of [complete, incomplete]) {
+      for (const category of board.categories) {
+        for (const clue of category.clues) clue.dailyDouble = true;
+      }
+    }
+    expect(validateBoard(complete)).toEqual({ ready: true, missing: [] });
+    expect(validateBoard(incomplete)).toEqual(expectedIncomplete);
+  });
+
   it('señala la categoría agregada vacía', () => {
     const board = makeCompleteBoard();
     board.categories.push(createEmptyBoard('b2', 0, 3).categories[0]!);

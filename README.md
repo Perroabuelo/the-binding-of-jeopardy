@@ -19,6 +19,21 @@ solo en el navegador de quien los crea.
    resta puntos. Al revelar, la imagen de la respuesta reemplaza en la TV a la de la pregunta. Si
    recargas cualquiera de las dos ventanas, el juego sigue donde estaba.
 
+### Daily Double
+
+En el editor, abre una celda y marca **Daily Double**. Puedes marcar las que quieras, desde ninguna
+hasta todas. El editor y el tablero del operador las señalan con **DD**, pero la TV nunca revela
+dónde están.
+
+Al abrir un Daily Double, la TV anuncia **DAILY DOUBLE!** con la categoría y el valor, sin mostrar
+la pregunta. El operador ve la pregunta y la respuesta, elige qué equipo responde y registra su
+apuesta. Con eso la TV muestra la pregunta junto al equipo y su apuesta, y la celda sigue como
+cualquier otra. Solo ese equipo puede sumar o restar puntos, y lo que suma o resta es la apuesta.
+
+La apuesta es un número entero de 0 hasta el puntaje del equipo o el valor más alto del tablero, lo
+que sea mayor. Así, un equipo en 0 o en negativo también puede apostar hasta 500. Una vez
+registrada, la apuesta no se cambia: si hubo un error, corrige el puntaje a mano.
+
 Los tableros viven solo en el navegador donde se crearon. Para llevarlos a otro computador o
 respaldarlos, usa **Exportar** e **Importar tablero** en la lista. Después de abrir la app una vez
 con conexión, funciona sin internet.

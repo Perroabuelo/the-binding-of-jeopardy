@@ -130,6 +130,40 @@ describe('importBoard', () => {
     }
   });
 
+  it('ida y vuelta: conserva exactamente las celdas Daily Double', () => {
+    const original = makeCompleteBoard();
+    original.categories[0]!.clues[2]!.dailyDouble = true;
+    original.categories[3]!.clues[4]!.dailyDouble = true;
+    const { board } = importBoard(exportBoard(original, {}), {
+      makeId: makeIdGenerator(),
+      now: NOW,
+    });
+
+    const marked = board.categories.flatMap((category, c) =>
+      category.clues.flatMap((clue, r) => (clue.dailyDouble ? [`${c}-${r}`] : [])),
+    );
+    expect(marked).toEqual(['0-2', '3-4']);
+    expect(board.categories).toEqual(original.categories);
+  });
+
+  it('importa un archivo sin dailyDouble, de una versión anterior, sin celdas marcadas', () => {
+    const { board } = importBoard(JSON.stringify(exportedFile()), {
+      makeId: makeIdGenerator(),
+      now: NOW,
+    });
+    for (const category of board.categories) {
+      for (const clue of category.clues) expect('dailyDouble' in clue).toBe(false);
+    }
+  });
+
+  it('no copia dailyDouble cuando es false', () => {
+    const file = exportedFile();
+    const board = file.board as Board;
+    board.categories[1]!.clues[1]!.dailyDouble = false;
+    const imported = importBoard(JSON.stringify(file), { makeId: makeIdGenerator(), now: NOW });
+    expect('dailyDouble' in imported.board.categories[1]!.clues[1]!).toBe(false);
+  });
+
   it('una imagen compartida entre pregunta y respuesta se copia una sola vez', () => {
     const original = boardWithImages();
     original.categories[0]!.clues[0]!.answerImageId = 'img-a';

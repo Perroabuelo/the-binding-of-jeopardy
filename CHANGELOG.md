@@ -8,6 +8,15 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [0.4.0] - 2026-09-26
+
+### Agregado
+
+- Daily Double: marca las celdas que quieras en el editor. Al abrirlas, la TV anuncia "DAILY
+  DOUBLE!" y el equipo apuesta antes de ver la pista.
+- La apuesta va de 0 hasta el puntaje del equipo o el valor más alto del tablero, lo que sea mayor.
+  Los equipos en 0 o negativos también pueden apostar.
+
 ## [0.3.0] - 2026-09-26
 
 ### Agregado

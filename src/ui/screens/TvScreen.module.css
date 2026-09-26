@@ -86,3 +86,17 @@
   font-size: var(--tv-cell-font);
   color: var(--color-accent);
 }
+
+.dailyDouble {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: calc(var(--tv-question-font) * 1.5);
+  color: var(--color-accent);
+}
+
+.wager {
+  margin: 0;
+  font-size: var(--tv-category-font);
+  color: var(--color-accent);
+  text-transform: uppercase;
+}

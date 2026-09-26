@@ -1,4 +1,11 @@
-import { allClueKeys, getClue, type Board, type ClueKey, type ClueValue } from './board';
+import {
+  allClueKeys,
+  getClue,
+  maxClueValue,
+  type Board,
+  type ClueKey,
+  type ClueValue,
+} from './board';
 import { validateBoard } from './validation';
 
 export const MIN_TEAMS = 1;
@@ -10,8 +17,23 @@ export interface Team {
   score: number;
 }
 
+export interface Wager {
+  teamId: string;
+  amount: number;
+}
+
 export type GamePhase =
-  { kind: 'board' } | { kind: 'clue'; clueKey: ClueKey; revealed: boolean } | { kind: 'finished' };
+  | { kind: 'board' }
+  /** Daily Double abierto que espera la apuesta. */
+  | { kind: 'wager'; clueKey: ClueKey }
+  | {
+      kind: 'clue';
+      clueKey: ClueKey;
+      revealed: boolean;
+      /** Presente solo en un Daily Double. */
+      wager?: Wager;
+    }
+  | { kind: 'finished' };
 
 export interface GameSession {
   id: string;
@@ -26,6 +48,7 @@ export interface GameSession {
 
 export type GameAction =
   | { type: 'openClue'; clueKey: ClueKey }
+  | { type: 'placeWager'; teamId: string; amount: number }
   | { type: 'reveal' }
   | { type: 'award'; teamId: string; direction: 1 | -1 }
   | { type: 'setScore'; teamId: string; score: number }
@@ -53,7 +76,11 @@ export interface TvView {
         imageRole?: TvImageRole;
         /** Presente solo cuando la respuesta fue revelada. */
         answer?: string;
+        /** Presente solo en un Daily Double con apuesta. */
+        dailyDouble?: { teamName: string; wager: number };
       }
+    /** Daily Double que espera la apuesta: sin pregunta, imágenes ni respuesta. */
+    | { kind: 'dailyDouble'; clueKey: ClueKey; value: ClueValue }
     | { kind: 'finished'; ranking: { team: Team; position: number }[] };
 }
 
@@ -102,9 +129,19 @@ export function startGame(
   };
 }
 
+/**
+ * Apuesta máxima de un Daily Double para el equipo: su puntaje o el valor más alto del tablero,
+ * lo que sea mayor. Si el equipo no existe, devuelve el valor más alto del tablero.
+ */
+export function maxWager(session: GameSession, teamId: string): number {
+  const team = session.teams.find((t) => t.id === teamId);
+  const boardMax = maxClueValue(session.boardSnapshot);
+  return team ? Math.max(team.score, boardMax) : boardMax;
+}
+
 /** Celdas usadas incluyendo la que está abierta, si hay una. */
 function withOpenClueUsed(session: GameSession): ClueKey[] {
-  if (session.phase.kind !== 'clue') return session.usedClues;
+  if (session.phase.kind !== 'clue' && session.phase.kind !== 'wager') return session.usedClues;
   const key = session.phase.clueKey;
   return session.usedClues.includes(key) ? session.usedClues : [...session.usedClues, key];
 }
@@ -115,11 +152,31 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
   switch (action.type) {
     case 'openClue': {
       if (phase.kind !== 'board') return session;
-      if (!getClue(session.boardSnapshot, action.clueKey)) return session;
+      const clue = getClue(session.boardSnapshot, action.clueKey);
+      if (!clue) return session;
       if (session.usedClues.includes(action.clueKey)) return session;
       return {
         ...session,
-        phase: { kind: 'clue', clueKey: action.clueKey, revealed: false },
+        phase: clue.dailyDouble
+          ? { kind: 'wager', clueKey: action.clueKey }
+          : { kind: 'clue', clueKey: action.clueKey, revealed: false },
+        updatedAt: now,
+      };
+    }
+    case 'placeWager': {
+      if (phase.kind !== 'wager') return session;
+      if (!session.teams.some((team) => team.id === action.teamId)) return session;
+      const { amount } = action;
+      if (!Number.isSafeInteger(amount) || amount < 0) return session;
+      if (amount > maxWager(session, action.teamId)) return session;
+      return {
+        ...session,
+        phase: {
+          kind: 'clue',
+          clueKey: phase.clueKey,
+          revealed: false,
+          wager: { teamId: action.teamId, amount },
+        },
         updatedAt: now,
       };
     }
@@ -128,7 +185,7 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       return { ...session, phase: { ...phase, revealed: true }, updatedAt: now };
     }
     case 'backToBoard': {
-      if (phase.kind !== 'clue') return session;
+      if (phase.kind !== 'clue' && phase.kind !== 'wager') return session;
       const usedClues = withOpenClueUsed(session);
       const allUsed = allClueKeys(session.boardSnapshot).every((key) => usedClues.includes(key));
       return {
@@ -151,10 +208,12 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       if (phase.kind !== 'clue') return session;
       const clue = getClue(session.boardSnapshot, phase.clueKey);
       if (!clue) return session;
+      if (phase.wager && phase.wager.teamId !== action.teamId) return session;
+      const points = phase.wager ? phase.wager.amount : clue.value;
       return updateTeamScore(
         session,
         action.teamId,
-        (score) => score + action.direction * clue.value,
+        (score) => score + action.direction * points,
         now,
       );
     }

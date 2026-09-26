@@ -1,6 +1,8 @@
 import type { Board, Clue } from '../../domain/board';
 
-export type CluePatch = Partial<Pick<Clue, 'question' | 'answer' | 'imageId' | 'answerImageId'>>;
+export type CluePatch = Partial<
+  Pick<Clue, 'question' | 'answer' | 'imageId' | 'answerImageId' | 'dailyDouble'>
+>;
 
 export function isClueComplete(clue: Clue): boolean {
   return clue.question.trim() !== '' && clue.answer.trim() !== '';
