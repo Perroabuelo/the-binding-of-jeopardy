@@ -6,7 +6,7 @@
   - `boardImageIds` incluye las dos imágenes de `final`.
   - `isFinalComplete` es `false` con categoría, pregunta o respuesta vacía, o sin `final`, y `true` con las tres.
   - `validateBoard` sigue en `ready` con una pista final ausente o incompleta.
-- [ ] 1.2 En `exchange.ts`, aceptar `final` opcional en `boardSchema` y reasignar sus ids de imagen en `importBoard`. Verificar con tests unitarios:
+- [x] 1.2 En `exchange.ts`, aceptar `final` opcional en `boardSchema` y reasignar sus ids de imagen en `importBoard`. Verificar con tests unitarios:
   - La ida y vuelta conserva categoría, pregunta, respuesta e imágenes de `final`.
   - Un archivo sin `final` se importa sin pista final.
   - Una imagen de `final` faltante o dañada lanza `ImportError`.

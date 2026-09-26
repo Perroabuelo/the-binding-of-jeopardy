@@ -4,12 +4,14 @@ import {
   boardImageIds,
   clueImageIds,
   CLUE_VALUES,
+  finalImageIds,
   MAX_CATEGORIES,
   MIN_CATEGORIES,
   type Board,
   type Category,
   type Clue,
   type ClueValue,
+  type FinalClue,
 } from './board';
 
 export const EXCHANGE_FORMAT = 'the-binding-of-jeopardy';
@@ -43,7 +45,7 @@ export interface ImportDeps {
   now: number;
 }
 
-/** Serializa el tablero con solo las imágenes que sus celdas referencian. */
+/** Serializa el tablero con solo las imágenes que sus celdas y su pista final referencian. */
 export function exportBoard(board: Board, images: Record<string, string>): string {
   const included: Record<string, string> = {};
   for (const imageId of boardImageIds(board)) {
@@ -74,6 +76,14 @@ const clueSchema = (value: ClueValue) =>
 
 const [v1, v2, v3, v4, v5] = CLUE_VALUES;
 
+const finalSchema = z.object({
+  category: z.string(),
+  question: z.string(),
+  answer: z.string(),
+  imageId: z.string().optional(),
+  answerImageId: z.string().optional(),
+});
+
 const boardSchema = z.object({
   id: z.string(),
   schemaVersion: z.literal(BOARD_SCHEMA_VERSION),
@@ -93,6 +103,7 @@ const boardSchema = z.object({
     )
     .min(MIN_CATEGORIES)
     .max(MAX_CATEGORIES),
+  final: finalSchema.optional(),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),
 });
@@ -139,22 +150,24 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
 
   const newImageIds = new Map<string, string>();
   const images: Record<string, string> = {};
-  for (const category of source.categories) {
-    for (const imageId of category.clues.flatMap(clueImageIds)) {
-      if (newImageIds.has(imageId)) continue;
-      const dataUrl = sourceImages[imageId];
-      if (dataUrl === undefined) {
-        throw new ImportError('Al archivo le falta una imagen que usa una de sus preguntas.');
-      }
-      if (!DATA_URL_PATTERN.test(dataUrl)) {
-        throw new ImportError(
-          'El archivo contiene una imagen dañada o de un tipo no permitido (PNG, JPEG, GIF o WebP).',
-        );
-      }
-      const newId = makeId();
-      newImageIds.set(imageId, newId);
-      images[newId] = dataUrl;
+  const sourceImageIds = [
+    ...source.categories.flatMap((category) => category.clues.flatMap(clueImageIds)),
+    ...finalImageIds(source.final),
+  ];
+  for (const imageId of sourceImageIds) {
+    if (newImageIds.has(imageId)) continue;
+    const dataUrl = sourceImages[imageId];
+    if (dataUrl === undefined) {
+      throw new ImportError('Al archivo le falta una imagen que usa una de sus preguntas.');
     }
+    if (!DATA_URL_PATTERN.test(dataUrl)) {
+      throw new ImportError(
+        'El archivo contiene una imagen dañada o de un tipo no permitido (PNG, JPEG, GIF o WebP).',
+      );
+    }
+    const newId = makeId();
+    newImageIds.set(imageId, newId);
+    images[newId] = dataUrl;
   }
 
   const categories: Category[] = source.categories.map((category) => ({
@@ -170,17 +183,23 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
     }),
   }));
 
-  return {
-    board: {
-      id: makeId(),
-      schemaVersion: BOARD_SCHEMA_VERSION,
-      title: source.title,
-      categories,
-      createdAt: now,
-      updatedAt: now,
-    },
-    images,
+  const board: Board = {
+    id: makeId(),
+    schemaVersion: BOARD_SCHEMA_VERSION,
+    title: source.title,
+    categories,
+    createdAt: now,
+    updatedAt: now,
   };
+  if (source.final) {
+    const { category, question, answer, imageId, answerImageId } = source.final;
+    const final: FinalClue = { category, question, answer };
+    if (imageId !== undefined) final.imageId = newImageIds.get(imageId);
+    if (answerImageId !== undefined) final.answerImageId = newImageIds.get(answerImageId);
+    board.final = final;
+  }
+
+  return { board, images };
 }
 
 const INVALID_FILE_NAME_CHARS = /[<>:"/\\|?*]/g;
