@@ -2,7 +2,7 @@
 
 ## 1. Registro de versiones
 
-- [ ] 1.1 Agregar a `openspec/config.yaml` las reglas de versionado: en `rules.proposal`, la sección "Notas de versión" con versión objetivo, tipo de salto SemVer y bullets en lenguaje de usuario; en `operations.archive.guidance`, los pasos para mover las notas a `CHANGELOG.md`, subir `version` en `package.json` y `package-lock.json`, y crear y publicar el tag `vX.Y.Z` sobre el merge a `main`. Crear también `CHANGELOG.md` (formato *Keep a Changelog* en español), con la entrada retroactiva `0.1.0` de la v1 y la sección `Sin publicar`. Verificar que `openspec validate imagen-en-respuesta` pasa y que `openspec instructions proposal --change imagen-en-respuesta --json` muestra la regla nueva.
+- [x] 1.1 Agregar a `openspec/config.yaml` las reglas de versionado: en `rules.proposal`, la sección "Notas de versión" con versión objetivo, tipo de salto SemVer y bullets en lenguaje de usuario; en `operations.archive.guidance`, los pasos para mover las notas a `CHANGELOG.md`, subir `version` en `package.json` y `package-lock.json`, y crear y publicar el tag `vX.Y.Z` sobre el merge a `main`. Crear también `CHANGELOG.md` (formato *Keep a Changelog* en español), con la entrada retroactiva `0.1.0` de la v1 y la sección `Sin publicar`. Verificar que `openspec validate imagen-en-respuesta` pasa y que `openspec instructions proposal --change imagen-en-respuesta --json` muestra la regla nueva.
 
 ## 2. Dominio
 
