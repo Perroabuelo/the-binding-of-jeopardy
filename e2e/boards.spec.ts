@@ -169,3 +169,51 @@ test('importar el mismo archivo dos veces da dos tableros nuevos distintos', asy
   // Importar no sobrescribe el tablero existente.
   expect(boards.find((board) => board.id === source.id)).toEqual(source);
 });
+
+test('exportar e importar un tablero de 8 categorías crea una copia con el mismo orden', async ({
+  page,
+}) => {
+  const source = makeCompleteBoard({ id: 'e2e-ocho', title: 'Trivia larga' }, 8);
+  source.categories.forEach((category, c) => (category.name = `Columna ${8 - c}`));
+  await openListWith(page, [source]);
+
+  const file = await exportBoard(page, 'Trivia larga');
+  await page.getByLabel('Importar tablero').setInputFiles(file);
+
+  await expect(page.getByRole('status')).toHaveText('Se importó "Trivia larga".');
+  const { boards } = await readStorage(page);
+  const imported = boards.find((board) => board.id !== source.id)!;
+  expect(imported.categories).toEqual(source.categories);
+
+  await page.getByRole('link', { name: 'Trivia larga' }).last().click();
+  const names = page.getByLabel(/^Nombre de la categoría \d$/);
+  await expect(names).toHaveCount(8);
+  expect(await names.evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value))).toEqual(
+    source.categories.map((category) => category.name),
+  );
+});
+
+test('importar un tablero de 9 categorías muestra la estructura permitida', async ({ page }) => {
+  await openListWith(page, [boardWithImage()]);
+  const before = await readStorage(page);
+  const nine = makeCompleteBoard({ id: 'e2e-nueve' }, 9);
+
+  await page.getByLabel('Importar tablero').setInputFiles({
+    name: 'nueve.jeopardy.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(
+      JSON.stringify({
+        format: 'the-binding-of-jeopardy',
+        schemaVersion: 1,
+        board: nine,
+        images: {},
+      }),
+    ),
+  });
+
+  await expect(page.getByRole('alert')).toContainText(
+    'debe tener entre 3 y 8 categorías con 5 preguntas de 100 a 500',
+  );
+  await expect(page.getByRole('listitem')).toHaveCount(1);
+  expect(await readStorage(page)).toEqual(before);
+});

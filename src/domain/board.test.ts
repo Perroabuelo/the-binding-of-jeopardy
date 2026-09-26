@@ -1,24 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import {
+  addCategory,
   allClueKeys,
   boardImageIds,
+  categoryHasContent,
   clueImageIds,
   clueKey,
   CLUE_VALUES,
   createEmptyBoard,
   getClue,
+  moveCategory,
   parseClueKey,
+  removeCategory,
+  type Board,
 } from './board';
 
 describe('createEmptyBoard', () => {
-  it('crea 5 categorías vacías con 5 celdas de valores 100 a 500', () => {
+  it('crea 6 categorías vacías con 5 celdas de valores 100 a 500', () => {
     const board = createEmptyBoard('b1', 123);
     expect(board.id).toBe('b1');
     expect(board.title).toBe('');
     expect(board.createdAt).toBe(123);
     expect(board.updatedAt).toBe(123);
-    expect(board.categories).toHaveLength(5);
+    expect(board.categories).toHaveLength(6);
     for (const category of board.categories) {
       expect(category.name).toBe('');
       expect(category.clues.map((clue) => clue.value)).toEqual([100, 200, 300, 400, 500]);
@@ -28,6 +33,11 @@ describe('createEmptyBoard', () => {
         expect(clue.imageId).toBeUndefined();
       }
     }
+  });
+
+  it('crea la cantidad de categorías indicada', () => {
+    expect(createEmptyBoard('b1', 0, 3).categories).toHaveLength(3);
+    expect(createEmptyBoard('b1', 0, 8).categories).toHaveLength(8);
   });
 
   it('no comparte referencias entre categorías', () => {
@@ -43,17 +53,28 @@ describe('claves de celda', () => {
     expect(parseClueKey('c2-r3')).toEqual({ categoryIndex: 2, rowIndex: 3 });
   });
 
-  it('rechaza claves inválidas o fuera de rango', () => {
+  it('acepta cualquier categoría: la pertenencia al tablero la resuelve getClue', () => {
+    expect(parseClueKey('c7-r4')).toEqual({ categoryIndex: 7, rowIndex: 4 });
+  });
+
+  it('rechaza claves inválidas o con la fila fuera de rango', () => {
     expect(parseClueKey('x')).toBeNull();
-    expect(parseClueKey('c5-r0')).toBeNull();
     expect(parseClueKey('c0-r5')).toBeNull();
   });
 
-  it('allClueKeys devuelve las 25 celdas sin repetir', () => {
-    const keys = allClueKeys();
-    expect(keys).toHaveLength(25);
-    expect(new Set(keys).size).toBe(25);
-  });
+  it.each([
+    [3, 15],
+    [6, 30],
+    [8, 40],
+  ])(
+    'allClueKeys devuelve las celdas de un tablero de %i categorías sin repetir',
+    (count, total) => {
+      const keys = allClueKeys(createEmptyBoard('b1', 0, count));
+      expect(keys).toHaveLength(total);
+      expect(new Set(keys).size).toBe(total);
+      expect(keys.at(-1)).toBe(clueKey(count - 1, 4));
+    },
+  );
 
   it('getClue devuelve la celda correspondiente', () => {
     const board = makeCompleteBoard();
@@ -62,6 +83,7 @@ describe('claves de celda', () => {
       question: 'Pregunta 2-3',
     });
     expect(getClue(board, 'nope')).toBeNull();
+    expect(getClue(board, 'c6-r0')).toBeNull();
   });
 });
 
@@ -106,5 +128,131 @@ describe('imágenes usadas', () => {
     board.categories[1]!.clues[3]!.answerImageId = 'img-r';
     board.categories[2]!.clues[2]!.answerImageId = 'img-p';
     expect([...boardImageIds(board)].sort()).toEqual(['img-p', 'img-r']);
+  });
+});
+
+const names = (board: Board) => board.categories.map((category) => category.name);
+
+describe('addCategory', () => {
+  it('agrega una categoría vacía al final sin tocar las demás', () => {
+    const board = makeCompleteBoard();
+    const next = addCategory(board);
+    expect(next.categories).toHaveLength(7);
+    expect(next.categories.slice(0, 6)).toEqual(board.categories);
+    expect(next.categories[6]).toEqual(createEmptyBoard('x', 0, 1).categories[0]);
+    expect(board.categories).toHaveLength(6);
+  });
+
+  it('con 8 categorías devuelve la misma referencia', () => {
+    const board = makeCompleteBoard({}, 8);
+    expect(addCategory(board)).toBe(board);
+  });
+});
+
+describe('removeCategory', () => {
+  it('quita la categoría y las demás mantienen su orden', () => {
+    const next = removeCategory(makeCompleteBoard(), 1);
+    expect(names(next)).toEqual([
+      'Categoría 1',
+      'Categoría 3',
+      'Categoría 4',
+      'Categoría 5',
+      'Categoría 6',
+    ]);
+  });
+
+  it('con 3 categorías devuelve la misma referencia', () => {
+    const board = makeCompleteBoard({}, 3);
+    expect(removeCategory(board, 0)).toBe(board);
+  });
+
+  it('con un índice fuera de rango devuelve la misma referencia', () => {
+    const board = makeCompleteBoard();
+    expect(removeCategory(board, -1)).toBe(board);
+    expect(removeCategory(board, 6)).toBe(board);
+    expect(removeCategory(board, 1.5)).toBe(board);
+  });
+});
+
+describe('moveCategory', () => {
+  it('mueve una categoría a la posición siguiente', () => {
+    const next = moveCategory(makeCompleteBoard({}, 3), 0, 1);
+    expect(names(next)).toEqual(['Categoría 2', 'Categoría 1', 'Categoría 3']);
+  });
+
+  it('mueve una categoría hacia el centro y hacia los extremos', () => {
+    const board = makeCompleteBoard({}, 5);
+    expect(names(moveCategory(board, 4, 2))).toEqual([
+      'Categoría 1',
+      'Categoría 2',
+      'Categoría 5',
+      'Categoría 3',
+      'Categoría 4',
+    ]);
+    expect(names(moveCategory(board, 2, 0))).toEqual([
+      'Categoría 3',
+      'Categoría 1',
+      'Categoría 2',
+      'Categoría 4',
+      'Categoría 5',
+    ]);
+    expect(names(moveCategory(board, 0, 4))).toEqual([
+      'Categoría 2',
+      'Categoría 3',
+      'Categoría 4',
+      'Categoría 5',
+      'Categoría 1',
+    ]);
+  });
+
+  it('conserva todo el contenido de la categoría movida, incluidas las imágenes', () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[2]!.imageId = 'img-p';
+    board.categories[0]!.clues[3]!.answerImageId = 'img-r';
+    const moved = structuredClone(board.categories[0]!);
+    const next = moveCategory(board, 0, 1);
+    expect(next.categories[1]).toEqual(moved);
+    expect(next.categories[0]).toEqual(board.categories[1]);
+  });
+
+  it('con índices inválidos o iguales devuelve la misma referencia', () => {
+    const board = makeCompleteBoard();
+    expect(moveCategory(board, 0, -1)).toBe(board);
+    expect(moveCategory(board, 5, 6)).toBe(board);
+    expect(moveCategory(board, -1, 0)).toBe(board);
+    expect(moveCategory(board, 2, 2)).toBe(board);
+  });
+});
+
+describe('categoryHasContent', () => {
+  const empty = () => createEmptyBoard('x', 0, 1).categories[0]!;
+
+  it('una categoría vacía no tiene contenido', () => {
+    expect(categoryHasContent(empty())).toBe(false);
+  });
+
+  it('el texto con solo espacios no cuenta como contenido', () => {
+    const category = empty();
+    category.name = '  ';
+    category.clues[0]!.question = '\n';
+    expect(categoryHasContent(category)).toBe(false);
+  });
+
+  it.each([
+    ['nombre', (category: ReturnType<typeof empty>) => (category.name = 'Historia')],
+    ['pregunta', (category: ReturnType<typeof empty>) => (category.clues[2]!.question = 'p')],
+    ['respuesta', (category: ReturnType<typeof empty>) => (category.clues[4]!.answer = 'r')],
+    [
+      'imagen de pregunta',
+      (category: ReturnType<typeof empty>) => (category.clues[1]!.imageId = 'img-p'),
+    ],
+    [
+      'imagen de respuesta',
+      (category: ReturnType<typeof empty>) => (category.clues[3]!.answerImageId = 'img-r'),
+    ],
+  ])('una categoría con %s tiene contenido', (_, fill) => {
+    const category = empty();
+    fill(category);
+    expect(categoryHasContent(category)).toBe(true);
   });
 });

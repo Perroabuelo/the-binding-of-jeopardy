@@ -1,4 +1,6 @@
-export const CATEGORY_COUNT = 5;
+export const MIN_CATEGORIES = 3;
+export const MAX_CATEGORIES = 8;
+export const DEFAULT_CATEGORIES = 6;
 export const CLUES_PER_CATEGORY = 5;
 export const CLUE_VALUES = [100, 200, 300, 400, 500] as const;
 export const BOARD_SCHEMA_VERSION = 1;
@@ -42,13 +44,14 @@ export function parseClueKey(key: string): { categoryIndex: number; rowIndex: nu
   if (!match) return null;
   const categoryIndex = Number(match[1]);
   const rowIndex = Number(match[2]);
-  if (categoryIndex >= CATEGORY_COUNT || rowIndex >= CLUES_PER_CATEGORY) return null;
+  // La categoría no tiene tope: si existe en el tablero lo resuelve getClue
+  if (rowIndex >= CLUES_PER_CATEGORY) return null;
   return { categoryIndex, rowIndex };
 }
 
-export function allClueKeys(): ClueKey[] {
+export function allClueKeys(board: Board): ClueKey[] {
   const keys: ClueKey[] = [];
-  for (let c = 0; c < CATEGORY_COUNT; c++) {
+  for (let c = 0; c < board.categories.length; c++) {
     for (let r = 0; r < CLUES_PER_CATEGORY; r++) keys.push(clueKey(c, r));
   }
   return keys;
@@ -76,16 +79,61 @@ export function boardImageIds(board: Board): Set<string> {
   return ids;
 }
 
-export function createEmptyBoard(id: string, now: number): Board {
+function createEmptyCategory(): Category {
+  return { name: '', clues: CLUE_VALUES.map((value) => ({ value, question: '', answer: '' })) };
+}
+
+export function createEmptyBoard(
+  id: string,
+  now: number,
+  categoryCount: number = DEFAULT_CATEGORIES,
+): Board {
   return {
     id,
     schemaVersion: BOARD_SCHEMA_VERSION,
     title: '',
-    categories: Array.from({ length: CATEGORY_COUNT }, () => ({
-      name: '',
-      clues: CLUE_VALUES.map((value) => ({ value, question: '', answer: '' })),
-    })),
+    categories: Array.from({ length: categoryCount }, createEmptyCategory),
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function isFilled(text: string): boolean {
+  return text.trim() !== '';
+}
+
+/** `true` si la categoría tiene nombre, alguna pregunta, respuesta o imagen. */
+export function categoryHasContent(category: Category): boolean {
+  return (
+    isFilled(category.name) ||
+    category.clues.some(
+      (clue) => isFilled(clue.question) || isFilled(clue.answer) || clueImageIds(clue).length > 0,
+    )
+  );
+}
+
+// Operaciones de estructura: si no son válidas devuelven la misma referencia
+
+/** Agrega una categoría vacía al final. */
+export function addCategory(board: Board): Board {
+  if (board.categories.length >= MAX_CATEGORIES) return board;
+  return { ...board, categories: [...board.categories, createEmptyCategory()] };
+}
+
+export function removeCategory(board: Board, index: number): Board {
+  const { categories } = board;
+  if (categories.length <= MIN_CATEGORIES) return board;
+  if (!Number.isInteger(index) || index < 0 || index >= categories.length) return board;
+  return { ...board, categories: categories.filter((_, i) => i !== index) };
+}
+
+/** Mueve la categoría de la posición `from` a la posición `to`. */
+export function moveCategory(board: Board, from: number, to: number): Board {
+  const { categories } = board;
+  const inRange = (i: number) => Number.isInteger(i) && i >= 0 && i < categories.length;
+  if (!inRange(from) || !inRange(to) || from === to) return board;
+  const next = [...categories];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  return { ...board, categories: next };
 }

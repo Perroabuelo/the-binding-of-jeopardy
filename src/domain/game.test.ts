@@ -6,8 +6,11 @@ import { gameReducer, MAX_TEAMS, startGame, type GameAction, type GameSession } 
 const T0 = 1_000;
 const T1 = 2_000;
 
-function newGame(teamNames: string[] = ['Equipo A', 'Equipo B']): GameSession {
-  return startGame(makeCompleteBoard(), teamNames, {
+function newGame(
+  teamNames: string[] = ['Equipo A', 'Equipo B'],
+  board = makeCompleteBoard(),
+): GameSession {
+  return startGame(board, teamNames, {
     sessionId: 's1',
     now: T0,
     makeTeamId: (index) => `t${index}`,
@@ -125,15 +128,34 @@ describe('gameReducer: transiciones válidas', () => {
     expect(next.usedClues).toEqual(['c3-r4']);
   });
 
-  it('termina automáticamente al volver al tablero con las 25 celdas usadas', () => {
-    const keys = allClueKeys();
-    let session = newGame();
-    for (const key of keys.slice(0, -1)) {
+  it.each([
+    [3, 15],
+    [5, 25],
+    [6, 30],
+    [8, 40],
+  ])(
+    'con %i categorías termina automáticamente al volver con las %i celdas usadas',
+    (count, total) => {
+      const board = makeCompleteBoard({}, count);
+      const keys = allClueKeys(board);
+      let session = newGame(undefined, board);
+      for (const key of keys.slice(0, -1)) {
+        session = play(session, openClue(key), { type: 'backToBoard' });
+        expect(session.phase).toEqual({ kind: 'board' });
+      }
+      session = play(session, openClue(keys.at(-1)!), { type: 'backToBoard' });
+      expect(session.phase).toEqual({ kind: 'finished' });
+      expect(session.usedClues).toHaveLength(total);
+    },
+  );
+
+  it('con 8 categorías no termina a las 25 celdas usadas', () => {
+    const board = makeCompleteBoard({}, 8);
+    let session = newGame(undefined, board);
+    for (const key of allClueKeys(board).slice(0, 25)) {
       session = play(session, openClue(key), { type: 'backToBoard' });
-      expect(session.phase).toEqual({ kind: 'board' });
     }
-    session = play(session, openClue(keys.at(-1)!), { type: 'backToBoard' });
-    expect(session.phase).toEqual({ kind: 'finished' });
+    expect(session.phase).toEqual({ kind: 'board' });
     expect(session.usedClues).toHaveLength(25);
   });
 });
@@ -146,7 +168,7 @@ describe('gameReducer: acciones inválidas devuelven la misma referencia', () =>
 
   it('ignora claves de celda inválidas', () => {
     const session = newGame();
-    expect(gameReducer(session, openClue('c5-r0'), T1)).toBe(session);
+    expect(gameReducer(session, openClue('c6-r0'), T1)).toBe(session);
     expect(gameReducer(session, openClue('c0-r9'), T1)).toBe(session);
     expect(gameReducer(session, openClue('x' as ClueKey), T1)).toBe(session);
   });

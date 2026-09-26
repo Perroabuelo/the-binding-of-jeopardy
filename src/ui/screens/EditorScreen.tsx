@@ -1,10 +1,19 @@
 import { useId, useRef, useState } from 'react';
+import {
+  addCategory,
+  categoryHasContent,
+  clueImageIds,
+  moveCategory,
+  removeCategory,
+} from '../../domain/board';
 import { validateBoard } from '../../domain/validation';
 import { BoardGrid } from '../editor/BoardGrid';
 import { ClueDialog } from '../editor/ClueDialog';
+import { deleteImageIfUnused } from '../editor/imageCleanup';
 import { ReadinessPanel } from '../editor/ReadinessPanel';
 import { withCategoryName, withClue, withTitle, type CluePatch } from '../editor/boardEdits';
 import { useBoardEditor, type SaveStatus } from '../editor/useBoardEditor';
+import { ConfirmDialog } from '../lib/ConfirmDialog';
 import { navigate, routeHref } from '../router';
 import styles from './EditorScreen.module.css';
 
@@ -23,6 +32,7 @@ interface OpenCell {
 export function EditorScreen({ boardId }: { boardId: string }) {
   const { load, saveStatus, saveError, update, flush } = useBoardEditor(boardId);
   const [openCell, setOpenCell] = useState<OpenCell | null>(null);
+  const [confirmRemoval, setConfirmRemoval] = useState<number | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
@@ -34,6 +44,17 @@ export function EditorScreen({ boardId }: { boardId: string }) {
 
   function changeClue(cell: OpenCell, patch: CluePatch) {
     update((board) => withClue(board, cell.categoryIndex, cell.rowIndex, patch));
+  }
+
+  async function removeColumn(categoryIndex: number) {
+    if (load.status !== 'ready') return;
+    const category = load.board.categories[categoryIndex];
+    if (!category) return;
+    const imageIds = new Set(category.clues.flatMap(clueImageIds));
+    update((board) => removeCategory(board, categoryIndex));
+    // Las imágenes se borran después de guardar, así ninguna celda apunta a una imagen borrada.
+    if (!(await flush())) return;
+    for (const imageId of imageIds) await deleteImageIfUnused(imageId).catch(() => false);
   }
 
   let content;
@@ -79,6 +100,13 @@ export function EditorScreen({ boardId }: { boardId: string }) {
             returnFocusRef.current = event.currentTarget;
             setOpenCell({ categoryIndex, rowIndex });
           }}
+          onAddCategory={() => update(addCategory)}
+          onMoveCategory={(from, to) => update((b) => moveCategory(b, from, to))}
+          onRemoveCategory={(categoryIndex) => {
+            const category = board.categories[categoryIndex];
+            if (category && categoryHasContent(category)) setConfirmRemoval(categoryIndex);
+            else void removeColumn(categoryIndex);
+          }}
         />
 
         <ReadinessPanel
@@ -88,6 +116,19 @@ export function EditorScreen({ boardId }: { boardId: string }) {
             if (await flush()) navigate({ name: 'teamSetup', boardId: board.id });
           }}
         />
+
+        {confirmRemoval !== null && (
+          <ConfirmDialog
+            title={`¿Quitar la categoría ${board.categories[confirmRemoval]?.name.trim() || confirmRemoval + 1}?`}
+            message="Se borran su nombre, sus preguntas, sus respuestas y sus imágenes. No se puede deshacer."
+            confirmLabel="Quitar"
+            onConfirm={() => {
+              setConfirmRemoval(null);
+              void removeColumn(confirmRemoval);
+            }}
+            onCancel={() => setConfirmRemoval(null)}
+          />
+        )}
 
         {openCell && category && clue && (
           <ClueDialog

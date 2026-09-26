@@ -130,7 +130,7 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
     case 'backToBoard': {
       if (phase.kind !== 'clue') return session;
       const usedClues = withOpenClueUsed(session);
-      const allUsed = allClueKeys().every((key) => usedClues.includes(key));
+      const allUsed = allClueKeys(session.boardSnapshot).every((key) => usedClues.includes(key));
       return {
         ...session,
         usedClues,

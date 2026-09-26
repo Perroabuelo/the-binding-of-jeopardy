@@ -1,6 +1,19 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+/* Si las columnas no caben, el tablero se desplaza en horizontal y la página no. */
+.scroller {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--columns), minmax(8rem, 1fr));
   gap: var(--space-2);
   background: var(--color-board-bg);
   border-radius: var(--radius-lg);
@@ -12,6 +25,20 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.toolbar .tool:last-child {
+  margin-left: auto;
+}
+
+.tool {
+  padding: var(--space-1) var(--space-2);
+  line-height: 1;
 }
 
 .categoryLabel {

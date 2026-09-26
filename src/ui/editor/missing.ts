@@ -1,4 +1,4 @@
-import { CLUE_VALUES, parseClueKey } from '../../domain/board';
+import { CLUE_VALUES, MAX_CATEGORIES, MIN_CATEGORIES, parseClueKey } from '../../domain/board';
 import type { MissingItem } from '../../domain/validation';
 
 /** Textos legibles de lo que falta; pregunta y respuesta de una misma celda van juntas. */
@@ -14,6 +14,8 @@ export function describeMissing(missing: MissingItem[]): string[] {
 
   for (const item of missing) {
     if (item.kind === 'title') texts.push('Falta el título');
+    else if (item.kind === 'categoryCount')
+      texts.push(`El tablero debe tener entre ${MIN_CATEGORIES} y ${MAX_CATEGORIES} categorías`);
     else if (item.kind === 'categoryName')
       texts.push(`Falta el nombre de la categoría ${item.categoryIndex + 1}`);
   }

@@ -1,11 +1,14 @@
-import { createEmptyBoard, type Board } from '../../src/domain/board';
+import { createEmptyBoard, DEFAULT_CATEGORIES, type Board } from '../../src/domain/board';
 
 /**
  * Tablero completo con contenido ficticio para las pruebas.
  * Nunca usar un tablero real aquí: el repositorio es público.
  */
-export function makeCompleteBoard(overrides: Partial<Board> = {}): Board {
-  const board = createEmptyBoard('fixture-board', 1_700_000_000_000);
+export function makeCompleteBoard(
+  overrides: Partial<Board> = {},
+  categoryCount = DEFAULT_CATEGORIES,
+): Board {
+  const board = createEmptyBoard('fixture-board', 1_700_000_000_000, categoryCount);
   board.title = 'Tablero de prueba';
   board.categories.forEach((category, c) => {
     category.name = `Categoría ${c + 1}`;

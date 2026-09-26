@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { ClueKey } from '../../domain/board';
 import type { TvView } from '../../domain/game';
 import styles from './BoardGrid.module.css';
@@ -13,7 +14,12 @@ export function BoardGrid({ categories, onOpen, size = 'normal' }: BoardGridProp
   const rowCount = Math.max(0, ...categories.map((category) => category.clues.length));
   const rows = Array.from({ length: rowCount }, (_, r) => r);
   return (
-    <table aria-label="Tablero" className={`${styles.grid} ${size === 'tv' ? styles.tv : ''}`}>
+    <table
+      aria-label="Tablero"
+      className={`${styles.grid} ${size === 'tv' ? styles.tv : ''}`}
+      data-columns={categories.length}
+      style={{ '--columns': categories.length } as CSSProperties}
+    >
       <thead>
         <tr>
           {categories.map((category, c) => (

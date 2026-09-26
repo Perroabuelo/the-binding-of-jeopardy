@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
+import { clueImageIds, removeCategory } from '../../domain/board';
 import { getImage, putImage, resetDbForTests, saveBoard, saveSession } from '../../storage/db';
 import { deleteImageIfUnused } from './imageCleanup';
 
@@ -48,5 +49,23 @@ describe('deleteImageIfUnused', () => {
 
     expect(await deleteImageIfUnused('img-1')).toBe(false);
     expect(await getImage('img-1')).not.toBeNull();
+  });
+
+  it('al quitar una categoría borra sus imágenes salvo las que usa otro tablero', async () => {
+    const board = makeCompleteBoard({ id: 'b1' });
+    board.categories[2]!.clues[0]!.imageId = 'img-sola';
+    board.categories[2]!.clues[3]!.answerImageId = 'img-compartida';
+    const other = makeCompleteBoard({ id: 'b2' });
+    other.categories[0]!.clues[1]!.imageId = 'img-compartida';
+    await saveBoard(other);
+    await putImage('img-sola', imageBlob());
+    await putImage('img-compartida', imageBlob());
+
+    const removedIds = board.categories[2]!.clues.flatMap(clueImageIds);
+    await saveBoard(removeCategory(board, 2));
+    for (const id of removedIds) await deleteImageIfUnused(id);
+
+    expect(await getImage('img-sola')).toBeNull();
+    expect(await getImage('img-compartida')).not.toBeNull();
   });
 });

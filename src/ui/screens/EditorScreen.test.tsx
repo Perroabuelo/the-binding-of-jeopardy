@@ -3,7 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLUE_VALUES, createEmptyBoard } from '../../domain/board';
 import * as db from '../../storage/db';
-import { getBoard, getImage, saveBoard, saveSession, StorageUnavailable } from '../../storage/db';
+import {
+  getBoard,
+  getImage,
+  putImage,
+  saveBoard,
+  saveSession,
+  StorageUnavailable,
+} from '../../storage/db';
 import * as cleanup from '../editor/imageCleanup';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import { EditorScreen } from './EditorScreen';
@@ -31,9 +38,10 @@ afterEach(() => {
 });
 
 describe('EditorScreen', () => {
-  it('muestra 5 categorías vacías con celdas de 100 a 500', async () => {
+  it('muestra 6 categorías vacías con celdas de 100 a 500', async () => {
     await renderEditor();
-    for (let c = 1; c <= 5; c++) {
+    expect(screen.getAllByLabelText(/^Nombre de la categoría \d$/)).toHaveLength(6);
+    for (let c = 1; c <= 6; c++) {
       expect(screen.getByLabelText(`Nombre de la categoría ${c}`)).toHaveValue('');
       for (const value of CLUE_VALUES) {
         expect(
@@ -398,6 +406,244 @@ describe('EditorScreen: imagen por respuesta', () => {
       within(dialog).getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
     ).toBeInTheDocument();
     expect(await storedBoard()).toEqual(before);
+  });
+});
+
+describe('EditorScreen: agregar y mover categorías', () => {
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    const user = userEvent.setup();
+    render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user };
+  }
+
+  function categoryNames() {
+    return screen
+      .getAllByLabelText(/^Nombre de la categoría \d$/)
+      .map((input) => (input as HTMLInputElement).value);
+  }
+
+  async function storedNames(boardId = 'fixture-board') {
+    return (await getBoard(boardId))?.categories.map((category) => category.name);
+  }
+
+  it('agrega categorías vacías al final hasta 8 y luego deshabilita el botón', async () => {
+    const { user } = await renderSeeded();
+    const add = screen.getByRole('button', { name: 'Agregar categoría' });
+
+    await user.click(add);
+    expect(categoryNames()).toHaveLength(7);
+    expect(screen.getByLabelText('Nombre de la categoría 7')).toHaveValue('');
+    expect(
+      screen.getByRole('button', { name: 'Categoría 7, 500, incompleta' }),
+    ).toBeInTheDocument();
+    expect(add).toBeEnabled();
+
+    await user.click(add);
+    expect(categoryNames()).toHaveLength(8);
+    expect(add).toBeDisabled();
+    await waitFor(async () => expect(await storedNames()).toHaveLength(8));
+  });
+
+  it('el panel de faltantes nombra la categoría agregada', async () => {
+    const { user } = await renderSeeded();
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar categoría' }));
+
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeDisabled();
+    const list = screen.getByRole('list', { name: 'Elementos faltantes' });
+    const texts = within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+    expect(texts[0]).toBe('Falta el nombre de la categoría 7');
+    expect(texts).toContain('Categoría 7, 100: falta la pregunta y la respuesta');
+    expect(texts).toHaveLength(6);
+  });
+
+  it('deshabilita la flecha izquierda en la primera columna y la derecha en la última', async () => {
+    await renderSeeded();
+    expect(screen.getByRole('button', { name: 'Mover categoría 1 a la izquierda' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Mover categoría 6 a la izquierda' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Mover categoría 6 a la derecha' })).toBeDisabled();
+    for (let c = 2; c <= 5; c++) {
+      expect(
+        screen.getByRole('button', { name: `Mover categoría ${c} a la izquierda` }),
+      ).toBeEnabled();
+      expect(
+        screen.getByRole('button', { name: `Mover categoría ${c} a la derecha` }),
+      ).toBeEnabled();
+    }
+  });
+
+  it('mueve una categoría con todo su contenido y guarda el nuevo orden', async () => {
+    const { user } = await renderSeeded();
+    await user.click(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' }));
+
+    const expected = [
+      'Categoría 2',
+      'Categoría 1',
+      'Categoría 3',
+      'Categoría 4',
+      'Categoría 5',
+      'Categoría 6',
+    ];
+    expect(categoryNames()).toEqual(expected);
+    await user.click(screen.getByRole('button', { name: 'Categoría 2, 300, completa' }));
+    const dialog = screen.getByRole('dialog', { name: 'Categoría 2, 300' });
+    expect(within(dialog).getByLabelText('Pregunta')).toHaveValue('Pregunta 1-3');
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+
+    await waitFor(async () => expect(await storedNames()).toEqual(expected));
+  });
+
+  it('el foco sigue a la columna movida para poder repetir con el teclado', async () => {
+    const { user } = await renderSeeded();
+    await user.click(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' }));
+    expect(screen.getByRole('button', { name: 'Mover categoría 2 a la derecha' })).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('button', { name: 'Mover categoría 3 a la derecha' })).toHaveFocus();
+    expect(categoryNames().slice(0, 3)).toEqual(['Categoría 2', 'Categoría 3', 'Categoría 1']);
+
+    await user.click(screen.getByRole('button', { name: 'Mover categoría 2 a la izquierda' }));
+    expect(
+      screen.getByRole('button', { name: 'Mover categoría 1 a la izquierda' }),
+    ).not.toHaveFocus();
+    // En el extremo la flecha queda deshabilitada y el foco pasa a la otra.
+    expect(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' })).toHaveFocus();
+    expect(categoryNames()[0]).toBe('Categoría 3');
+  });
+});
+
+describe('EditorScreen: quitar categorías', () => {
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    const user = userEvent.setup();
+    render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user };
+  }
+
+  function categoryNames() {
+    return screen
+      .getAllByLabelText(/^Nombre de la categoría \d$/)
+      .map((input) => (input as HTMLInputElement).value);
+  }
+
+  async function stored() {
+    const board = await getBoard('fixture-board');
+    if (!board) throw new Error('El tablero no está guardado');
+    return board;
+  }
+
+  it('quita una columna vacía sin pedir confirmación', async () => {
+    const board = makeCompleteBoard();
+    board.categories.push(createEmptyBoard('x', 0, 1).categories[0]!);
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 7' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(categoryNames()).toHaveLength(6);
+    await waitFor(async () => expect((await stored()).categories).toHaveLength(6));
+  });
+
+  it('pide confirmación para quitar una columna con contenido y al cancelar no cambia nada', async () => {
+    const { user } = await renderSeeded();
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 2' }));
+    const dialog = screen.getByRole('dialog', { name: '¿Quitar la categoría Categoría 2?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(categoryNames()).toEqual(makeCompleteBoard().categories.map((c) => c.name));
+    expect((await stored()).categories).toEqual(makeCompleteBoard().categories);
+  });
+
+  it('pide confirmación aunque la columna solo tenga una imagen', async () => {
+    const board = makeCompleteBoard();
+    const extra = createEmptyBoard('x', 0, 1).categories[0]!;
+    extra.clues[4]!.answerImageId = 'img-r';
+    board.categories.push(extra);
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 7' }));
+
+    expect(screen.getByRole('dialog', { name: '¿Quitar la categoría 7?' })).toBeInTheDocument();
+  });
+
+  it('al confirmar quita la columna y las demás conservan su contenido y su orden', async () => {
+    const { user } = await renderSeeded();
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 2' }));
+    const dialog = screen.getByRole('dialog', { name: '¿Quitar la categoría Categoría 2?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar' }));
+
+    const expected = makeCompleteBoard().categories.filter((_, c) => c !== 1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(categoryNames()).toEqual(expected.map((c) => c.name));
+    await waitFor(async () => expect((await stored()).categories).toEqual(expected));
+  });
+
+  it('deshabilita Quitar en todas las columnas cuando quedan 3', async () => {
+    await renderSeeded(makeCompleteBoard({}, 3));
+    for (let c = 1; c <= 3; c++) {
+      expect(screen.getByRole('button', { name: `Quitar categoría ${c}` })).toBeDisabled();
+    }
+  });
+
+  it('borra las imágenes de la columna quitada si nada más las usa', async () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-p';
+    board.categories[0]!.clues[4]!.answerImageId = 'img-r';
+    await putImage('img-p', new Blob(['p'], { type: 'image/png' }));
+    await putImage('img-r', new Blob(['r'], { type: 'image/png' }));
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 1' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+
+    await waitFor(async () => expect(await getImage('img-p')).toBeNull());
+    await waitFor(async () => expect(await getImage('img-r')).toBeNull());
+    expect((await stored()).categories).toHaveLength(5);
+  });
+
+  it('conserva la imagen de la columna quitada si la usa otro tablero', async () => {
+    const cleanupSpy = vi.spyOn(cleanup, 'deleteImageIfUnused');
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-compartida';
+    const other = makeCompleteBoard({ id: 'otro-tablero' });
+    other.categories[3]!.clues[1]!.imageId = 'img-compartida';
+    await saveBoard(other);
+    await putImage('img-compartida', new Blob(['p'], { type: 'image/png' }));
+    const { user } = await renderSeeded(board);
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 1' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+
+    await waitFor(() => expect(cleanupSpy).toHaveBeenCalledWith('img-compartida'));
+    expect(await cleanupSpy.mock.results[0]!.value).toBe(false);
+    expect(await getImage('img-compartida')).not.toBeNull();
+    expect((await stored()).categories).toHaveLength(5);
+  });
+
+  it('no borra las imágenes si falla el guardado del tablero', async () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-p';
+    await putImage('img-p', new Blob(['p'], { type: 'image/png' }));
+    const { user } = await renderSeeded(board);
+    vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
+    const cleanupSpy = vi.spyOn(cleanup, 'deleteImageIfUnused');
+
+    await user.click(screen.getByRole('button', { name: 'Quitar categoría 1' }));
+    await user.click(screen.getByRole('button', { name: 'Quitar' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(cleanupSpy).not.toHaveBeenCalled();
+    expect(await getImage('img-p')).not.toBeNull();
   });
 });
 

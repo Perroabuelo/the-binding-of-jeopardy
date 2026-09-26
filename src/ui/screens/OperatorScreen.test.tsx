@@ -115,7 +115,7 @@ describe('OperatorScreen', () => {
     ).toBeInTheDocument();
     expect(scoreItem('Primos', 0)).toBeInTheDocument();
     expect(scoreItem('Tíos', 0)).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /^Categoría \d, \d00$/ })).toHaveLength(25);
+    expect(screen.getAllByRole('button', { name: /^Categoría \d, \d00$/ })).toHaveLength(30);
   });
 
   it('flujo de una pregunta: abrir, revelar, sumar, volver y celda usada', async () => {
@@ -250,10 +250,10 @@ describe('OperatorScreen', () => {
 
   it('al volver tras la última celda termina el juego y muestra el podio', async () => {
     const user = userEvent.setup();
-    const usedClues = allClueKeys().filter((key) => key !== 'c4-r4');
+    const usedClues = allClueKeys(makeCompleteBoard()).filter((key) => key !== 'c5-r4');
     await renderOperator(makeSession(['Primos', 'Tíos'], { usedClues }));
 
-    await user.click(screen.getByRole('button', { name: 'Categoría 5, 500' }));
+    await user.click(screen.getByRole('button', { name: 'Categoría 6, 500' }));
     await user.click(screen.getByRole('button', { name: 'Volver al tablero' }));
     expect(screen.getByRole('heading', { name: 'Podio' })).toBeInTheDocument();
   });
