@@ -29,7 +29,7 @@
 
 ## 5. UI: tema, ruteo y tableros
 
-- [ ] 5.1 Crear `src/ui/theme/tokens.css` (tema neutro de alto contraste), el router por hash (`#/`, `#/boards/:id`, `#/play/:id`, `#/tv/:id`) con una pantalla 404 y un test que verifique que no hay colores literales fuera de `tokens.css` — verificar con tests de componentes que cada ruta renderiza su pantalla
+- [x] 5.1 Crear `src/ui/theme/tokens.css` (tema neutro de alto contraste), el router por hash (`#/`, `#/boards/:id`, `#/play/:id`, `#/tv/:id`) con una pantalla 404 y un test que verifique que no hay colores literales fuera de `tokens.css` — verificar con tests de componentes que cada ruta renderiza su pantalla
 - [ ] 5.2 Implementar la pantalla de lista de tableros (crear, abrir, eliminar con confirmación y aviso de `StorageUnavailable`) — verificar con tests de componentes crear, abrir, cancelar y confirmar la eliminación
 - [ ] 5.3 Implementar el editor de título, categorías y celdas (pregunta y respuesta en un diálogo) con autoguardado con debounce — verificar con tests de componentes la edición y un e2e que edita, recarga y ve los cambios conservados
 - [ ] 5.4 Agregar al editor la imagen por pregunta (adjuntar, vista previa, quitar y mensaje de rechazo) — verificar con tests de componentes una imagen válida, un PDF y un archivo de más de 5 MB
