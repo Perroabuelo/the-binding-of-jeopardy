@@ -41,7 +41,7 @@
 
 ## 3. Operador y TV
 
-- [ ] 3.1 En `OperatorScreen`, agregar el indicador "Ronda N de M · xK", los valores multiplicados en `CluePanel`, el panel de transición con "Comenzar ronda N", y "Terminar ronda" con confirmación solo cuando hay una ronda siguiente. `pendingCount` usa la ronda en curso. Verificar con tests de componentes en `OperatorScreen.test.tsx`:
+- [x] 3.1 En `OperatorScreen`, agregar el indicador "Ronda N de M · xK", los valores multiplicados en `CluePanel`, el panel de transición con "Comenzar ronda N", y "Terminar ronda" con confirmación solo cuando hay una ronda siguiente. `pendingCount` usa la ronda en curso. Verificar con tests de componentes en `OperatorScreen.test.tsx`:
   - El indicador aparece con rondas y no aparece sin rondas.
   - En x2, los botones dicen "Sumar 600" en la celda de 300.
   - "Terminar ronda" pide confirmación, cancelar no cambia nada y confirmar muestra la transición.

@@ -4,6 +4,25 @@
   margin-top: 0;
 }
 
+.round {
+  margin: calc(-1 * var(--space-3)) 0 var(--space-4);
+  color: var(--color-text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.roundBreakTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--color-accent);
+}
+
+.roundBreakInfo {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
 .section {
   margin-bottom: var(--space-6);
 }

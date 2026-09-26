@@ -287,6 +287,143 @@ describe('OperatorScreen', () => {
   });
 });
 
+describe('OperatorScreen: rondas', () => {
+  /** Una ronda por multiplicador: "Cumple A", "Cumple B"… */
+  function roundsSession(multipliers = [1, 2], overrides: Partial<GameSession> = {}) {
+    let n = 0;
+    const session = startGame(
+      multipliers.map((multiplier, i) => ({
+        board: makeCompleteBoard({ id: `b${i + 1}`, title: `Cumple ${'ABCDE'[i]}` }),
+        multiplier,
+      })),
+      ['Primos', 'Tíos'],
+      { sessionId: SESSION_ID, now: 1_700_000_000_000, makeTeamId: () => `equipo-${++n}` },
+    );
+    return { ...session, ...overrides };
+  }
+
+  it('muestra el indicador de ronda solo en un juego con rondas', async () => {
+    const first = await renderOperator(roundsSession([1, 2]));
+    expect(screen.getByText('Ronda 1 de 2 · x1')).toBeInTheDocument();
+    first.unmount();
+
+    await renderOperator(makeSession());
+    expect(screen.queryByText(/^Ronda \d de \d/)).not.toBeInTheDocument();
+  });
+
+  it('en x2, el tablero, el valor y los botones usan el valor multiplicado', async () => {
+    const user = userEvent.setup();
+    await renderOperator(roundsSession([1, 2], { roundIndex: 1 }));
+    expect(screen.getByText('Ronda 2 de 2 · x2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Cumple B' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 600' }));
+    const clue = screen.getByRole('region', { name: 'Pregunta abierta' });
+    expect(within(clue).getByText('Valor: 600')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sumar 600 a Primos' }));
+    expect(scoreItem('Primos', 600)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Restar 600 a Tíos' })).toBeInTheDocument();
+  });
+
+  it('terminar ronda pide confirmación y, al confirmar, muestra la transición', async () => {
+    const user = userEvent.setup();
+    await renderOperator(roundsSession([1, 2]));
+
+    await user.click(screen.getByRole('button', { name: 'Terminar ronda' }));
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('¿Terminar la ronda 1? Quedan 30 preguntas sin usar.');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Tablero' })).toBeInTheDocument();
+    expect((await getSession(SESSION_ID))?.phase).toEqual({ kind: 'board' });
+
+    await user.click(screen.getByRole('button', { name: 'Terminar ronda' }));
+    await user.click(screen.getByRole('button', { name: 'Sí, terminar' }));
+
+    const transition = screen.getByRole('region', { name: 'Transición entre rondas' });
+    expect(within(transition).getByRole('heading', { name: 'Ronda 2 de 2' })).toBeInTheDocument();
+    expect(transition).toHaveTextContent('Multiplicador x2');
+    expect(transition).toHaveTextContent('Tablero: Cumple B');
+    expect(screen.queryByRole('table', { name: 'Tablero' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Terminar ronda' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Terminar juego' })).toBeInTheDocument();
+    expect((await getSession(SESSION_ID))?.phase).toEqual({
+      kind: 'roundBreak',
+      nextRoundIndex: 1,
+    });
+  });
+
+  it('terminar ronda con una pregunta abierta también pide confirmación', async () => {
+    const user = userEvent.setup();
+    await renderOperator(roundsSession([1, 2, 3]));
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    await user.click(screen.getByRole('button', { name: 'Terminar ronda' }));
+    await user.click(screen.getByRole('button', { name: 'Sí, terminar' }));
+    expect(screen.getByRole('heading', { name: 'Ronda 2 de 3' })).toBeInTheDocument();
+  });
+
+  it('en la última ronda y sin rondas no aparece terminar ronda', async () => {
+    const first = await renderOperator(roundsSession([1, 2], { roundIndex: 1 }));
+    expect(screen.queryByRole('button', { name: 'Terminar ronda' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Terminar juego' })).toBeInTheDocument();
+    first.unmount();
+
+    await renderOperator(makeSession());
+    expect(screen.queryByRole('button', { name: 'Terminar ronda' })).not.toBeInTheDocument();
+  });
+
+  it('comenzar la ronda 2 muestra su tablero con todas las celdas disponibles', async () => {
+    const user = userEvent.setup();
+    const inBreak = gameReducer(
+      roundsSession([1, 2], { usedClues: ['c0-r0', 'c1-r1'] }),
+      { type: 'finishRound' },
+      1,
+    );
+    await renderOperator(inBreak);
+
+    await user.click(screen.getByRole('button', { name: 'Comenzar ronda 2' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Cumple B' })).toBeInTheDocument();
+    expect(screen.getByText('Ronda 2 de 2 · x2')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Categoría \d, \d+$/ })).toHaveLength(30);
+    expect(screen.getByRole('button', { name: 'Categoría 1, 1000' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /usada/ })).not.toBeInTheDocument();
+    const saved = await getSession(SESSION_ID);
+    expect(saved?.roundIndex).toBe(1);
+    expect(saved?.usedClues).toEqual([]);
+  });
+
+  it('al recargar en la transición la recupera', async () => {
+    const inBreak = gameReducer(roundsSession([1, 2, 3]), { type: 'finishRound' }, 1);
+    const first = await renderOperator(inBreak);
+    first.unmount();
+
+    render(<OperatorScreen sessionId={SESSION_ID} />);
+    const transition = await screen.findByRole('region', { name: 'Transición entre rondas' });
+    expect(within(transition).getByRole('heading', { name: 'Ronda 2 de 3' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Comenzar ronda 2' })).toBeInTheDocument();
+  });
+
+  it('reanuda una sesión guardada antes de las rondas', async () => {
+    const session = makeSession(['Primos', 'Tíos'], { usedClues: ['c0-r0'] });
+    session.teams[0]!.score = 300;
+    const legacy: Record<string, unknown> = {
+      ...session,
+      boardSnapshot: session.rounds[0]!.boardSnapshot,
+    };
+    delete legacy.rounds;
+    delete legacy.roundIndex;
+    await renderOperator(legacy as unknown as GameSession);
+
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Tablero de prueba' }),
+    ).toBeInTheDocument();
+    expect(scoreItem('Primos', 300)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Categoría 1, 100, usada' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Categoría 1, 500' })).toBeEnabled();
+    expect(screen.queryByText(/^Ronda \d de \d/)).not.toBeInTheDocument();
+  });
+});
+
 describe('OperatorScreen: Daily Double', () => {
   // Categoría 1, 200 (c0-r1) es Daily Double. Primos tiene 1200 y Tíos 300.
   function dailyDoubleSession() {

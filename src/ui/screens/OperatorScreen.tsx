@@ -1,8 +1,10 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { allClueKeys, getClue, parseClueKey, type Clue, type ClueKey } from '../../domain/board';
 import {
+  clueValueInPlay,
   currentRound,
   gameReducer,
+  hasNextRound,
   maxWager,
   type GameAction,
   type GameSession,
@@ -30,8 +32,8 @@ function errorMessage(e: unknown): string {
 export function OperatorScreen({ sessionId }: { sessionId: string }) {
   const [state, setState] = useState<SessionState>({ status: 'loading' });
   const [error, setError] = useState<string | null>(null);
-  const [confirmingFinish, setConfirmingFinish] = useState(false);
-  const finishQuestionId = useId();
+  const [confirming, setConfirming] = useState<'finish' | 'finishRound' | null>(null);
+  const confirmQuestionId = useId();
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +77,11 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
       {session && (
         <>
           <h2 className={styles.title}>{currentRound(session).boardSnapshot.title}</h2>
+          {session.rounds.length > 1 && (
+            <p className={styles.round}>
+              {`Ronda ${session.roundIndex + 1} de ${session.rounds.length} · x${currentRound(session).multiplier}`}
+            </p>
+          )}
           <TvLauncher sessionId={sessionId} />
           {session.phase.kind !== 'finished' && (
             <section aria-label="Equipos" className={styles.section}>
@@ -95,6 +102,13 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
             <WagerPanel key={session.phase.clueKey} session={session} dispatch={dispatch} />
           )}
           {session.phase.kind === 'clue' && <CluePanel session={session} dispatch={dispatch} />}
+          {session.phase.kind === 'roundBreak' && (
+            <RoundBreakPanel
+              session={session}
+              nextRoundIndex={session.phase.nextRoundIndex}
+              dispatch={dispatch}
+            />
+          )}
           {session.phase.kind === 'final' && (
             <FinalPanel session={session} phase={session.phase} dispatch={dispatch} />
           )}
@@ -103,31 +117,46 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
           )}
           {session.phase.kind !== 'finished' && !allFinalJudged(session) && (
             <div className={styles.finish}>
-              {confirmingFinish ? (
+              {confirming ? (
                 <div
                   role="alertdialog"
-                  aria-labelledby={finishQuestionId}
+                  aria-labelledby={confirmQuestionId}
                   className={styles.confirm}
                 >
-                  <p id={finishQuestionId}>{finishQuestion(session)}</p>
+                  <p id={confirmQuestionId}>
+                    {confirming === 'finish'
+                      ? finishQuestion(session)
+                      : finishRoundQuestion(session)}
+                  </p>
                   <button
                     type="button"
                     className="danger"
                     onClick={() => {
-                      setConfirmingFinish(false);
-                      dispatch({ type: 'finish' });
+                      setConfirming(null);
+                      dispatch({ type: confirming });
                     }}
                   >
                     Sí, terminar
                   </button>
-                  <button type="button" onClick={() => setConfirmingFinish(false)}>
+                  <button type="button" onClick={() => setConfirming(null)}>
                     Cancelar
                   </button>
                 </div>
               ) : (
-                <button type="button" className="danger" onClick={() => setConfirmingFinish(true)}>
-                  Terminar juego
-                </button>
+                <div className={styles.actions}>
+                  {canFinishRound(session) && (
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => setConfirming('finishRound')}
+                    >
+                      Terminar ronda
+                    </button>
+                  )}
+                  <button type="button" className="danger" onClick={() => setConfirming('finish')}>
+                    Terminar juego
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -141,7 +170,20 @@ function finishQuestion(session: GameSession): string {
   if (session.phase.kind === 'final') {
     return '¿Terminar el juego ahora? Las apuestas de los equipos sin juzgar no se aplicarán.';
   }
+  if (session.phase.kind === 'roundBreak') {
+    return '¿Terminar el juego ahora? Las rondas que faltan no se jugarán.';
+  }
   return `¿Terminar el juego ahora? Quedan ${pendingCount(session)} preguntas sin usar.`;
+}
+
+/** "Terminar ronda" solo con una ronda siguiente y mientras se juega el tablero. */
+function canFinishRound(session: GameSession): boolean {
+  const { kind } = session.phase;
+  return hasNextRound(session) && (kind === 'board' || kind === 'wager' || kind === 'clue');
+}
+
+function finishRoundQuestion(session: GameSession): string {
+  return `¿Terminar la ronda ${session.roundIndex + 1}? Quedan ${pendingCount(session)} preguntas sin usar.`;
 }
 
 /** En la revelación con todos juzgados se va al podio con "Ir al podio". */
@@ -176,13 +218,50 @@ function findOpenClue(session: GameSession, key: ClueKey): OpenClue | null {
   return { clue, categoryName: board.categories[position.categoryIndex]?.name };
 }
 
+function RoundBreakPanel({
+  session,
+  nextRoundIndex,
+  dispatch,
+}: {
+  session: GameSession;
+  nextRoundIndex: number;
+  dispatch: (action: GameAction) => void;
+}) {
+  const next = session.rounds[nextRoundIndex];
+  if (!next) return null;
+  const number = nextRoundIndex + 1;
+  return (
+    <section aria-label="Transición entre rondas" className={styles.clue}>
+      <h3 className={styles.roundBreakTitle}>{`Ronda ${number} de ${session.rounds.length}`}</h3>
+      <p className={styles.roundBreakInfo}>
+        <span>{`Multiplicador x${next.multiplier}`}</span> ·{' '}
+        <span>{`Tablero: ${next.boardSnapshot.title}`}</span>
+      </p>
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => dispatch({ type: 'startNextRound' })}
+        >
+          {`Comenzar ronda ${number}`}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 /** Pregunta, respuesta y sus imágenes, que solo ve el operador. */
-function ClueDetails({ clue, categoryName, answerState }: OpenClue & { answerState: string }) {
+function ClueDetails({
+  clue,
+  categoryName,
+  value,
+  answerState,
+}: OpenClue & { value: number; answerState: string }) {
   const answerId = useId();
   return (
     <>
       <p className={styles.clueMeta}>
-        <span>{categoryName}</span> · <span>{`Valor: ${clue.value}`}</span>
+        <span>{categoryName}</span> · <span>{`Valor: ${value}`}</span>
       </p>
       <p className={styles.question}>{clue.question}</p>
       <ClueImage imageId={clue.imageId} className={styles.image} />
@@ -231,7 +310,11 @@ function WagerPanel({
   return (
     <section aria-label="Daily Double" className={styles.clue}>
       <h3 className={styles.dailyDouble}>Daily Double</h3>
-      <ClueDetails {...open} answerState="La TV muestra el anuncio, sin la pregunta" />
+      <ClueDetails
+        {...open}
+        value={clueValueInPlay(session, open.clue)}
+        answerState="La TV muestra el anuncio, sin la pregunta"
+      />
       <form className={styles.wager} onSubmit={submit}>
         <label htmlFor={teamSelectId}>Equipo que responde</label>
         <select id={teamSelectId} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
@@ -289,7 +372,8 @@ function CluePanel({
   const awardTeams = wager
     ? session.teams.filter((team) => team.id === wager.teamId)
     : session.teams;
-  const points = wager ? wager.amount : open.clue.value;
+  const value = clueValueInPlay(session, open.clue);
+  const points = wager ? wager.amount : value;
 
   return (
     <section aria-label="Pregunta abierta" className={styles.clue}>
@@ -300,6 +384,7 @@ function CluePanel({
       )}
       <ClueDetails
         {...open}
+        value={value}
         answerState={phase.revealed ? 'Revelada en la TV' : 'No revelada: solo la ves tú'}
       />
       <div className={styles.actions}>
