@@ -76,6 +76,18 @@ describe('imágenes usadas', () => {
     ]);
   });
 
+  it('clueImageIds devuelve las imágenes de la pregunta y de la respuesta', () => {
+    expect(
+      clueImageIds({
+        value: 100,
+        question: 'p',
+        answer: 'r',
+        imageId: 'img-p',
+        answerImageId: 'img-r',
+      }),
+    ).toEqual(['img-p', 'img-r']);
+  });
+
   it('boardImageIds devuelve un conjunto vacío si el tablero no tiene imágenes', () => {
     expect(boardImageIds(makeCompleteBoard()).size).toBe(0);
   });
@@ -86,5 +98,13 @@ describe('imágenes usadas', () => {
     board.categories[2]!.clues[4]!.imageId = 'img-2';
     board.categories[4]!.clues[1]!.imageId = 'img-1';
     expect([...boardImageIds(board)].sort()).toEqual(['img-1', 'img-2']);
+  });
+
+  it('boardImageIds incluye las imágenes de las respuestas', () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[0]!.imageId = 'img-p';
+    board.categories[1]!.clues[3]!.answerImageId = 'img-r';
+    board.categories[2]!.clues[2]!.answerImageId = 'img-p';
+    expect([...boardImageIds(board)].sort()).toEqual(['img-p', 'img-r']);
   });
 });

@@ -9,7 +9,9 @@ export interface Clue {
   value: ClueValue;
   question: string;
   answer: string;
+  /** Imagen de la pregunta. */
   imageId?: string;
+  answerImageId?: string;
 }
 
 export interface Category {
@@ -60,7 +62,7 @@ export function getClue(board: Board, key: string): Clue | null {
 
 /** Ids de las imágenes que usa la celda. */
 export function clueImageIds(clue: Clue): string[] {
-  return clue.imageId !== undefined ? [clue.imageId] : [];
+  return [clue.imageId, clue.answerImageId].filter((id) => id !== undefined);
 }
 
 /** Ids, sin repetir, de todas las imágenes que usan las celdas del tablero. */

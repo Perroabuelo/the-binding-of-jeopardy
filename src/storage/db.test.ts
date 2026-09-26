@@ -174,6 +174,43 @@ describe('borrado en cascada', () => {
     expect(await getImage('img-libre')).toBeNull();
   });
 
+  it('conserva la imagen de respuesta que usa una sesión guardada', async () => {
+    await saveBoard(makeBoardWithImages('b1', ['img-1']));
+    await putImage('img-1', imageBlob('1'));
+    const snapshot = makeCompleteBoard({ id: 'b1' });
+    snapshot.categories[3]!.clues[2]!.answerImageId = 'img-1';
+    await saveSession(makeSession('s1', snapshot));
+
+    await deleteBoard('b1');
+
+    expect(await getImage('img-1')).not.toBeNull();
+  });
+
+  it('no borra la imagen de respuesta que usa otro tablero', async () => {
+    const board = makeBoardWithImages('b1', []);
+    board.categories[0]!.clues[1]!.answerImageId = 'img-compartida';
+    await saveBoard(board);
+    const other = makeBoardWithImages('b2', []);
+    other.categories[4]!.clues[4]!.answerImageId = 'img-compartida';
+    await saveBoard(other);
+    await putImage('img-compartida', imageBlob('c'));
+
+    await deleteBoard('b1');
+
+    expect(await getImage('img-compartida')).not.toBeNull();
+  });
+
+  it('borra las imágenes de respuesta del tablero eliminado', async () => {
+    const board = makeBoardWithImages('b1', []);
+    board.categories[2]!.clues[0]!.answerImageId = 'img-r';
+    await saveBoard(board);
+    await putImage('img-r', imageBlob('r'));
+
+    await deleteBoard('b1');
+
+    expect(await getImage('img-r')).toBeNull();
+  });
+
   it('no toca las imágenes de otros tableros', async () => {
     await saveBoard(makeBoardWithImages('b1', ['img-1']));
     await saveBoard(makeBoardWithImages('b2', ['img-2']));

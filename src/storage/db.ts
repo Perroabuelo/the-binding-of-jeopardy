@@ -110,15 +110,17 @@ export function saveBoard(board: Board): Promise<void> {
   });
 }
 
-/** Borra el tablero y sus imágenes, salvo las que siga usando alguna sesión guardada. */
+/** Borra el tablero y sus imágenes, salvo las que siga usando otro tablero o una sesión guardada. */
 export function deleteBoard(id: string): Promise<void> {
   return withDb(async (db) => {
     const tx = db.transaction(['boards', 'images', 'sessions'], 'readwrite');
     const board = await tx.objectStore('boards').get(id);
     if (board) {
       const orphanIds = boardImageIds(board);
-      for (const session of await tx.objectStore('sessions').getAll()) {
-        for (const imageId of boardImageIds(session.boardSnapshot)) orphanIds.delete(imageId);
+      const others = (await tx.objectStore('boards').getAll()).filter((other) => other.id !== id);
+      const sessions = await tx.objectStore('sessions').getAll();
+      for (const other of [...others, ...sessions.map((session) => session.boardSnapshot)]) {
+        for (const imageId of boardImageIds(other)) orphanIds.delete(imageId);
       }
       const images = tx.objectStore('images');
       await Promise.all([...orphanIds].map((imageId) => images.delete(imageId)));
