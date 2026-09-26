@@ -2,7 +2,7 @@
 
 ## 1. Dominio
 
-- [ ] 1.1 Agregar `FinalClue` y `Board.final?` en `src/domain/board.ts`, con `finalImageIds` e imágenes de `final` en `boardImageIds`. Agregar `isFinalComplete` en `validation.ts`, sin cambiar `validateBoard`. Verificar con tests unitarios:
+- [x] 1.1 Agregar `FinalClue` y `Board.final?` en `src/domain/board.ts`, con `finalImageIds` e imágenes de `final` en `boardImageIds`. Agregar `isFinalComplete` en `validation.ts`, sin cambiar `validateBoard`. Verificar con tests unitarios:
   - `boardImageIds` incluye las dos imágenes de `final`.
   - `isFinalComplete` es `false` con categoría, pregunta o respuesta vacía, o sin `final`, y `true` con las tres.
   - `validateBoard` sigue en `ready` con una pista final ausente o incompleta.

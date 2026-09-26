@@ -9,6 +9,7 @@ import {
   clueKey,
   CLUE_VALUES,
   createEmptyBoard,
+  finalImageIds,
   getClue,
   maxClueValue,
   moveCategory,
@@ -129,6 +130,28 @@ describe('imágenes usadas', () => {
     board.categories[1]!.clues[3]!.answerImageId = 'img-r';
     board.categories[2]!.clues[2]!.answerImageId = 'img-p';
     expect([...boardImageIds(board)].sort()).toEqual(['img-p', 'img-r']);
+  });
+
+  it('boardImageIds incluye las dos imágenes de la pista final', () => {
+    const board = makeCompleteBoard({
+      final: {
+        category: 'Final',
+        question: 'P',
+        answer: 'R',
+        imageId: 'img-fp',
+        answerImageId: 'img-fr',
+      },
+    });
+    board.categories[0]!.clues[0]!.imageId = 'img-fp';
+    expect([...boardImageIds(board)].sort()).toEqual(['img-fp', 'img-fr']);
+  });
+
+  it('finalImageIds devuelve las imágenes de la pista final, o ninguna sin pista final', () => {
+    expect(finalImageIds(undefined)).toEqual([]);
+    expect(finalImageIds({ category: 'F', question: 'P', answer: 'R' })).toEqual([]);
+    expect(
+      finalImageIds({ category: 'F', question: 'P', answer: 'R', answerImageId: 'img-r' }),
+    ).toEqual(['img-r']);
   });
 });
 

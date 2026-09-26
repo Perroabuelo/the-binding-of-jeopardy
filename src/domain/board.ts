@@ -23,11 +23,23 @@ export interface Category {
   clues: Clue[];
 }
 
+/** Pista final opcional del tablero. */
+export interface FinalClue {
+  category: string;
+  question: string;
+  answer: string;
+  /** Imagen de la pregunta. */
+  imageId?: string;
+  answerImageId?: string;
+}
+
 export interface Board {
   id: string;
   schemaVersion: typeof BOARD_SCHEMA_VERSION;
   title: string;
   categories: Category[];
+  /** Ausente en los tableros sin pista final. */
+  final?: FinalClue;
   /** Milisegundos desde epoch. */
   createdAt: number;
   /** Milisegundos desde epoch. */
@@ -79,7 +91,13 @@ export function clueImageIds(clue: Clue): string[] {
   return [clue.imageId, clue.answerImageId].filter((id) => id !== undefined);
 }
 
-/** Ids, sin repetir, de todas las imágenes que usan las celdas del tablero. */
+/** Ids de las imágenes que usa la pista final. */
+export function finalImageIds(final: FinalClue | undefined): string[] {
+  if (!final) return [];
+  return [final.imageId, final.answerImageId].filter((id) => id !== undefined);
+}
+
+/** Ids, sin repetir, de todas las imágenes que usan las celdas y la pista final del tablero. */
 export function boardImageIds(board: Board): Set<string> {
   const ids = new Set<string>();
   for (const category of board.categories) {
@@ -87,6 +105,7 @@ export function boardImageIds(board: Board): Set<string> {
       for (const id of clueImageIds(clue)) ids.add(id);
     }
   }
+  for (const id of finalImageIds(board.final)) ids.add(id);
   return ids;
 }
 

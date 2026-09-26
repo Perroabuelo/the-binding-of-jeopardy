@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import { allClueKeys, createEmptyBoard } from './board';
-import { validateBoard } from './validation';
+import { isFinalComplete, validateBoard } from './validation';
 
 describe('validateBoard', () => {
   it('marca como listo el tablero completo', () => {
@@ -91,5 +91,29 @@ describe('validateBoard', () => {
     const board = makeCompleteBoard();
     board.categories[0]!.clues[0]!.imageId = 'img-1';
     expect(validateBoard(board).ready).toBe(true);
+  });
+});
+
+describe('isFinalComplete', () => {
+  const complete = { category: 'Cumpleañero', question: 'Pregunta final', answer: 'Respuesta' };
+
+  it('es true con categoría, pregunta y respuesta', () => {
+    expect(isFinalComplete(complete)).toBe(true);
+  });
+
+  it('es false sin pista final', () => {
+    expect(isFinalComplete(undefined)).toBe(false);
+  });
+
+  it.each(['category', 'question', 'answer'] as const)('es false con %s vacía', (field) => {
+    expect(isFinalComplete({ ...complete, [field]: '' })).toBe(false);
+    expect(isFinalComplete({ ...complete, [field]: '  ' })).toBe(false);
+  });
+
+  it('validateBoard sigue listo con una pista final ausente o incompleta', () => {
+    expect(validateBoard(makeCompleteBoard())).toEqual({ ready: true, missing: [] });
+    expect(
+      validateBoard(makeCompleteBoard({ final: { category: 'Solo', question: '', answer: '' } })),
+    ).toEqual({ ready: true, missing: [] });
   });
 });
