@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react';
+import { addCategory, moveCategory } from '../../domain/board';
 import { validateBoard } from '../../domain/validation';
 import { BoardGrid } from '../editor/BoardGrid';
 import { ClueDialog } from '../editor/ClueDialog';
@@ -79,6 +80,8 @@ export function EditorScreen({ boardId }: { boardId: string }) {
             returnFocusRef.current = event.currentTarget;
             setOpenCell({ categoryIndex, rowIndex });
           }}
+          onAddCategory={() => update(addCategory)}
+          onMoveCategory={(from, to) => update((b) => moveCategory(b, from, to))}
         />
 
         <ReadinessPanel

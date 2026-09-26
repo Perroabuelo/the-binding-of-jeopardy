@@ -31,9 +31,10 @@ afterEach(() => {
 });
 
 describe('EditorScreen', () => {
-  it('muestra 5 categorías vacías con celdas de 100 a 500', async () => {
+  it('muestra 6 categorías vacías con celdas de 100 a 500', async () => {
     await renderEditor();
-    for (let c = 1; c <= 5; c++) {
+    expect(screen.getAllByLabelText(/^Nombre de la categoría \d$/)).toHaveLength(6);
+    for (let c = 1; c <= 6; c++) {
       expect(screen.getByLabelText(`Nombre de la categoría ${c}`)).toHaveValue('');
       for (const value of CLUE_VALUES) {
         expect(
@@ -398,6 +399,115 @@ describe('EditorScreen: imagen por respuesta', () => {
       within(dialog).getByRole('img', { name: 'Vista previa de la imagen de la pregunta' }),
     ).toBeInTheDocument();
     expect(await storedBoard()).toEqual(before);
+  });
+});
+
+describe('EditorScreen: agregar y mover categorías', () => {
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    const user = userEvent.setup();
+    render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user };
+  }
+
+  function categoryNames() {
+    return screen
+      .getAllByLabelText(/^Nombre de la categoría \d$/)
+      .map((input) => (input as HTMLInputElement).value);
+  }
+
+  async function storedNames(boardId = 'fixture-board') {
+    return (await getBoard(boardId))?.categories.map((category) => category.name);
+  }
+
+  it('agrega categorías vacías al final hasta 8 y luego deshabilita el botón', async () => {
+    const { user } = await renderSeeded();
+    const add = screen.getByRole('button', { name: 'Agregar categoría' });
+
+    await user.click(add);
+    expect(categoryNames()).toHaveLength(7);
+    expect(screen.getByLabelText('Nombre de la categoría 7')).toHaveValue('');
+    expect(
+      screen.getByRole('button', { name: 'Categoría 7, 500, incompleta' }),
+    ).toBeInTheDocument();
+    expect(add).toBeEnabled();
+
+    await user.click(add);
+    expect(categoryNames()).toHaveLength(8);
+    expect(add).toBeDisabled();
+    await waitFor(async () => expect(await storedNames()).toHaveLength(8));
+  });
+
+  it('el panel de faltantes nombra la categoría agregada', async () => {
+    const { user } = await renderSeeded();
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: 'Agregar categoría' }));
+
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeDisabled();
+    const list = screen.getByRole('list', { name: 'Elementos faltantes' });
+    const texts = within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent);
+    expect(texts[0]).toBe('Falta el nombre de la categoría 7');
+    expect(texts).toContain('Categoría 7, 100: falta la pregunta y la respuesta');
+    expect(texts).toHaveLength(6);
+  });
+
+  it('deshabilita la flecha izquierda en la primera columna y la derecha en la última', async () => {
+    await renderSeeded();
+    expect(screen.getByRole('button', { name: 'Mover categoría 1 a la izquierda' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Mover categoría 6 a la izquierda' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Mover categoría 6 a la derecha' })).toBeDisabled();
+    for (let c = 2; c <= 5; c++) {
+      expect(
+        screen.getByRole('button', { name: `Mover categoría ${c} a la izquierda` }),
+      ).toBeEnabled();
+      expect(
+        screen.getByRole('button', { name: `Mover categoría ${c} a la derecha` }),
+      ).toBeEnabled();
+    }
+  });
+
+  it('mueve una categoría con todo su contenido y guarda el nuevo orden', async () => {
+    const { user } = await renderSeeded();
+    await user.click(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' }));
+
+    const expected = [
+      'Categoría 2',
+      'Categoría 1',
+      'Categoría 3',
+      'Categoría 4',
+      'Categoría 5',
+      'Categoría 6',
+    ];
+    expect(categoryNames()).toEqual(expected);
+    await user.click(screen.getByRole('button', { name: 'Categoría 2, 300, completa' }));
+    const dialog = screen.getByRole('dialog', { name: 'Categoría 2, 300' });
+    expect(within(dialog).getByLabelText('Pregunta')).toHaveValue('Pregunta 1-3');
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+
+    await waitFor(async () => expect(await storedNames()).toEqual(expected));
+  });
+
+  it('el foco sigue a la columna movida para poder repetir con el teclado', async () => {
+    const { user } = await renderSeeded();
+    await user.click(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' }));
+    expect(screen.getByRole('button', { name: 'Mover categoría 2 a la derecha' })).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('button', { name: 'Mover categoría 3 a la derecha' })).toHaveFocus();
+    expect(categoryNames().slice(0, 3)).toEqual(['Categoría 2', 'Categoría 3', 'Categoría 1']);
+
+    await user.click(screen.getByRole('button', { name: 'Mover categoría 2 a la izquierda' }));
+    expect(
+      screen.getByRole('button', { name: 'Mover categoría 1 a la izquierda' }),
+    ).not.toHaveFocus();
+    // En el extremo la flecha queda deshabilitada y el foco pasa a la otra.
+    expect(screen.getByRole('button', { name: 'Mover categoría 1 a la derecha' })).toHaveFocus();
+    expect(categoryNames()[0]).toBe('Categoría 3');
   });
 });
 
