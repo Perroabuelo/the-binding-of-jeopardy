@@ -8,6 +8,12 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [0.2.0] - 2026-09-26
+
+### Agregado
+
+- Las respuestas ahora pueden tener su propia imagen, que aparece en la TV al revelar la respuesta.
+
 ## [0.1.0] - 2026-09-25
 
 ### Agregado
