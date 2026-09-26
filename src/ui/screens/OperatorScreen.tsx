@@ -8,6 +8,8 @@ import { BoardGrid } from '../game/BoardGrid';
 import { ClueImage } from '../game/ClueImage';
 import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
+import { TvLauncher } from '../game/TvLauncher';
+import { useOperatorSync } from '../game/useOperatorSync';
 import { routeHref } from '../router';
 import styles from './OperatorScreen.module.css';
 
@@ -42,6 +44,7 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   const session = state.status === 'loaded' ? state.session : null;
+  useOperatorSync(sessionId, session);
 
   function dispatch(action: GameAction) {
     if (!session) return;
@@ -65,6 +68,7 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
       {session && (
         <>
           <h2 className={styles.title}>{session.boardSnapshot.title}</h2>
+          <TvLauncher sessionId={sessionId} />
           {session.phase.kind !== 'finished' && (
             <section aria-label="Equipos" className={styles.section}>
               <TeamScores

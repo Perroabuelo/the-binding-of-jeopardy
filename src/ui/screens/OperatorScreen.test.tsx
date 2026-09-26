@@ -1,9 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { allClueKeys } from '../../domain/board';
-import { startGame, type GameSession } from '../../domain/game';
+import { startGame, type GameSession, type TvView } from '../../domain/game';
 import { getSession, putImage, saveSession } from '../../storage/db';
+import { createMemoryBus, type MemoryBus, type SyncMessage } from '../../sync';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import { OperatorScreen } from './OperatorScreen';
 
@@ -32,10 +33,78 @@ function scoreItem(name: string, score: number) {
   });
 }
 
+// La TV se simula con un bus en memoria en lugar de BroadcastChannel.
+const channels = vi.hoisted(() => ({ bus: null as MemoryBus | null }));
+vi.mock('../../sync', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../sync')>();
+  return { ...actual, createBroadcastTransport: () => channels.bus!.connect() };
+});
+
+let tvMessages: SyncMessage[];
+
 beforeEach(() => {
+  channels.bus = createMemoryBus();
+  tvMessages = [];
+  channels.bus.connect().subscribe((msg) => tvMessages.push(msg));
   // jsdom no implementa URLs de objeto.
   URL.createObjectURL = vi.fn(() => 'blob:imagen-prueba');
   URL.revokeObjectURL = vi.fn();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function lastTvView(): TvView | undefined {
+  const states = tvMessages.filter((msg) => msg.type === 'state');
+  return states.at(-1)?.view;
+}
+
+describe('pantalla de TV desde el operador', () => {
+  it('abre la TV en una ventana con nombre fijo y muestra la dirección para copiar', async () => {
+    const user = userEvent.setup();
+    const open = vi.spyOn(window, 'open').mockReturnValue({} as Window);
+    await renderOperator();
+    const url = `${window.location.origin}${window.location.pathname}#/tv/${SESSION_ID}`;
+
+    expect(screen.getByLabelText('Dirección de la pantalla de TV')).toHaveValue(url);
+    expect(screen.getByLabelText('Dirección de la pantalla de TV')).toHaveAttribute('readonly');
+    await user.click(screen.getByRole('button', { name: 'Abrir pantalla de TV' }));
+    expect(open).toHaveBeenCalledWith(url, 'jeopardy-tv');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('avisa que se deben permitir ventanas emergentes si el navegador la bloquea', async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    await renderOperator();
+
+    await user.click(screen.getByRole('button', { name: 'Abrir pantalla de TV' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /Permite las ventanas emergentes para este sitio/,
+    );
+  });
+
+  it('publica la vista al montar y en cada cambio, sin la respuesta antes de revelar', async () => {
+    const user = userEvent.setup();
+    await renderOperator();
+    await waitFor(() => expect(lastTvView()?.phase).toEqual({ kind: 'board' }));
+
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    await waitFor(() => expect(lastTvView()?.phase.kind).toBe('clue'));
+    expect(JSON.stringify(tvMessages)).not.toContain('Respuesta');
+
+    await user.click(screen.getByRole('button', { name: 'Revelar respuesta' }));
+    await waitFor(() =>
+      expect(lastTvView()?.phase).toMatchObject({ kind: 'clue', answer: 'Respuesta 1-1' }),
+    );
+  });
+
+  it('se despide de la TV al cerrar la página', async () => {
+    await renderOperator();
+    window.dispatchEvent(new Event('pagehide'));
+    await waitFor(() => expect(tvMessages.at(-1)).toEqual({ type: 'bye' }));
+  });
 });
 
 describe('OperatorScreen', () => {
