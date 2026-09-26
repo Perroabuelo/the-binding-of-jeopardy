@@ -1,0 +1,22 @@
+> Cada tarea es un commit en la rama `change/imagen-en-respuesta`. Antes de commitear deben pasar `npm run lint`, `npm run typecheck` y `npm test`, además de `npm run test:e2e` cuando la tarea toca la UI o e2e. Después se hace push y se verifica que el CI quede en verde. Ninguna tarea se marca completa si alguno de esos pasos falla.
+
+## 1. Registro de versiones
+
+- [ ] 1.1 Agregar a `openspec/config.yaml` las reglas de versionado: en `rules.proposal`, la sección "Notas de versión" con versión objetivo, tipo de salto SemVer y bullets en lenguaje de usuario; en `operations.archive.guidance`, los pasos para mover las notas a `CHANGELOG.md`, subir `version` en `package.json` y `package-lock.json`, y crear y publicar el tag `vX.Y.Z` sobre el merge a `main`. Crear también `CHANGELOG.md` (formato *Keep a Changelog* en español), con la entrada retroactiva `0.1.0` de la v1 y la sección `Sin publicar`. Verificar que `openspec validate imagen-en-respuesta` pasa y que `openspec instructions proposal --change imagen-en-respuesta --json` muestra la regla nueva.
+
+## 2. Dominio
+
+- [ ] 2.1 Agregar `clueImageIds(clue)` y `boardImageIds(board)` en `src/domain/board.ts` y reemplazar con ellas `referencedImageIds` (`exchange.ts`), la copia local de `boardImageIds` (`storage/db.ts`), `imageIdsOf` (`ui/boards/boardFiles.ts`) y `usesImage` (`ui/editor/imageCleanup.ts`), sin cambiar el comportamiento. Verificar que los tests unitarios nuevos de ambas funciones (sin imágenes, con imágenes e ids repetidos) y todos los tests existentes pasan.
+- [ ] 2.2 Agregar `answerImageId?: string` a `Clue` e incluirlo en `clueImageIds`. Verificar con tests unitarios que `boardImageIds` devuelve las imágenes de respuesta, y con tests de almacenamiento (fake-indexeddb) que `deleteBoard` y `deleteImageIfUnused` no borran una imagen que otro tablero o una sesión usan como imagen de respuesta.
+- [ ] 2.3 Extender el esquema de `exchange.ts` con `answerImageId` opcional y reasignar sus ids nuevos con el mismo mapa que usan las imágenes de pregunta. Verificar con tests unitarios: la ida y vuelta conserva la imagen de respuesta con id nuevo; un archivo sin `answerImageId` se importa igual; se rechaza una imagen de respuesta que falta en el archivo; un id compartido entre pregunta y respuesta se copia una sola vez.
+- [ ] 2.4 Hacer que `projectForTv` elija la imagen de la TV: sin revelar, `imageId` es la imagen de la pregunta y `imageRole` es `'question'`; revelada, `imageId` es `answerImageId ?? imageId` con su `imageRole`. Actualizar `TvView`. Verificar con tests unitarios que, sin revelar, el JSON serializado no contiene el id de la imagen de respuesta; que, revelada con imagen de respuesta, esa imagen reemplaza a la de la pregunta; y que, revelada sin imagen de respuesta, se mantiene la de la pregunta.
+
+## 3. UI
+
+- [ ] 3.1 Parametrizar `ClueImageField` con `label` y textos derivados ("Imagen de la pregunta" y "Imagen de la respuesta", con su vista previa y su botón para quitar). Ubicar un campo bajo cada textarea en `ClueDialog`, conectar `answerImageId` en `EditorScreen` y generalizar `applyCluePatch` para borrar la clave cuando el valor es `undefined`. Actualizar los selectores de `EditorScreen.test.tsx`, `e2e/editor.spec.ts` y `e2e/persistence.spec.ts`. Verificar con tests de componentes que se puede adjuntar, quitar y rechazar (PDF y archivo de 8 MB) en la respuesta sin afectar la imagen de la pregunta, y con un e2e en `editor.spec` que la imagen de respuesta sigue tras recargar.
+- [ ] 3.2 Mostrar la imagen de la respuesta en `CluePanel` (`OperatorScreen`), dentro de la sección "Respuesta", esté revelada o no. Verificar con un test de componentes que se ve antes de revelar.
+- [ ] 3.3 Usar `imageRole` en `TvScreen` para el texto alternativo de la imagen ("Imagen de la pregunta" o "Imagen de la respuesta"). Verificar con tests de componentes que, sin revelar, se muestra la imagen de la pregunta y no la de la respuesta, y que, revelada, se muestra la de la respuesta en su lugar.
+
+## 4. Integración de punta a punta
+
+- [ ] 4.1 Agregar e2e en `e2e/game.spec.ts`: con operador y TV abiertos en una celda cuya pregunta y respuesta tienen imagen, antes de revelar la TV muestra solo la imagen de la pregunta y, después de revelar, muestra la de la respuesta en su lugar. Agregar e2e en `e2e/boards.spec.ts`: exportar e importar un tablero con imagen de respuesta produce una copia con esa imagen. Verificar que `npm run test:e2e` pasa localmente y que el CI de la rama queda en verde.
