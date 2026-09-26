@@ -1,0 +1,59 @@
+.grid {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: var(--space-2);
+  background: var(--color-board-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+}
+
+.category {
+  color: var(--color-text);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  padding: var(--space-2);
+  vertical-align: bottom;
+  overflow-wrap: anywhere;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 4rem;
+  background: var(--color-cell);
+  color: var(--color-cell-text);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+button.cell:disabled {
+  opacity: 1;
+}
+
+.used {
+  background: var(--color-cell-used);
+  color: var(--color-cell-used-text);
+}
+
+.tv .category {
+  font-size: var(--tv-category-font);
+}
+
+.tv .cell {
+  min-height: 12vh;
+  font-size: var(--tv-cell-font);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
