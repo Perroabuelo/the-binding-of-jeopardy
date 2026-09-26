@@ -10,7 +10,7 @@
   - La ida y vuelta conserva categoría, pregunta, respuesta e imágenes de `final`.
   - Un archivo sin `final` se importa sin pista final.
   - Una imagen de `final` faltante o dañada lanza `ImportError`.
-- [ ] 1.3 En `src/domain/game.ts`, agregar `finalEnabled?` en la sesión y `withFinal` en `startGame`. Agregar la fase `final` con etapas, `finished.finalSkipped?`, `endBoard`, `finalClueOf`, las acciones `setFinalWager`, `showFinalClue`, `startFinalTimer`, `startFinalReveal`, `judgeFinal` y `revealFinalAnswer`, `finish` desde `final`, y `FINAL_TIMER_MS` y `finalTimeRemaining`. Verificar con tests unitarios en `game.test.ts` (ver casos en design, Estrategia de pruebas):
+- [x] 1.3 En `src/domain/game.ts`, agregar `finalEnabled?` en la sesión y `withFinal` en `startGame`. Agregar la fase `final` con etapas, `finished.finalSkipped?`, `endBoard`, `finalClueOf`, las acciones `setFinalWager`, `showFinalClue`, `startFinalTimer`, `startFinalReveal`, `judgeFinal` y `revealFinalAnswer`, `finish` desde `final`, y `FINAL_TIMER_MS` y `finalTimeRemaining`. Verificar con tests unitarios en `game.test.ts` (ver casos en design, Estrategia de pruebas):
   - `startGame` rechaza `withFinal` sin pista final completa.
   - La entrada desde `backToBoard` y desde `finish`.
   - El orden 1200/400/800 → Tíos, Abuelos, Primos, con un empate estable.
