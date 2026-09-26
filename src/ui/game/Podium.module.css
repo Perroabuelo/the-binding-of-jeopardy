@@ -47,3 +47,12 @@
 .tv .item {
   font-size: var(--tv-category-font);
 }
+
+.notice {
+  color: var(--color-text-muted);
+}
+
+.tv .notice {
+  font-size: var(--tv-category-font);
+  text-align: center;
+}

@@ -6,6 +6,7 @@ import { rankTeams } from '../../domain/ranking';
 import { getSession, saveSession } from '../../storage/db';
 import { BoardGrid } from '../game/BoardGrid';
 import { ClueImage } from '../game/ClueImage';
+import { FinalPanel } from '../game/FinalPanel';
 import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
 import { TvLauncher } from '../game/TvLauncher';
@@ -88,8 +89,13 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
             <WagerPanel key={session.phase.clueKey} session={session} dispatch={dispatch} />
           )}
           {session.phase.kind === 'clue' && <CluePanel session={session} dispatch={dispatch} />}
-          {session.phase.kind === 'finished' && <Podium ranking={rankTeams(session.teams)} />}
-          {session.phase.kind !== 'finished' && (
+          {session.phase.kind === 'final' && (
+            <FinalPanel session={session} phase={session.phase} dispatch={dispatch} />
+          )}
+          {session.phase.kind === 'finished' && (
+            <Podium ranking={rankTeams(session.teams)} finalSkipped={session.phase.finalSkipped} />
+          )}
+          {session.phase.kind !== 'finished' && !allFinalJudged(session) && (
             <div className={styles.finish}>
               {confirmingFinish ? (
                 <div
@@ -97,9 +103,7 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
                   aria-labelledby={finishQuestionId}
                   className={styles.confirm}
                 >
-                  <p id={finishQuestionId}>
-                    {`¿Terminar el juego ahora? Quedan ${pendingCount(session)} preguntas sin usar.`}
-                  </p>
+                  <p id={finishQuestionId}>{finishQuestion(session)}</p>
                   <button
                     type="button"
                     className="danger"
@@ -125,6 +129,19 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
       )}
     </main>
   );
+}
+
+function finishQuestion(session: GameSession): string {
+  if (session.phase.kind === 'final') {
+    return '¿Terminar el juego ahora? Las apuestas de los equipos sin juzgar no se aplicarán.';
+  }
+  return `¿Terminar el juego ahora? Quedan ${pendingCount(session)} preguntas sin usar.`;
+}
+
+/** En la revelación con todos juzgados se va al podio con "Ir al podio". */
+function allFinalJudged(session: GameSession): boolean {
+  const { phase } = session;
+  return phase.kind === 'final' && phase.judged.length === phase.participants.length;
 }
 
 function pendingCount(session: GameSession): number {

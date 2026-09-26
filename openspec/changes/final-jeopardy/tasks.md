@@ -48,7 +48,7 @@
 
 ## 4. Operador y TV
 
-- [ ] 4.1 En `OperatorScreen`, agregar los paneles de las etapas `wagers`, `clue` y `reveal` (design, decisión 7), la confirmación de "Terminar juego" durante el Final, "Ir al podio" y el aviso de `finalSkipped` en el podio. Verificar con tests de componentes en `OperatorScreen.test.tsx`:
+- [x] 4.1 En `OperatorScreen`, agregar los paneles de las etapas `wagers`, `clue` y `reveal` (design, decisión 7), la confirmación de "Terminar juego" durante el Final, "Ir al podio" y el aviso de `finalSkipped` en el podio. Verificar con tests de componentes en `OperatorScreen.test.tsx`:
   - Cada participante muestra su máximo y quienes quedan fuera aparecen como "no participan".
   - "Mostrar pista" está deshabilitado con apuestas faltantes.
   - El temporizador llama a `play` y la cuenta regresiva avanza con temporizadores falsos.

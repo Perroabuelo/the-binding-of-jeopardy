@@ -1,0 +1,136 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.category {
+  margin: 0;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.question {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 30vh;
+  object-fit: contain;
+  justify-self: start;
+  border-radius: var(--radius-md);
+}
+
+.answer {
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.answer h4 {
+  margin: 0;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.answer p {
+  margin: var(--space-1) 0 0;
+  font-size: 1.25rem;
+}
+
+.answer .muted {
+  font-size: 0.875rem;
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+}
+
+.status {
+  margin: 0;
+  font-weight: 700;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.wager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.wager label {
+  min-width: 10rem;
+  font-weight: 700;
+}
+
+.wager input {
+  width: 8rem;
+}
+
+.wager p {
+  flex-basis: 100%;
+  font-size: 0.875rem;
+}
+
+.outside h4,
+.current h4 {
+  margin: 0 0 var(--space-2);
+}
+
+.outside ul {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.current {
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.current p {
+  margin: 0 0 var(--space-2);
+}
+
+.timer {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 4rem;
+  color: var(--color-accent);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
