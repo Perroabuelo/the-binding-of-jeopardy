@@ -155,6 +155,25 @@ describe('importBoard', () => {
     expect(board.categories).toEqual(original.categories);
   });
 
+  it('ida y vuelta de 8 categorías conserva la cantidad y el orden', () => {
+    const original = makeCompleteBoard({}, 8);
+    original.categories.forEach((category, c) => (category.name = `Columna ${8 - c}`));
+    const { board } = importBoard(exportBoard(original, {}), {
+      makeId: makeIdGenerator(),
+      now: NOW,
+    });
+    expect(board.categories).toEqual(original.categories);
+  });
+
+  it('importa un archivo de 5 categorías', () => {
+    const original = makeCompleteBoard({}, 5);
+    const { board } = importBoard(exportBoard(original, {}), {
+      makeId: makeIdGenerator(),
+      now: NOW,
+    });
+    expect(board.categories).toEqual(original.categories);
+  });
+
   it('importar dos veces el mismo archivo genera tableros e imágenes con ids distintos', () => {
     const json = exportBoard(boardWithImages(), { 'img-a': PNG, 'img-b': JPEG });
     const makeId = makeIdGenerator();
@@ -222,12 +241,14 @@ describe('importBoard', () => {
     it('menos de 3 o más de 8 categorías', () => {
       const two = exportedFile();
       (two.board as Board).categories.splice(2);
-      expectImportError(JSON.stringify(two));
+      expect(expectImportError(JSON.stringify(two)).message).toMatch(
+        'entre 3 y 8 categorías con 5 preguntas de 100 a 500',
+      );
 
       const nine = exportedFile();
       const board = nine.board as Board;
       board.categories.push(...board.categories.slice(0, 3));
-      expectImportError(JSON.stringify(nine));
+      expect(expectImportError(JSON.stringify(nine)).message).toMatch('entre 3 y 8 categorías');
     });
 
     it('una categoría con menos o más de 5 preguntas', () => {

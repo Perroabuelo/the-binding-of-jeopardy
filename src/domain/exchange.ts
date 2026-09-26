@@ -131,7 +131,7 @@ export function importBoard(json: string, { makeId, now }: ImportDeps): Imported
   const parsed = fileSchema.safeParse(raw);
   if (!parsed.success) {
     throw new ImportError(
-      'El tablero del archivo no es válido: debe tener 5 categorías con 5 preguntas de 100 a 500.',
+      `El tablero del archivo no es válido: debe tener entre ${MIN_CATEGORIES} y ${MAX_CATEGORIES} categorías con 5 preguntas de 100 a 500.`,
     );
   }
   const { board: source, images: sourceImages } = parsed.data;
