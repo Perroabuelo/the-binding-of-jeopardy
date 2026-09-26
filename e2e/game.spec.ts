@@ -272,3 +272,68 @@ test('con 3 categorías el juego termina al usar las 15 celdas', async ({ page }
   await expect(page.getByRole('heading', { name: 'Podio' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Podio' }).getByRole('listitem')).toHaveCount(2);
 });
+
+test('Daily Double: marcar en el editor, anunciar en la TV, apostar y reanudar', async ({
+  page,
+}) => {
+  await page.goto('./');
+  const board = await seedCompleteBoard(page);
+  await page.goto(`./#/boards/${board.id}`);
+
+  await page.getByRole('button', { name: 'Categoría 2, 400, completa' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Categoría 2, 400' });
+  await dialog.getByRole('checkbox', { name: 'Daily Double' }).check();
+  await dialog.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Categoría 2, 400, completa, Daily Double' }),
+  ).toContainText('DD');
+  await expect(page.getByRole('status')).toHaveText('Cambios guardados');
+
+  await page.getByRole('button', { name: 'Jugar' }).click();
+  await page.getByLabel('Nombre del equipo 1').fill('Equipo Rojo');
+  await page.getByLabel('Nombre del equipo 2').fill('Equipo Azul');
+  await page.getByRole('button', { name: 'Comenzar juego' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+  const tv = await openTv(page);
+  await expect(tv.getByRole('table', { name: 'Tablero' })).toBeVisible();
+  expect(await tv.content()).not.toMatch(/Daily Double|>DD</i);
+
+  // Abrir el Daily Double: la TV lo anuncia sin la pregunta.
+  await page.getByRole('button', { name: 'Categoría 2, 400, Daily Double' }).click();
+  await expect(page.getByRole('region', { name: 'Daily Double' })).toContainText('Pregunta 2-4');
+  const announcement = tv.getByRole('region', { name: 'Daily Double' });
+  await expect(announcement.getByText('DAILY DOUBLE!')).toBeVisible({ timeout: 1000 });
+  await expect(announcement).toContainText('Categoría 2');
+  await expect(announcement).toContainText('400');
+  expect(await tv.content()).not.toContain('Pregunta 2-4');
+
+  // Recargar el operador mientras espera la apuesta y reanudar en el mismo punto.
+  await page.reload();
+  const wager = page.getByRole('region', { name: 'Daily Double' });
+  await expect(wager).toContainText('Pregunta 2-4');
+  await expect(tv.getByText('DAILY DOUBLE!')).toBeVisible();
+  expect(await tv.content()).not.toContain('Pregunta 2-4');
+
+  await wager.getByLabel('Equipo que responde').selectOption({ label: 'Equipo Azul' });
+  await expect(wager).toContainText('máximo 500');
+  await wager.getByLabel('Apuesta').fill('600');
+  await expect(wager.getByRole('button', { name: 'Registrar apuesta' })).toBeDisabled();
+  await wager.getByLabel('Apuesta').fill('500');
+  await wager.getByRole('button', { name: 'Registrar apuesta' }).click();
+
+  const tvClue = tv.getByRole('region', { name: 'Pregunta' });
+  await expect(tvClue.getByText('Pregunta 2-4')).toBeVisible({ timeout: 1000 });
+  await expect(tvClue.getByText('Equipo Azul apuesta 500')).toBeVisible();
+  await expect(page.getByText('Daily Double: Equipo Azul apuesta 500')).toBeVisible();
+  await expect(page.getByRole('button', { name: /a Equipo Rojo$/ })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Sumar 500 a Equipo Azul' }).click();
+  for (const window of [page, tv]) {
+    await expect(score(window, 'Equipo Azul', 500)).toBeVisible({ timeout: 1000 });
+    await expect(score(window, 'Equipo Rojo', 0)).toBeVisible();
+  }
+
+  await page.getByRole('button', { name: 'Volver al tablero' }).click();
+  await expect(page.getByRole('button', { name: 'Categoría 2, 400, usada' })).toBeDisabled();
+  await expect(tv.getByRole('cell', { name: '400, usada' })).toBeVisible({ timeout: 1000 });
+});

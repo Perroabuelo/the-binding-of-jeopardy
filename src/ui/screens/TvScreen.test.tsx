@@ -232,7 +232,7 @@ describe('TvScreen: Daily Double', () => {
     const marked = render(<TvScreen sessionId={SESSION_ID} />);
     await sendView(projectForTv(dailyDoubleSession()));
     expect(marked.container.innerHTML).toBe(plainHtml);
-    expect(marked.container.innerHTML).not.toMatch(/DD|Daily Double/i);
+    expect(marked.container.innerHTML).not.toMatch(/Daily Double|>DD</i);
   });
 });
 
