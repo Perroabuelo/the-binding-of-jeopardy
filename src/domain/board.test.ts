@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import {
+  addCategory,
   allClueKeys,
   boardImageIds,
+  categoryHasContent,
   clueImageIds,
   clueKey,
   CLUE_VALUES,
   createEmptyBoard,
   getClue,
+  moveCategory,
   parseClueKey,
+  removeCategory,
+  type Board,
 } from './board';
 
 describe('createEmptyBoard', () => {
@@ -123,5 +128,131 @@ describe('imágenes usadas', () => {
     board.categories[1]!.clues[3]!.answerImageId = 'img-r';
     board.categories[2]!.clues[2]!.answerImageId = 'img-p';
     expect([...boardImageIds(board)].sort()).toEqual(['img-p', 'img-r']);
+  });
+});
+
+const names = (board: Board) => board.categories.map((category) => category.name);
+
+describe('addCategory', () => {
+  it('agrega una categoría vacía al final sin tocar las demás', () => {
+    const board = makeCompleteBoard();
+    const next = addCategory(board);
+    expect(next.categories).toHaveLength(7);
+    expect(next.categories.slice(0, 6)).toEqual(board.categories);
+    expect(next.categories[6]).toEqual(createEmptyBoard('x', 0, 1).categories[0]);
+    expect(board.categories).toHaveLength(6);
+  });
+
+  it('con 8 categorías devuelve la misma referencia', () => {
+    const board = makeCompleteBoard({}, 8);
+    expect(addCategory(board)).toBe(board);
+  });
+});
+
+describe('removeCategory', () => {
+  it('quita la categoría y las demás mantienen su orden', () => {
+    const next = removeCategory(makeCompleteBoard(), 1);
+    expect(names(next)).toEqual([
+      'Categoría 1',
+      'Categoría 3',
+      'Categoría 4',
+      'Categoría 5',
+      'Categoría 6',
+    ]);
+  });
+
+  it('con 3 categorías devuelve la misma referencia', () => {
+    const board = makeCompleteBoard({}, 3);
+    expect(removeCategory(board, 0)).toBe(board);
+  });
+
+  it('con un índice fuera de rango devuelve la misma referencia', () => {
+    const board = makeCompleteBoard();
+    expect(removeCategory(board, -1)).toBe(board);
+    expect(removeCategory(board, 6)).toBe(board);
+    expect(removeCategory(board, 1.5)).toBe(board);
+  });
+});
+
+describe('moveCategory', () => {
+  it('mueve una categoría a la posición siguiente', () => {
+    const next = moveCategory(makeCompleteBoard({}, 3), 0, 1);
+    expect(names(next)).toEqual(['Categoría 2', 'Categoría 1', 'Categoría 3']);
+  });
+
+  it('mueve una categoría hacia el centro y hacia los extremos', () => {
+    const board = makeCompleteBoard({}, 5);
+    expect(names(moveCategory(board, 4, 2))).toEqual([
+      'Categoría 1',
+      'Categoría 2',
+      'Categoría 5',
+      'Categoría 3',
+      'Categoría 4',
+    ]);
+    expect(names(moveCategory(board, 2, 0))).toEqual([
+      'Categoría 3',
+      'Categoría 1',
+      'Categoría 2',
+      'Categoría 4',
+      'Categoría 5',
+    ]);
+    expect(names(moveCategory(board, 0, 4))).toEqual([
+      'Categoría 2',
+      'Categoría 3',
+      'Categoría 4',
+      'Categoría 5',
+      'Categoría 1',
+    ]);
+  });
+
+  it('conserva todo el contenido de la categoría movida, incluidas las imágenes', () => {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[2]!.imageId = 'img-p';
+    board.categories[0]!.clues[3]!.answerImageId = 'img-r';
+    const moved = structuredClone(board.categories[0]!);
+    const next = moveCategory(board, 0, 1);
+    expect(next.categories[1]).toEqual(moved);
+    expect(next.categories[0]).toEqual(board.categories[1]);
+  });
+
+  it('con índices inválidos o iguales devuelve la misma referencia', () => {
+    const board = makeCompleteBoard();
+    expect(moveCategory(board, 0, -1)).toBe(board);
+    expect(moveCategory(board, 5, 6)).toBe(board);
+    expect(moveCategory(board, -1, 0)).toBe(board);
+    expect(moveCategory(board, 2, 2)).toBe(board);
+  });
+});
+
+describe('categoryHasContent', () => {
+  const empty = () => createEmptyBoard('x', 0, 1).categories[0]!;
+
+  it('una categoría vacía no tiene contenido', () => {
+    expect(categoryHasContent(empty())).toBe(false);
+  });
+
+  it('el texto con solo espacios no cuenta como contenido', () => {
+    const category = empty();
+    category.name = '  ';
+    category.clues[0]!.question = '\n';
+    expect(categoryHasContent(category)).toBe(false);
+  });
+
+  it.each([
+    ['nombre', (category: ReturnType<typeof empty>) => (category.name = 'Historia')],
+    ['pregunta', (category: ReturnType<typeof empty>) => (category.clues[2]!.question = 'p')],
+    ['respuesta', (category: ReturnType<typeof empty>) => (category.clues[4]!.answer = 'r')],
+    [
+      'imagen de pregunta',
+      (category: ReturnType<typeof empty>) => (category.clues[1]!.imageId = 'img-p'),
+    ],
+    [
+      'imagen de respuesta',
+      (category: ReturnType<typeof empty>) => (category.clues[3]!.answerImageId = 'img-r'),
+    ],
+  ])('una categoría con %s tiene contenido', (_, fill) => {
+    const category = empty();
+    fill(category);
+    expect(categoryHasContent(category)).toBe(true);
   });
 });

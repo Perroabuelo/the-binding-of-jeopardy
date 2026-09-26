@@ -79,6 +79,10 @@ export function boardImageIds(board: Board): Set<string> {
   return ids;
 }
 
+function createEmptyCategory(): Category {
+  return { name: '', clues: CLUE_VALUES.map((value) => ({ value, question: '', answer: '' })) };
+}
+
 export function createEmptyBoard(
   id: string,
   now: number,
@@ -88,11 +92,48 @@ export function createEmptyBoard(
     id,
     schemaVersion: BOARD_SCHEMA_VERSION,
     title: '',
-    categories: Array.from({ length: categoryCount }, () => ({
-      name: '',
-      clues: CLUE_VALUES.map((value) => ({ value, question: '', answer: '' })),
-    })),
+    categories: Array.from({ length: categoryCount }, createEmptyCategory),
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function isFilled(text: string): boolean {
+  return text.trim() !== '';
+}
+
+/** `true` si la categoría tiene nombre, alguna pregunta, respuesta o imagen. */
+export function categoryHasContent(category: Category): boolean {
+  return (
+    isFilled(category.name) ||
+    category.clues.some(
+      (clue) => isFilled(clue.question) || isFilled(clue.answer) || clueImageIds(clue).length > 0,
+    )
+  );
+}
+
+// Operaciones de estructura: si no son válidas devuelven la misma referencia
+
+/** Agrega una categoría vacía al final. */
+export function addCategory(board: Board): Board {
+  if (board.categories.length >= MAX_CATEGORIES) return board;
+  return { ...board, categories: [...board.categories, createEmptyCategory()] };
+}
+
+export function removeCategory(board: Board, index: number): Board {
+  const { categories } = board;
+  if (categories.length <= MIN_CATEGORIES) return board;
+  if (!Number.isInteger(index) || index < 0 || index >= categories.length) return board;
+  return { ...board, categories: categories.filter((_, i) => i !== index) };
+}
+
+/** Mueve la categoría de la posición `from` a la posición `to`. */
+export function moveCategory(board: Board, from: number, to: number): Board {
+  const { categories } = board;
+  const inRange = (i: number) => Number.isInteger(i) && i >= 0 && i < categories.length;
+  if (!inRange(from) || !inRange(to) || from === to) return board;
+  const next = [...categories];
+  const [moved] = next.splice(from, 1);
+  next.splice(to, 0, moved!);
+  return { ...board, categories: next };
 }
