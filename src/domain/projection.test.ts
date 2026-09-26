@@ -232,3 +232,142 @@ describe('projectForTv: Daily Double', () => {
     expect(view.phase).not.toHaveProperty('dailyDouble');
   });
 });
+
+describe('projectForTv: Final', () => {
+  const FINAL = {
+    category: 'Cumpleañero',
+    question: 'Pregunta final secreta',
+    answer: 'Respuesta final secreta',
+    imageId: 'img-final-pregunta',
+    answerImageId: 'img-final-respuesta',
+  };
+
+  /** Primos 1200 apuesta 777 y Tíos 400 apuesta 333; Abuelos en 0 no juega. */
+  function inWagers(): GameSession {
+    let session = startGame(
+      makeCompleteBoard({ final: { ...FINAL } }),
+      ['Primos', 'Tíos', 'Abuelos'],
+      { sessionId: 's1', now: 0, makeTeamId: (index) => `t${index}`, withFinal: true },
+    );
+    session = play(
+      session,
+      { type: 'setScore', teamId: 't0', score: 1200 },
+      { type: 'setScore', teamId: 't1', score: 400 },
+      { type: 'finish' },
+      { type: 'setFinalWager', teamId: 't0', amount: 777 },
+    );
+    return session;
+  }
+
+  function inClue(): GameSession {
+    return play(
+      inWagers(),
+      { type: 'setFinalWager', teamId: 't1', amount: 333 },
+      {
+        type: 'showFinalClue',
+      },
+    );
+  }
+
+  function inReveal(): GameSession {
+    return play(inClue(), { type: 'startFinalReveal' });
+  }
+
+  function expectHidden(json: string, ...texts: string[]) {
+    for (const text of texts) expect(json).not.toContain(text);
+  }
+
+  it('en las apuestas envía solo la categoría, los participantes y el conteo', () => {
+    const view = projectForTv(inWagers());
+    expect(view.phase).toEqual({
+      kind: 'final',
+      stage: 'wagers',
+      category: 'Cumpleañero',
+      participants: [
+        { teamId: 't1', name: 'Tíos' },
+        { teamId: 't0', name: 'Primos' },
+      ],
+      wagersReady: 1,
+    });
+    expectHidden(
+      JSON.stringify(view),
+      FINAL.question,
+      FINAL.answer,
+      FINAL.imageId,
+      FINAL.answerImageId,
+      '777',
+    );
+  });
+
+  it('en la pista envía la pregunta y su imagen, sin la respuesta ni los montos', () => {
+    const view = projectForTv(inClue());
+    expect(view.phase).toMatchObject({
+      stage: 'clue',
+      question: FINAL.question,
+      imageId: FINAL.imageId,
+      imageRole: 'question',
+      wagersReady: 2,
+    });
+    expect(view.phase).not.toHaveProperty('timerEndsAt');
+    expectHidden(JSON.stringify(view), FINAL.answer, FINAL.answerImageId, '777', '333');
+  });
+
+  it('con el temporizador iniciado envía timerEndsAt', () => {
+    const session = gameReducer(inClue(), { type: 'startFinalTimer' }, 50_000);
+    expect(projectForTv(session).phase).toMatchObject({ timerEndsAt: 80_000 });
+  });
+
+  it('en la revelación envía solo los montos de los equipos juzgados', () => {
+    const before = projectForTv(inReveal());
+    expect(before.phase).toMatchObject({ stage: 'reveal', judged: [], currentTeamName: 'Tíos' });
+    expectHidden(JSON.stringify(before), '777', '333', FINAL.answer, FINAL.answerImageId);
+
+    const view = projectForTv(
+      play(inReveal(), { type: 'judgeFinal', teamId: 't1', correct: true }),
+    );
+    expect(view.phase).toMatchObject({
+      judged: [{ teamId: 't1', name: 'Tíos', correct: true, wager: 333, score: 733 }],
+      currentTeamName: 'Primos',
+    });
+    expectHidden(JSON.stringify(view), '777', FINAL.answer);
+  });
+
+  it('con la respuesta revelada envía la respuesta y su imagen en lugar de la de la pregunta', () => {
+    const view = projectForTv(play(inReveal(), { type: 'revealFinalAnswer' }));
+    expect(view.phase).toMatchObject({
+      answer: FINAL.answer,
+      imageId: FINAL.answerImageId,
+      imageRole: 'answer',
+    });
+    expectHidden(JSON.stringify(view), FINAL.imageId, '777', '333');
+  });
+
+  it('con todos juzgados no hay equipo en turno', () => {
+    const view = projectForTv(
+      play(
+        inReveal(),
+        { type: 'judgeFinal', teamId: 't1', correct: false },
+        { type: 'judgeFinal', teamId: 't0', correct: true },
+      ),
+    );
+    expect(view.phase).not.toHaveProperty('currentTeamName');
+    expect(view.phase).toMatchObject({
+      judged: [
+        { name: 'Tíos', wager: 333, score: 67 },
+        { name: 'Primos', wager: 777, score: 1977 },
+      ],
+    });
+  });
+
+  it('en el podio envía finalSkipped cuando el Final se saltó', () => {
+    const session = startGame(makeCompleteBoard({ final: { ...FINAL } }), ['Primos'], {
+      sessionId: 's1',
+      now: 0,
+      makeTeamId: () => 't0',
+      withFinal: true,
+    });
+    const view = projectForTv(play(session, { type: 'finish' }));
+    expect(view.phase).toMatchObject({ kind: 'finished', finalSkipped: 'noPositiveScores' });
+    expectHidden(JSON.stringify(view), FINAL.question, FINAL.answer);
+  });
+});

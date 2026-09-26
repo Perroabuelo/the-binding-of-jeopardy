@@ -23,7 +23,7 @@
   - `finish` desde `final` no aplica las apuestas pendientes.
   - `setScore` no cambia `entryScore`.
   - `finalTimeRemaining` en 0, 10, 30 y 45 s.
-- [ ] 1.4 En `src/domain/projection.ts`, proyectar la fase `final` por etapa y `finalSkipped`. Verificar con tests unitarios sobre `JSON.stringify(view)`:
+- [x] 1.4 En `src/domain/projection.ts`, proyectar la fase `final` por etapa y `finalSkipped`. Verificar con tests unitarios sobre `JSON.stringify(view)`:
   - En `wagers` no aparecen la pregunta, la respuesta, los ids de sus imágenes ni los montos anotados, y sí `wagersReady`.
   - En `clue` no aparece la respuesta y sí `question` y `timerEndsAt`.
   - En `reveal` solo aparecen los montos de los equipos juzgados, y la respuesta y su imagen solo con `answerRevealed`.

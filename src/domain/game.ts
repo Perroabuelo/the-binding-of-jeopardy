@@ -116,7 +116,34 @@ export interface TvView {
       }
     /** Daily Double que espera la apuesta: sin pregunta, imágenes ni respuesta. */
     | { kind: 'dailyDouble'; clueKey: ClueKey; value: ClueValue }
-    | { kind: 'finished'; ranking: { team: Team; position: number }[] };
+    | TvFinalPhase
+    | {
+        kind: 'finished';
+        ranking: { team: Team; position: number }[];
+        finalSkipped?: FinalSkipReason;
+      };
+}
+
+/**
+ * El Final en la TV. La pregunta y su imagen salen desde la etapa `clue`, la respuesta solo
+ * cuando fue revelada, y el monto de una apuesta solo cuando su equipo fue juzgado.
+ */
+export interface TvFinalPhase {
+  kind: 'final';
+  stage: FinalStage;
+  category: string;
+  participants: { teamId: string; name: string }[];
+  /** Cuántos participantes tienen apuesta anotada. Nunca los montos. */
+  wagersReady: number;
+  question?: string;
+  imageId?: string;
+  imageRole?: TvImageRole;
+  /** Milisegundos desde epoch en que el temporizador llega a 0. */
+  timerEndsAt?: number;
+  judged?: { teamId: string; name: string; correct: boolean; wager: number; score: number }[];
+  /** Equipo en turno durante la revelación. */
+  currentTeamName?: string;
+  answer?: string;
 }
 
 export interface StartGameOptions {
