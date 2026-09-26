@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLUE_VALUES, createEmptyBoard } from '../../domain/board';
 import * as db from '../../storage/db';
-import { getBoard, getImage, saveBoard, StorageUnavailable } from '../../storage/db';
+import { getBoard, getImage, saveBoard, saveSession, StorageUnavailable } from '../../storage/db';
+import * as cleanup from '../editor/imageCleanup';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import { EditorScreen } from './EditorScreen';
 
@@ -228,6 +229,58 @@ describe('EditorScreen: imagen por pregunta', () => {
     await waitFor(async () => expect(await storedImageId()).toBeUndefined());
     await waitFor(async () => expect(await getImage(imageId)).toBeNull());
   });
+
+  async function uploadAndGetId(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile());
+    await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' });
+    await waitFor(async () => expect(await storedImageId()).toBeDefined());
+    return (await storedImageId())!;
+  }
+
+  it('conserva la imagen quitada si una sesión guardada la usa', async () => {
+    const cleanupSpy = vi.spyOn(cleanup, 'deleteImageIfUnused');
+    const { user, dialog } = await openFirstClue();
+    const imageId = await uploadAndGetId(user, dialog);
+    await saveSession({
+      id: 'sesion-en-curso',
+      boardSnapshot: await storedBoard(),
+      teams: [{ id: 't1', name: 'Equipo Azul', score: 0 }],
+      usedClues: [],
+      phase: { kind: 'board' },
+      updatedAt: CREATED_AT,
+    });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen' }));
+
+    await waitFor(async () => expect(await storedImageId()).toBeUndefined());
+    await waitFor(() => expect(cleanupSpy).toHaveBeenCalledWith(imageId));
+    expect(await cleanupSpy.mock.results[0]!.value).toBe(false);
+    expect(await getImage(imageId)).not.toBeNull();
+  });
+
+  it('al reemplazar la imagen borra la anterior si nadie la usa', async () => {
+    const { user, dialog } = await openFirstClue();
+    const firstId = await uploadAndGetId(user, dialog);
+    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), pngFile('otra.png'));
+    await waitFor(async () => expect(await storedImageId()).not.toBe(firstId));
+    const secondId = (await storedImageId())!;
+    await waitFor(async () => expect(await getImage(firstId)).toBeNull());
+    expect(await getImage(secondId)).not.toBeNull();
+  });
+
+  it('no borra la imagen quitada si falla el guardado del tablero', async () => {
+    const cleanupSpy = vi.spyOn(cleanup, 'deleteImageIfUnused');
+    const { user, dialog } = await openFirstClue();
+    const imageId = await uploadAndGetId(user, dialog);
+    vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
+
+    await user.click(within(dialog).getByRole('button', { name: 'Quitar imagen' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/los cambios no se guardaron/);
+    expect(cleanupSpy).not.toHaveBeenCalled();
+    expect(await storedImageId()).toBe(imageId);
+    expect(await getImage(imageId)).not.toBeNull();
+  });
 });
 
 describe('EditorScreen: faltantes y Jugar', () => {
@@ -254,6 +307,19 @@ describe('EditorScreen: faltantes y Jugar', () => {
 
     await user.click(play);
     await waitFor(() => expect(window.location.hash).toBe('#/boards/fixture-board/play'));
+  });
+
+  it('no va a la configuración de equipos si falla el guardado final', async () => {
+    window.location.hash = '#/boards/fixture-board';
+    const { user } = await renderSeeded();
+    const saveSpy = vi.spyOn(db, 'saveBoard').mockRejectedValue(new StorageUnavailable());
+    await user.type(screen.getByLabelText('Título del tablero'), ' nuevo');
+
+    await user.click(screen.getByRole('button', { name: 'Jugar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/los cambios no se guardaron/);
+    expect(saveSpy).toHaveBeenCalled();
+    expect(window.location.hash).toBe('#/boards/fixture-board');
   });
 
   it('deshabilita Jugar y señala la celda a la que le falta la respuesta', async () => {

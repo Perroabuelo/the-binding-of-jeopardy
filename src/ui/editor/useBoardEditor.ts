@@ -16,10 +16,13 @@ export interface BoardEditor {
   load: EditorLoad;
   saveStatus: SaveStatus;
   saveError: string | null;
-  /** Aplica un cambio y lo guarda: con debounce, o de inmediato con `immediate`. */
-  update: (mutate: (board: Board) => Board, options?: { immediate?: boolean }) => void;
-  /** Guarda de inmediato lo que esté pendiente. */
-  flush: () => Promise<void>;
+  /** Aplica un cambio y lo guarda con debounce. */
+  update: (mutate: (board: Board) => Board) => void;
+  /**
+   * Guarda de inmediato lo pendiente y espera los guardados en curso.
+   * Devuelve `false` si el tablero guardado no quedó al día.
+   */
+  flush: () => Promise<boolean>;
 }
 
 function errorMessage(error: unknown): string {
@@ -34,6 +37,7 @@ export function useBoardEditor(boardId: string): BoardEditor {
   const pendingRef = useRef<Board | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef(0);
+  const queueRef = useRef<Promise<boolean>>(Promise.resolve(true));
 
   useEffect(() => {
     let cancelled = false;
@@ -51,31 +55,40 @@ export function useBoardEditor(boardId: string): BoardEditor {
     };
   }, [boardId]);
 
-  const flush = useCallback(async () => {
-    if (timerRef.current !== null) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    const board = pendingRef.current;
-    if (!board) return;
-    pendingRef.current = null;
-    inFlightRef.current++;
+  const save = useCallback(async (board: Board): Promise<boolean> => {
     try {
       await saveBoard(board);
       inFlightRef.current--;
       setSaveError(null);
       if (inFlightRef.current === 0 && !pendingRef.current) setSaveStatus('saved');
+      return true;
     } catch (e) {
       inFlightRef.current--;
       // Se reintenta con el próximo cambio o al salir del editor.
       pendingRef.current ??= board;
       setSaveError(errorMessage(e));
       setSaveStatus('error');
+      return false;
     }
   }, []);
 
+  const flush = useCallback((): Promise<boolean> => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const board = pendingRef.current;
+    if (board) {
+      pendingRef.current = null;
+      inFlightRef.current++;
+      // Guardados en serie: el resultado corresponde al último cambio.
+      queueRef.current = queueRef.current.then(() => save(board));
+    }
+    return queueRef.current;
+  }, [save]);
+
   const update = useCallback<BoardEditor['update']>(
-    (mutate, options) => {
+    (mutate) => {
       const current = boardRef.current;
       if (!current) return;
       const next = { ...mutate(current), updatedAt: Date.now() };
@@ -84,9 +97,7 @@ export function useBoardEditor(boardId: string): BoardEditor {
       setLoad({ status: 'ready', board: next });
       setSaveStatus('saving');
       if (timerRef.current !== null) clearTimeout(timerRef.current);
-      timerRef.current = null;
-      if (options?.immediate) void flush();
-      else timerRef.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
+      timerRef.current = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
     },
     [flush],
   );

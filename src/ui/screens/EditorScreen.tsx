@@ -32,8 +32,8 @@ export function EditorScreen({ boardId }: { boardId: string }) {
     returnFocusRef.current?.focus();
   }
 
-  function changeClue(cell: OpenCell, patch: CluePatch, options?: { immediate?: boolean }) {
-    update((board) => withClue(board, cell.categoryIndex, cell.rowIndex, patch), options);
+  function changeClue(cell: OpenCell, patch: CluePatch) {
+    update((board) => withClue(board, cell.categoryIndex, cell.rowIndex, patch));
   }
 
   let content;
@@ -84,8 +84,8 @@ export function EditorScreen({ boardId }: { boardId: string }) {
         <ReadinessPanel
           validation={validateBoard(board)}
           onPlay={async () => {
-            await flush();
-            navigate({ name: 'teamSetup', boardId: board.id });
+            // Si falla el guardado queda el aviso y no se juega con una versión vieja.
+            if (await flush()) navigate({ name: 'teamSetup', boardId: board.id });
           }}
         />
 
@@ -94,7 +94,11 @@ export function EditorScreen({ boardId }: { boardId: string }) {
             categoryIndex={openCell.categoryIndex}
             categoryName={category.name}
             clue={clue}
-            onChange={(patch, options) => changeClue(openCell, patch, options)}
+            onChange={(patch) => changeClue(openCell, patch)}
+            onImageChange={(imageId) => {
+              changeClue(openCell, { imageId });
+              return flush();
+            }}
             onClose={closeDialog}
           />
         )}

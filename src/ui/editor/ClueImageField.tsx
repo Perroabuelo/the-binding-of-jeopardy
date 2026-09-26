@@ -1,18 +1,29 @@
 import { useId, useState, type ChangeEvent } from 'react';
 import { ALLOWED_IMAGE_TYPES, validateImageFile } from '../../domain/image';
-import { deleteImage, putImage } from '../../storage/db';
+import { putImage } from '../../storage/db';
 import { newId } from '../lib/ids';
 import { useImageUrl } from '../lib/images';
+import { deleteImageIfUnused } from './imageCleanup';
 import styles from './ClueImageField.module.css';
 
 interface ClueImageFieldProps {
   imageId: string | undefined;
-  /** Fija o quita (`undefined`) la imagen de la celda. */
-  onImageChange: (imageId: string | undefined) => void;
+  /** Fija o quita (`undefined`) la imagen de la celda; resuelve si el tablero quedó guardado. */
+  onImageChange: (imageId: string | undefined) => Promise<boolean>;
 }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** La imagen anterior se borra solo tras guardar el tablero sin ella, y si nadie más la usa. */
+async function replaceImage(
+  onImageChange: ClueImageFieldProps['onImageChange'],
+  nextId: string | undefined,
+  previousId: string | undefined,
+): Promise<void> {
+  const saved = await onImageChange(nextId);
+  if (saved && previousId) await deleteImageIfUnused(previousId).catch(() => false);
 }
 
 export function ClueImageField({ imageId, onImageChange }: ClueImageFieldProps) {
@@ -44,15 +55,13 @@ export function ClueImageField({ imageId, onImageChange }: ClueImageFieldProps) 
       setBusy(false);
     }
     setError(null);
-    onImageChange(id);
-    if (previousId) void deleteImage(previousId).catch(() => {});
+    await replaceImage(onImageChange, id, previousId);
   }
 
   function removeImage() {
     const previousId = imageId;
     setError(null);
-    onImageChange(undefined);
-    if (previousId) void deleteImage(previousId).catch(() => {});
+    void replaceImage(onImageChange, undefined, previousId);
   }
 
   return (

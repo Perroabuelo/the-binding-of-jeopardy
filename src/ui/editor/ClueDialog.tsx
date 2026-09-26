@@ -8,7 +8,9 @@ interface ClueDialogProps {
   categoryIndex: number;
   categoryName: string;
   clue: Clue;
-  onChange: (patch: CluePatch, options?: { immediate?: boolean }) => void;
+  onChange: (patch: CluePatch) => void;
+  /** Cambia la imagen y guarda de inmediato; resuelve si el guardado tuvo éxito. */
+  onImageChange: (imageId: string | undefined) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -17,6 +19,7 @@ export function ClueDialog({
   categoryName,
   clue,
   onChange,
+  onImageChange,
   onClose,
 }: ClueDialogProps) {
   const titleId = useId();
@@ -61,10 +64,7 @@ export function ClueDialog({
           onChange={(e) => onChange({ answer: e.target.value })}
         />
 
-        <ClueImageField
-          imageId={clue.imageId}
-          onImageChange={(imageId) => onChange({ imageId }, { immediate: true })}
-        />
+        <ClueImageField imageId={clue.imageId} onImageChange={onImageChange} />
 
         <div className={styles.actions}>
           <button type="button" className="primary" onClick={onClose}>
