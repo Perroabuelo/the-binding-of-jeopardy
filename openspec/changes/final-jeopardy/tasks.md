@@ -55,7 +55,7 @@
   - "Acertó" y "Falló" solo aparecen para el equipo en turno.
   - "Ir al podio" aparece al terminar de juzgar.
   - La recarga en `wagers`, en `clue` con el temporizador a los 10 s y en `reveal` recupera el mismo punto.
-- [ ] 4.2 En `TvScreen`, mostrar la categoría con los participantes y el conteo de apuestas, la pregunta con la cuenta regresiva desde `timerEndsAt`, la revelación por equipo con el equipo en turno, la respuesta revelada con su imagen y el aviso de Final saltado en el podio. Verificar con tests de componentes en `TvScreen.test.tsx`: cada etapa muestra lo esperado y no muestra lo oculto, la cuenta regresiva baja de 30 a 0 con temporizadores falsos, y aparece el aviso de `finalSkipped`.
+- [x] 4.2 En `TvScreen`, mostrar la categoría con los participantes y el conteo de apuestas, la pregunta con la cuenta regresiva desde `timerEndsAt`, la revelación por equipo con el equipo en turno, la respuesta revelada con su imagen y el aviso de Final saltado en el podio. Verificar con tests de componentes en `TvScreen.test.tsx`: cada etapa muestra lo esperado y no muestra lo oculto, la cuenta regresiva baja de 30 a 0 con temporizadores falsos, y aparece el aviso de `finalSkipped`.
 - [ ] 4.3 Agregar un e2e en `e2e/game.spec.ts`:
   - Crear un tablero con pista final y jugar con dos equipos con puntaje positivo y uno en 0, hasta usar todas las celdas.
   - La TV muestra la categoría y no el texto de la pregunta.
