@@ -27,6 +27,7 @@ export function ClueDialog({
   const titleId = useId();
   const questionId = useId();
   const answerId = useId();
+  const dailyDoubleId = useId();
 
   function onKeyDown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
@@ -78,6 +79,17 @@ export function ClueDialog({
           imageId={clue.answerImageId}
           onImageChange={onAnswerImageChange}
         />
+
+        <div className={`${styles.section} ${styles.checkbox}`}>
+          <input
+            id={dailyDoubleId}
+            type="checkbox"
+            checked={clue.dailyDouble === true}
+            // Desmarcada se omite el campo, igual que en los tableros anteriores a los Daily Double.
+            onChange={(e) => onChange({ dailyDouble: e.target.checked ? true : undefined })}
+          />
+          <label htmlFor={dailyDoubleId}>Daily Double</label>
+        </div>
 
         <div className={styles.actions}>
           <button type="button" className="primary" onClick={onClose}>

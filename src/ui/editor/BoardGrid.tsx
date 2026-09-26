@@ -107,15 +107,21 @@ export function BoardGrid({
                 />
                 {category.clues.map((clue, r) => {
                   const complete = isClueComplete(clue);
+                  const dailyDouble = clue.dailyDouble === true;
                   return (
                     <button
                       key={r}
                       type="button"
                       className={complete ? styles.cell : `${styles.cell} ${styles.incomplete}`}
-                      aria-label={`Categoría ${c + 1}, ${clue.value}, ${complete ? 'completa' : 'incompleta'}`}
+                      aria-label={`Categoría ${c + 1}, ${clue.value}, ${complete ? 'completa' : 'incompleta'}${dailyDouble ? ', Daily Double' : ''}`}
                       onClick={(event) => onOpenClue(c, r, event)}
                     >
                       <span className={styles.value}>{clue.value}</span>
+                      {dailyDouble && (
+                        <span className={styles.dailyDouble} aria-hidden="true">
+                          DD
+                        </span>
+                      )}
                       <span className={styles.state} aria-hidden="true">
                         {complete ? '✓ Completa' : 'Incompleta'}
                       </span>

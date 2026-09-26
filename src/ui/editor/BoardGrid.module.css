@@ -83,3 +83,13 @@
 .incomplete .state {
   color: var(--color-danger);
 }
+
+.dailyDouble {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+}

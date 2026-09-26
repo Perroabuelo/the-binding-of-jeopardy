@@ -8,7 +8,7 @@
 
 ## 2. Editor
 
-- [ ] 2.1 Agregar la casilla "Daily Double" en `ClueDialog` (parche `{ dailyDouble }` por `boardEdits`, omitiendo el campo cuando es `false`) y la marca "DD" en la celda del editor. Verificar con tests de componentes en `EditorScreen.test.tsx`: marcar muestra la marca y persiste tras volver a montar; desmarcar la quita sin cambiar la pregunta ni la respuesta; marcar las 15 celdas de un tablero completo de 3 categorías mantiene habilitada la acción de jugar.
+- [x] 2.1 Agregar la casilla "Daily Double" en `ClueDialog` (parche `{ dailyDouble }` por `boardEdits`, omitiendo el campo cuando es `false`) y la marca "DD" en la celda del editor. Verificar con tests de componentes en `EditorScreen.test.tsx`: marcar muestra la marca y persiste tras volver a montar; desmarcar la quita sin cambiar la pregunta ni la respuesta; marcar las 15 celdas de un tablero completo de 3 categorías mantiene habilitada la acción de jugar.
 
 ## 3. Operador y TV
 
