@@ -60,6 +60,34 @@ Final en lugar del podio:
 Si recargas el operador durante el Final, sigue en el mismo punto, con las apuestas, los equipos ya
 juzgados y el tiempo restante; la música vuelve a sonar solo si reinicias el temporizador.
 
+### Rondas
+
+Al configurar los equipos, marca **Jugar con rondas** para armar una partida de 2 a 5 rondas, como
+Jeopardy! y Double Jeopardy!. Cada ronda usa uno de tus tableros listos para jugar, distinto de los
+de las demás rondas, y tiene su propio **multiplicador**, un número entero de 1 a 10. La ronda 1
+parte con el tablero desde el que entraste, y cada ronda nueva propone como multiplicador su número
+(x1, x2, x3…), que puedes cambiar. Sin marcar la opción, el juego es de una sola ronda y los valores
+no se multiplican.
+
+En cada ronda, las celdas valen su valor en el tablero por el multiplicador: en una ronda x2, la
+celda de 300 vale 600. El operador y la TV muestran el valor multiplicado, y eso es lo que se suma o
+resta. En un Daily Double, el tope de la apuesta usa el valor más alto de la ronda, ya multiplicado.
+Los tableros no cambian: el multiplicador es de la partida. El operador y la TV muestran en qué
+ronda va el juego y su multiplicador.
+
+Al usar todas las celdas de una ronda que no es la última, la TV muestra una pantalla de transición
+con la ronda siguiente, su multiplicador, el título de su tablero y los puntajes, que se mantienen
+de una ronda a otra. El operador empieza la ronda con **Comenzar ronda N** cuando quiera. Al terminar
+la última ronda se sigue como siempre: al Final, si está activo, o al podio. La pista final sale del
+tablero de la última ronda, así que la opción **Jugar Final Jeopardy!** depende de ese tablero.
+
+Para terminar antes hay dos opciones, y ambas piden confirmación:
+
+- **Terminar ronda** deja las celdas que quedan y pasa a la transición hacia la ronda siguiente.
+  Solo aparece si queda al menos una ronda después.
+- **Terminar juego** termina la partida desde cualquier ronda, aunque queden rondas por jugar: lleva
+  al Final, si está activo y hay equipos con puntaje positivo, o al podio.
+
 Los tableros viven solo en el navegador donde se crearon. Para llevarlos a otro computador o
 respaldarlos, usa **Exportar** e **Importar tablero** en la lista. Después de abrir la app una vez
 con conexión, funciona sin internet.

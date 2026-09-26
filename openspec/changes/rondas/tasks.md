@@ -61,4 +61,4 @@
 
 ## 4. Documentación
 
-- [ ] 4.1 Actualizar `README.md` con cómo armar una partida con rondas, los multiplicadores y la diferencia entre "Terminar ronda" y "Terminar juego". Agregar la entrada de v0.6.0 en `CHANGELOG.md` con las notas de versión de la propuesta. Verificar que `npm run lint` pasa y que el CI de la rama queda en verde.
+- [x] 4.1 Actualizar `README.md` con cómo armar una partida con rondas, los multiplicadores y la diferencia entre "Terminar ronda" y "Terminar juego". Agregar la entrada de v0.6.0 en `CHANGELOG.md` con las notas de versión de la propuesta. Verificar que `npm run lint` pasa y que el CI de la rama queda en verde.
