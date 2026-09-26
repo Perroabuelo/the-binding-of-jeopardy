@@ -219,15 +219,15 @@ describe('importBoard', () => {
       expectImportError(JSON.stringify(file));
     });
 
-    it('menos o más de 5 categorías', () => {
-      const four = exportedFile();
-      (four.board as Board).categories.pop();
-      expectImportError(JSON.stringify(four));
+    it('menos de 3 o más de 8 categorías', () => {
+      const two = exportedFile();
+      (two.board as Board).categories.splice(2);
+      expectImportError(JSON.stringify(two));
 
-      const six = exportedFile();
-      const board = six.board as Board;
-      board.categories.push(board.categories[1]!);
-      expectImportError(JSON.stringify(six));
+      const nine = exportedFile();
+      const board = nine.board as Board;
+      board.categories.push(...board.categories.slice(0, 3));
+      expectImportError(JSON.stringify(nine));
     });
 
     it('una categoría con menos o más de 5 preguntas', () => {

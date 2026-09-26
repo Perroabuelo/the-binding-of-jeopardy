@@ -69,7 +69,7 @@ describe('TvScreen', () => {
     const board = screen.getByRole('table', { name: 'Tablero' });
     expect(within(board).getByRole('columnheader', { name: 'Categoría 1' })).toBeInTheDocument();
     expect(within(board).getAllByRole('cell', { name: '100, usada' })).toHaveLength(1);
-    expect(within(board).getAllByRole('cell', { name: '100' })).toHaveLength(4);
+    expect(within(board).getAllByRole('cell', { name: '100' })).toHaveLength(5);
     expect(screen.getByRole('listitem', { name: 'Primos: 100 puntos' })).toBeInTheDocument();
     expect(screen.getByRole('listitem', { name: 'Tíos: 0 puntos' })).toBeInTheDocument();
     expect(screen.queryAllByRole('button')).toEqual([]);

@@ -2,9 +2,10 @@ import { z } from 'zod';
 import {
   BOARD_SCHEMA_VERSION,
   boardImageIds,
-  CATEGORY_COUNT,
   clueImageIds,
   CLUE_VALUES,
+  MAX_CATEGORIES,
+  MIN_CATEGORIES,
   type Board,
   type Category,
   type Clue,
@@ -89,7 +90,8 @@ const boardSchema = z.object({
         ]),
       }),
     )
-    .length(CATEGORY_COUNT),
+    .min(MIN_CATEGORIES)
+    .max(MAX_CATEGORIES),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),
 });

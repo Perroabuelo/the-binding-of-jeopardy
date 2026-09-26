@@ -12,13 +12,13 @@ import {
 } from './board';
 
 describe('createEmptyBoard', () => {
-  it('crea 5 categorías vacías con 5 celdas de valores 100 a 500', () => {
+  it('crea 6 categorías vacías con 5 celdas de valores 100 a 500', () => {
     const board = createEmptyBoard('b1', 123);
     expect(board.id).toBe('b1');
     expect(board.title).toBe('');
     expect(board.createdAt).toBe(123);
     expect(board.updatedAt).toBe(123);
-    expect(board.categories).toHaveLength(5);
+    expect(board.categories).toHaveLength(6);
     for (const category of board.categories) {
       expect(category.name).toBe('');
       expect(category.clues.map((clue) => clue.value)).toEqual([100, 200, 300, 400, 500]);
@@ -28,6 +28,11 @@ describe('createEmptyBoard', () => {
         expect(clue.imageId).toBeUndefined();
       }
     }
+  });
+
+  it('crea la cantidad de categorías indicada', () => {
+    expect(createEmptyBoard('b1', 0, 3).categories).toHaveLength(3);
+    expect(createEmptyBoard('b1', 0, 8).categories).toHaveLength(8);
   });
 
   it('no comparte referencias entre categorías', () => {
@@ -43,17 +48,28 @@ describe('claves de celda', () => {
     expect(parseClueKey('c2-r3')).toEqual({ categoryIndex: 2, rowIndex: 3 });
   });
 
-  it('rechaza claves inválidas o fuera de rango', () => {
+  it('acepta cualquier categoría: la pertenencia al tablero la resuelve getClue', () => {
+    expect(parseClueKey('c7-r4')).toEqual({ categoryIndex: 7, rowIndex: 4 });
+  });
+
+  it('rechaza claves inválidas o con la fila fuera de rango', () => {
     expect(parseClueKey('x')).toBeNull();
-    expect(parseClueKey('c5-r0')).toBeNull();
     expect(parseClueKey('c0-r5')).toBeNull();
   });
 
-  it('allClueKeys devuelve las 25 celdas sin repetir', () => {
-    const keys = allClueKeys();
-    expect(keys).toHaveLength(25);
-    expect(new Set(keys).size).toBe(25);
-  });
+  it.each([
+    [3, 15],
+    [6, 30],
+    [8, 40],
+  ])(
+    'allClueKeys devuelve las celdas de un tablero de %i categorías sin repetir',
+    (count, total) => {
+      const keys = allClueKeys(createEmptyBoard('b1', 0, count));
+      expect(keys).toHaveLength(total);
+      expect(new Set(keys).size).toBe(total);
+      expect(keys.at(-1)).toBe(clueKey(count - 1, 4));
+    },
+  );
 
   it('getClue devuelve la celda correspondiente', () => {
     const board = makeCompleteBoard();
@@ -62,6 +78,7 @@ describe('claves de celda', () => {
       question: 'Pregunta 2-3',
     });
     expect(getClue(board, 'nope')).toBeNull();
+    expect(getClue(board, 'c6-r0')).toBeNull();
   });
 });
 

@@ -134,6 +134,7 @@ describe('projectForTv', () => {
       'Categoría 3',
       'Categoría 4',
       'Categoría 5',
+      'Categoría 6',
     ]);
     expect(view.categories[1]!.clues.map((clue) => clue.value)).toEqual([100, 200, 300, 400, 500]);
     expect(view.categories[1]!.clues[3]!.key).toBe('c1-r3');

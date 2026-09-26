@@ -1,4 +1,6 @@
-export const CATEGORY_COUNT = 5;
+export const MIN_CATEGORIES = 3;
+export const MAX_CATEGORIES = 8;
+export const DEFAULT_CATEGORIES = 6;
 export const CLUES_PER_CATEGORY = 5;
 export const CLUE_VALUES = [100, 200, 300, 400, 500] as const;
 export const BOARD_SCHEMA_VERSION = 1;
@@ -42,13 +44,14 @@ export function parseClueKey(key: string): { categoryIndex: number; rowIndex: nu
   if (!match) return null;
   const categoryIndex = Number(match[1]);
   const rowIndex = Number(match[2]);
-  if (categoryIndex >= CATEGORY_COUNT || rowIndex >= CLUES_PER_CATEGORY) return null;
+  // La categoría no tiene tope: si existe en el tablero lo resuelve getClue
+  if (rowIndex >= CLUES_PER_CATEGORY) return null;
   return { categoryIndex, rowIndex };
 }
 
-export function allClueKeys(): ClueKey[] {
+export function allClueKeys(board: Board): ClueKey[] {
   const keys: ClueKey[] = [];
-  for (let c = 0; c < CATEGORY_COUNT; c++) {
+  for (let c = 0; c < board.categories.length; c++) {
     for (let r = 0; r < CLUES_PER_CATEGORY; r++) keys.push(clueKey(c, r));
   }
   return keys;
@@ -76,12 +79,16 @@ export function boardImageIds(board: Board): Set<string> {
   return ids;
 }
 
-export function createEmptyBoard(id: string, now: number): Board {
+export function createEmptyBoard(
+  id: string,
+  now: number,
+  categoryCount: number = DEFAULT_CATEGORIES,
+): Board {
   return {
     id,
     schemaVersion: BOARD_SCHEMA_VERSION,
     title: '',
-    categories: Array.from({ length: CATEGORY_COUNT }, () => ({
+    categories: Array.from({ length: categoryCount }, () => ({
       name: '',
       clues: CLUE_VALUES.map((value) => ({ value, question: '', answer: '' })),
     })),

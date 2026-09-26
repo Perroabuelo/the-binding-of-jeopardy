@@ -68,7 +68,7 @@ test('jugar dos preguntas y reanudar tras recargar el operador', async ({ page }
   await expect(score(page, 'Equipo Azul', -200)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Categoría 1, 100, usada' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Categoría 3, 200, usada' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: /^Categoría \d, \d00$/ })).toHaveCount(23);
+  await expect(page.getByRole('button', { name: /^Categoría \d, \d00$/ })).toHaveCount(28);
 });
 
 /** Abre la TV desde el operador y devuelve la ventana nueva. */

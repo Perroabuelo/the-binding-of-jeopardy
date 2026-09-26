@@ -3,17 +3,18 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CLUE_VALUES } from '../src/domain/board';
-import { seedCompleteBoard, TINY_PNG_BASE64 } from './helpers/seed';
+import { makeCompleteBoard } from '../tests/fixtures/board';
+import { seedBoards, seedCompleteBoard, TINY_PNG_BASE64 } from './helpers/seed';
 
-test('crear un tablero nuevo muestra 5 categorías vacías con celdas de 100 a 500', async ({
+test('crear un tablero nuevo muestra 6 categorías vacías con celdas de 100 a 500', async ({
   page,
 }) => {
   await page.goto('./');
   await page.getByRole('button', { name: 'Nuevo tablero' }).click();
   await expect(page.getByRole('heading', { name: 'Editar tablero' })).toBeVisible();
 
-  await expect(page.getByRole('button', { name: /^Categoría \d+, \d+, / })).toHaveCount(25);
-  for (let c = 1; c <= 5; c++) {
+  await expect(page.getByRole('button', { name: /^Categoría \d+, \d+, / })).toHaveCount(30);
+  for (let c = 1; c <= 6; c++) {
     await expect(page.getByLabel(`Nombre de la categoría ${c}`)).toHaveValue('');
     const labels = await page
       .getByRole('button', { name: new RegExp(`^Categoría ${c}, `) })
@@ -35,6 +36,19 @@ test('abrir un tablero de la lista muestra su contenido en el editor', async ({ 
   const dialog = page.getByRole('dialog', { name: 'Categoría 3, 200' });
   await expect(dialog.getByLabel('Pregunta', { exact: true })).toHaveValue('Pregunta 3-2');
   await expect(dialog.getByLabel('Respuesta', { exact: true })).toHaveValue('Respuesta 3-2');
+});
+
+test('un tablero guardado con 5 categorías se abre con su contenido intacto', async ({ page }) => {
+  await page.goto('./');
+  await seedBoards(page, [makeCompleteBoard({ id: 'e2e-cinco' }, 5)]);
+  await page.reload();
+
+  await page.getByRole('link', { name: 'Tablero de prueba' }).click();
+
+  await expect(page.getByRole('button', { name: /^Categoría \d+, \d+, / })).toHaveCount(25);
+  await expect(page.getByLabel('Nombre de la categoría 5')).toHaveValue('Categoría 5');
+  await expect(page.getByLabel('Nombre de la categoría 6')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Categoría 5, 500, completa' })).toBeVisible();
 });
 
 /** Crea desde la UI un tablero con título, una categoría, una celda y una imagen. */
