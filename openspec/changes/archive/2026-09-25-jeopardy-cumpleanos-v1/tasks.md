@@ -46,4 +46,4 @@
 ## 7. PWA y cierre
 
 - [x] 7.1 Configurar `vite-plugin-pwa` (`generateSW`, `registerType: 'prompt'` sin `skipWaiting`, scope y base del sitio, manifest e íconos neutros) — verificar con un e2e con SW habilitado que, tras cargar con red, `context.setOffline(true)`, recargar y abrir operador y TV, todo sigue funcionando con los tableros disponibles
-- [ ] 7.2 Revisión final: recorrer las specs y confirmar que cada scenario tiene su test, actualizar `README.md` (uso, desarrollo, deploy y advertencia de no commitear tableros reales), correr toda la suite y abrir el PR a `main` — verificar el CI en verde en el PR y, tras fusionarlo, que la app carga en `https://perroabuelo.github.io/the-binding-of-jeopardy/`
+- [x] 7.2 Revisión final: recorrer las specs y confirmar que cada scenario tiene su test, actualizar `README.md` (uso, desarrollo, deploy y advertencia de no commitear tableros reales), correr toda la suite y abrir el PR a `main` — verificar el CI en verde en el PR y, tras fusionarlo, que la app carga en `https://perroabuelo.github.io/the-binding-of-jeopardy/`
