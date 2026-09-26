@@ -102,6 +102,8 @@ describe('pantalla de TV desde el operador', () => {
 
   it('se despide de la TV al cerrar la página', async () => {
     await renderOperator();
+    // El primer estado publicado confirma que el efecto que escucha pagehide ya corrió.
+    await waitFor(() => expect(lastTvView()).toBeDefined());
     window.dispatchEvent(new Event('pagehide'));
     await waitFor(() => expect(tvMessages.at(-1)).toEqual({ type: 'bye' }));
   });
