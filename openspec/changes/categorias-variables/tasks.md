@@ -14,5 +14,5 @@
 
 ## 3. Juego y TV
 
-- [ ] 3.1 Publicar `--columns` en la `<table>` de `ui/game/BoardGrid` y hacer que `--tv-category-font` y `--tv-cell-font` en `tokens.css` dependan de él, manteniendo el aspecto actual con 5 columnas. Agregar un e2e en `e2e/game.spec.ts` con viewport de 1920x1080 para tableros de 3 y de 8 categorías con nombres largos, que verifique que no hay desplazamiento horizontal en la página y que cada encabezado y celda cumple `scrollWidth <= clientWidth`. Verificar que ese e2e y `tests/theme-tokens.test.ts` pasan.
+- [x] 3.1 Publicar `--columns` en la `<table>` de `ui/game/BoardGrid` y hacer que `--tv-category-font` y `--tv-cell-font` en `tokens.css` dependan de él, manteniendo el aspecto actual con 5 columnas. Agregar un e2e en `e2e/game.spec.ts` con viewport de 1920x1080 para tableros de 3 y de 8 categorías con nombres largos, que verifique que no hay desplazamiento horizontal en la página y que cada encabezado y celda cumple `scrollWidth <= clientWidth`. Verificar que ese e2e y `tests/theme-tokens.test.ts` pasan.
 - [ ] 3.2 Agregar e2e: en `e2e/game.spec.ts`, jugar todas las celdas de un tablero de 3 categorías y ver el podio; en `e2e/boards.spec.ts`, exportar e importar un tablero de 8 categorías y encontrar una copia con el mismo orden. Verificar que `npm run test:e2e` pasa localmente y que el CI de la rama queda en verde.

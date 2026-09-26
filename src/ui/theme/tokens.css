@@ -35,7 +35,15 @@
   --space-8: 32px;
 
   /* Escala para la TV: se lee de lejos. */
-  --tv-cell-font: clamp(1.5rem, 4vw, 5rem);
-  --tv-category-font: clamp(1rem, 2vw, 2.5rem);
   --tv-question-font: clamp(2rem, 5vw, 6rem);
+}
+
+/*
+ * El tablero de la TV achica la letra según su número de columnas (`--columns`, 5 si no hay).
+ * Se declara también en [data-columns] para que var(--columns) se resuelva en el tablero.
+ */
+:root,
+[data-columns] {
+  --tv-cell-font: clamp(1.25rem, calc(20vw / var(--columns, 5)), 5rem);
+  --tv-category-font: clamp(0.9rem, calc(10vw / var(--columns, 5)), 2.5rem);
 }

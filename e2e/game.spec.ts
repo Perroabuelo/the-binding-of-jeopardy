@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import type { Board } from '../src/domain/board';
 import { makeCompleteBoard } from '../tests/fixtures/board';
 import { seedBoards, seedCompleteBoard, TINY_PNG_BASE64 } from './helpers/seed';
 
@@ -168,4 +169,90 @@ test('al cerrar el operador la TV muestra la pantalla de espera', async ({ page 
 
   await expect(tv.getByText('Esperando al operador…')).toBeVisible({ timeout: 12_000 });
   await expect(tv.getByRole('table', { name: 'Tablero' })).toHaveCount(0);
+});
+
+/** Siembra el tablero dado y arranca un juego con dos equipos. */
+async function startGameWithBoard(page: Page, board: Board) {
+  await page.goto('./');
+  await seedBoards(page, [board]);
+  await page.goto(`./#/boards/${board.id}/play`);
+  await page.getByLabel('Nombre del equipo 1').fill('Equipo Rojo');
+  await page.getByLabel('Nombre del equipo 2').fill('Equipo Azul');
+  await page.getByRole('button', { name: 'Comenzar juego' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+}
+
+const LONG_NAMES = [
+  'Historia familiar de los abuelos paternos',
+  'Supercalifragilísticoespialidoso',
+  'Canciones que sonaban en todos los cumpleaños',
+  'Geografía de los lugares donde vivimos',
+  'Películas',
+  'Comidas típicas de las fiestas de fin de año',
+  'Deportes',
+  'Anécdotas de las vacaciones en la playa',
+];
+
+function boardWithLongNames(categoryCount: number): Board {
+  const board = makeCompleteBoard({ id: `e2e-tv-${categoryCount}` }, categoryCount);
+  board.categories.forEach((category, c) => (category.name = LONG_NAMES[c]!));
+  return board;
+}
+
+test.describe('TV en 1920x1080', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+
+  for (const categoryCount of [3, 8]) {
+    test(`el tablero de ${categoryCount} categorías se ve completo y sin texto cortado`, async ({
+      page,
+    }) => {
+      await startGameWithBoard(page, boardWithLongNames(categoryCount));
+      const tv = await openTv(page);
+      const table = tv.getByRole('table', { name: 'Tablero' });
+      await expect(table).toBeVisible();
+      await expect(table.getByRole('columnheader')).toHaveCount(categoryCount);
+      await expect(table.getByRole('cell')).toHaveCount(categoryCount * 5);
+
+      const layout = await table.evaluate((el) => {
+        const root = document.documentElement;
+        const cut = [...el.querySelectorAll<HTMLElement>('th, td, td > *')]
+          .filter((cell) => cell.scrollWidth > cell.clientWidth)
+          .map((cell) => cell.textContent);
+        return {
+          pageScrolls: root.scrollWidth > root.clientWidth,
+          cut,
+          tableWidth: el.getBoundingClientRect().width,
+          viewportWidth: root.clientWidth,
+          cellFont: parseFloat(getComputedStyle(el.querySelector('td > *')!).fontSize),
+        };
+      });
+      expect(layout.pageScrolls).toBe(false);
+      expect(layout.cut).toEqual([]);
+      // El tablero ocupa el ancho disponible, con el margen de la pantalla.
+      expect(layout.tableWidth).toBeGreaterThan(layout.viewportWidth * 0.8);
+      // Los valores de 100 a 500 se leen de lejos.
+      expect(layout.cellFont).toBeGreaterThanOrEqual(32);
+      for (const name of LONG_NAMES.slice(0, categoryCount)) {
+        await expect(table.getByRole('columnheader', { name })).toBeVisible();
+      }
+    });
+  }
+
+  test('con 8 categorías la letra es más chica que con 3', async ({ page }) => {
+    const fontSizes: number[] = [];
+    for (const categoryCount of [3, 8]) {
+      await startGameWithBoard(page, boardWithLongNames(categoryCount));
+      const tv = await openTv(page);
+      const table = tv.getByRole('table', { name: 'Tablero' });
+      await expect(table).toBeVisible();
+      fontSizes.push(
+        await table
+          .getByRole('columnheader')
+          .first()
+          .evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+      );
+      await tv.close();
+    }
+    expect(fontSizes[1]).toBeLessThan(fontSizes[0]!);
+  });
 });
