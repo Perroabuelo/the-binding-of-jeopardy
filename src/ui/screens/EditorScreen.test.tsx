@@ -176,16 +176,43 @@ describe('EditorScreen: imagen por pregunta', () => {
     expect(await getImage((await storedImageId())!)).not.toBeNull();
   });
 
+  it('adjunta un JPEG de 2 MB y muestra la vista previa solo en esa pregunta', async () => {
+    const size = 2 * 1024 * 1024;
+    const bytes = new Uint8Array(size);
+    bytes.set([0xff, 0xd8, 0xff, 0xe0]);
+    bytes.set([0xff, 0xd9], size - 2);
+    const jpeg = new File([bytes], 'foto.jpg', { type: 'image/jpeg' });
+
+    const { user, dialog } = await openFirstClue();
+    await user.upload(within(dialog).getByLabelText('Imagen (opcional)'), jpeg);
+
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      await within(dialog).findByRole('img', { name: 'Vista previa de la imagen' }),
+    ).toHaveAttribute('src', 'blob:vista-previa');
+    await waitFor(async () => expect(await storedImageId()).toBeDefined());
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 200, incompleta' }));
+    const other = screen.getByRole('dialog', { name: 'Categoría 1, 200' });
+    expect(within(other).queryByRole('img')).not.toBeInTheDocument();
+  });
+
   it.each([
     [
       'un PDF',
       new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
-      /Formato no soportado/,
+      /Formato no soportado.*PNG, JPEG, GIF o WebP/,
     ],
     [
       'una imagen de más de 5 MB',
       new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'grande.png', { type: 'image/png' }),
-      /demasiado grande/,
+      /demasiado grande.*5 MB/,
+    ],
+    [
+      'una imagen de 8 MB',
+      new File([new Uint8Array(8 * 1024 * 1024)], 'enorme.png', { type: 'image/png' }),
+      /demasiado grande.*5 MB/,
     ],
   ])('rechaza %s sin modificar la celda', async (_label, file, message) => {
     const { user, dialog } = await openFirstClue();
@@ -210,7 +237,9 @@ describe('EditorScreen: imagen por pregunta', () => {
       within(dialog).getByLabelText('Imagen (opcional)'),
       new File(['%PDF-1.4'], 'doc.pdf', { type: 'application/pdf' }),
     );
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(/Formato no soportado/);
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(
+      /Formato no soportado.*PNG, JPEG, GIF o WebP/,
+    );
     expect(within(dialog).queryByRole('img')).not.toBeInTheDocument();
     expect(await storedImageId()).toBeUndefined();
   });

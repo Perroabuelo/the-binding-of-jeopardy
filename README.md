@@ -4,6 +4,22 @@ Juego estilo Jeopardy para jugar en casa con dos pantallas: una vista de operado
 y una vista de presentación para la TV. Los tableros (preguntas, respuestas e imágenes) se guardan
 solo en el navegador de quien los crea.
 
+## Cómo se usa
+
+1. Abre la app en Chrome o Edge y crea un tablero con **Nuevo tablero**.
+2. Completa el título, las 5 categorías y las 25 preguntas con su respuesta. Cada pregunta puede
+   tener una imagen (PNG, JPEG, GIF o WebP de hasta 5 MB). Todo se guarda solo.
+3. Cuando el tablero está completo, **Jugar** te lleva a configurar los equipos (de 1 a 8).
+4. En la vista de operador, **Abrir pantalla de TV** abre la ventana para los invitados: arrástrala
+   a la TV y ponla en pantalla completa (F11). Si el navegador bloquea la ventana, permite las
+   ventanas emergentes para el sitio o abre la dirección que muestra el operador.
+5. El operador ve la respuesta antes que nadie, la revela cuando quiere y suma o resta puntos. Si
+   recargas cualquiera de las dos ventanas, el juego sigue donde estaba.
+
+Los tableros viven solo en el navegador donde se crearon. Para llevarlos a otro computador o
+respaldarlos, usa **Exportar** e **Importar tablero** en la lista. Después de abrir la app una vez
+con conexión, funciona sin internet.
+
 ## Desarrollo
 
 Requiere Node 22 (ver `.nvmrc`).
