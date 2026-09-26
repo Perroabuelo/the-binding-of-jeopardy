@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CLUE_VALUES, createEmptyBoard } from '../../domain/board';
 import * as db from '../../storage/db';
 import { getBoard, getImage, saveBoard, StorageUnavailable } from '../../storage/db';
+import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import { EditorScreen } from './EditorScreen';
 
 const BOARD_ID = 'b-editor';
@@ -226,5 +227,77 @@ describe('EditorScreen: imagen por pregunta', () => {
     expect(within(dialog).queryByRole('button', { name: 'Quitar imagen' })).not.toBeInTheDocument();
     await waitFor(async () => expect(await storedImageId()).toBeUndefined());
     await waitFor(async () => expect(await getImage(imageId)).toBeNull());
+  });
+});
+
+describe('EditorScreen: faltantes y Jugar', () => {
+  async function renderSeeded(board = makeCompleteBoard()) {
+    await saveBoard(board);
+    const user = userEvent.setup();
+    render(<EditorScreen boardId={board.id} />);
+    await screen.findByLabelText('Título del tablero');
+    return { user };
+  }
+
+  function incompleteBoard() {
+    const board = makeCompleteBoard();
+    board.categories[0]!.clues[2]!.answer = '';
+    return board;
+  }
+
+  it('habilita Jugar con el tablero completo y lleva a la configuración de equipos', async () => {
+    const { user } = await renderSeeded();
+    expect(screen.getByRole('heading', { name: 'Listo para jugar' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Elementos faltantes' })).not.toBeInTheDocument();
+    const play = screen.getByRole('button', { name: 'Jugar' });
+    expect(play).toBeEnabled();
+
+    await user.click(play);
+    await waitFor(() => expect(window.location.hash).toBe('#/boards/fixture-board/play'));
+  });
+
+  it('deshabilita Jugar y señala la celda a la que le falta la respuesta', async () => {
+    await renderSeeded(incompleteBoard());
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Categoría 1, 300, incompleta' }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /, incompleta$/ })).toHaveLength(1);
+    const list = screen.getByRole('list', { name: 'Elementos faltantes' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Categoría 1, 300: falta la respuesta']);
+  });
+
+  it('habilita Jugar al completar lo que faltaba', async () => {
+    const { user } = await renderSeeded(incompleteBoard());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 300, incompleta' }));
+    const dialog = screen.getByRole('dialog', { name: 'Categoría 1, 300' });
+    await user.type(within(dialog).getByLabelText('Respuesta'), 'Respuesta nueva');
+    await user.click(within(dialog).getByRole('button', { name: 'Cerrar' }));
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+  });
+
+  it('lista lo que falta en un tablero con título y categorías vacíos', async () => {
+    const board = makeCompleteBoard({ title: '  ' });
+    board.categories[1]!.name = '';
+    board.categories[4]!.clues[0]!.question = '';
+    board.categories[4]!.clues[0]!.answer = '';
+    board.categories[4]!.clues[4]!.question = '';
+    await renderSeeded(board);
+    const list = screen.getByRole('list', { name: 'Elementos faltantes' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'Falta el título',
+      'Falta el nombre de la categoría 2',
+      'Categoría 5, 100: falta la pregunta y la respuesta',
+      'Categoría 5, 500: falta la pregunta',
+    ]);
+    expect(screen.getByRole('button', { name: 'Jugar' })).toBeDisabled();
   });
 });

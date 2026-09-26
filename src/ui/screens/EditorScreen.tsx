@@ -1,9 +1,11 @@
 import { useId, useRef, useState } from 'react';
+import { validateBoard } from '../../domain/validation';
 import { BoardGrid } from '../editor/BoardGrid';
 import { ClueDialog } from '../editor/ClueDialog';
+import { ReadinessPanel } from '../editor/ReadinessPanel';
 import { withCategoryName, withClue, withTitle, type CluePatch } from '../editor/boardEdits';
 import { useBoardEditor, type SaveStatus } from '../editor/useBoardEditor';
-import { routeHref } from '../router';
+import { navigate, routeHref } from '../router';
 import styles from './EditorScreen.module.css';
 
 const SAVE_STATUS_TEXT: Record<SaveStatus, string> = {
@@ -76,6 +78,14 @@ export function EditorScreen({ boardId }: { boardId: string }) {
           onOpenClue={(categoryIndex, rowIndex, event) => {
             returnFocusRef.current = event.currentTarget;
             setOpenCell({ categoryIndex, rowIndex });
+          }}
+        />
+
+        <ReadinessPanel
+          validation={validateBoard(board)}
+          onPlay={async () => {
+            await flush();
+            navigate({ name: 'teamSetup', boardId: board.id });
           }}
         />
 

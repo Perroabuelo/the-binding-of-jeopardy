@@ -50,9 +50,9 @@
 
 .incomplete {
   border-style: dashed;
-  border-color: var(--color-border);
+  border-color: var(--color-danger);
 }
 
 .incomplete .state {
-  color: var(--color-text-muted);
+  color: var(--color-danger);
 }
