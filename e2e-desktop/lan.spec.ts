@@ -36,7 +36,9 @@ test('un celular se conecta por la red local y aparece en el operador', async ()
     await phone.reload();
     await expect(phone.getByRole('status')).toHaveText('Conectado a la fiesta');
     await expect(panel.getByRole('heading', { name: 'Dispositivos conectados: 1' })).toBeVisible();
-    await expect(panel.getByRole('listitem')).toHaveCount(1);
+    await expect(
+      panel.getByRole('list', { name: 'Dispositivos conectados' }).getByRole('listitem'),
+    ).toHaveCount(1);
 
     // Al cerrar la página, deja de figurar en menos de 2 s.
     await phone.close();

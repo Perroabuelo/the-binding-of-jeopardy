@@ -168,11 +168,9 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   // El servidor de la red local se detiene al cerrar la app.
-  app.on('will-quit', (event) => {
-    if (!lanServer) return;
-    const server = lanServer;
+  // No se cancela la salida para esperarlo: al terminar el proceso el puerto queda libre igual.
+  app.on('will-quit', () => {
+    void lanServer?.close();
     lanServer = null;
-    event.preventDefault();
-    void server.close().finally(() => app.quit());
   });
 }
