@@ -28,7 +28,7 @@
 
 ## 3. Red local
 
-- [ ] 3.1 Crear `src/net/protocol.ts` (mensajes `join`, `pong`, `welcome` y `ping`, con sus validadores) y `src/net/hub.ts` (`createDeviceHub`, con reloj inyectado). Criterio de listo: pasan los tests unitarios de protocolo (válidos, desconocidos y mal formados) y del hub:
+- [x] 3.1 Crear `src/net/protocol.ts` (mensajes `join`, `pong`, `welcome` y `ping`, con sus validadores) y `src/net/hub.ts` (`createDeviceHub`, con reloj inyectado). Criterio de listo: pasan los tests unitarios de protocolo (válidos, desconocidos y mal formados) y del hub:
   - Con `join`, el dispositivo aparece.
   - Un `join` con el mismo `deviceId` deja uno solo.
   - `disconnect` lo quita de inmediato.
