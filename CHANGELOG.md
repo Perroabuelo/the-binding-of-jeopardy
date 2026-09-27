@@ -8,6 +8,14 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [1.2.0] - 2026-09-27
+
+### Agregado
+
+- Nuevo botón **Crear desde ejemplo** en la lista de tableros: trae tres tableros listos para
+  jugar, de agricultura, videojuegos y K-pop.
+- Cada ejemplo incluye un Daily Double y una pista final, y se puede editar como cualquier tablero.
+
 ## [1.1.0] - 2026-09-27
 
 ### Agregado
