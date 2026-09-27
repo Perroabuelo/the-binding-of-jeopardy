@@ -2,12 +2,15 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { app, BrowserWindow, protocol } from 'electron';
 import { SITE_BASE } from '../site.config';
+import { applyUserDataOverride } from './config';
 import { mimeType, resolveStaticPath } from './static';
 
 /** Origen propio y estable: no depende del puerto de la red local. */
 const APP_SCHEME = 'app';
 const APP_HOST = 'jeopardy';
 const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
+
+applyUserDataOverride();
 
 const distDir = path.join(app.getAppPath(), 'dist');
 
