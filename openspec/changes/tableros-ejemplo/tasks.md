@@ -26,4 +26,4 @@
 
 ## 3. Documentación
 
-- [ ] 3.1 En el README, en "Cómo se usa", mencionar **Crear desde ejemplo** y los tres ejemplos. Listar en la descripción del PR las categorías de cada ejemplo para que el usuario revise el contenido. Verificar con `npm run lint` (Prettier) y con el CI en verde en el PR.
+- [x] 3.1 En el README, en "Cómo se usa", mencionar **Crear desde ejemplo** y los tres ejemplos. Listar en la descripción del PR las categorías de cada ejemplo para que el usuario revise el contenido. Verificar con `npm run lint` (Prettier) y con el CI en verde en el PR.
