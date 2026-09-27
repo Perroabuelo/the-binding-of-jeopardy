@@ -6,6 +6,8 @@ export type Route =
   | { name: 'teamSetup'; boardId: string }
   | { name: 'operator'; sessionId: string }
   | { name: 'tv'; sessionId: string }
+  /** Página del celular en la red local. */
+  | { name: 'join' }
   | { name: 'notFound' };
 
 export function parseRoute(hash: string): Route {
@@ -19,6 +21,7 @@ export function parseRoute(hash: string): Route {
   }
   if (head === 'play' && id && parts.length === 2) return { name: 'operator', sessionId: id };
   if (head === 'tv' && id && parts.length === 2) return { name: 'tv', sessionId: id };
+  if (head === 'unirse' && parts.length === 1) return { name: 'join' };
   return { name: 'notFound' };
 }
 
@@ -34,6 +37,8 @@ export function routeHref(route: Exclude<Route, { name: 'notFound' }>): string {
       return `#/play/${encodeURIComponent(route.sessionId)}`;
     case 'tv':
       return `#/tv/${encodeURIComponent(route.sessionId)}`;
+    case 'join':
+      return '#/unirse';
   }
 }
 

@@ -1,6 +1,7 @@
 import { useRoute } from './router';
 import { BoardListScreen } from './screens/BoardListScreen';
 import { EditorScreen } from './screens/EditorScreen';
+import { JoinScreen } from './screens/JoinScreen';
 import { NotFoundScreen } from './screens/NotFoundScreen';
 import { OperatorScreen } from './screens/OperatorScreen';
 import { TeamSetupScreen } from './screens/TeamSetupScreen';
@@ -19,6 +20,8 @@ export function App() {
       return <OperatorScreen key={route.sessionId} sessionId={route.sessionId} />;
     case 'tv':
       return <TvScreen key={route.sessionId} sessionId={route.sessionId} />;
+    case 'join':
+      return <JoinScreen />;
     case 'notFound':
       return <NotFoundScreen />;
   }

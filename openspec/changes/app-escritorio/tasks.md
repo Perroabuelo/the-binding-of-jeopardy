@@ -56,7 +56,7 @@
 
 ## 4. UI de conexión
 
-- [ ] 4.1 Crear `ui/screens/JoinScreen` (`#/unirse`) con `deviceId` en `localStorage` (con try/catch), `label` según el user agent, y los estados "Conectando…", "Conectado a la fiesta" y "Reconectando…". Si no hay servidor, muestra el mensaje para abrirla desde el QR. Agregar la ruta al router. Criterio de listo: pasan los tests de componentes con transporte falso, uno por estado, y el test del router para `#/unirse`.
+- [x] 4.1 Crear `ui/screens/JoinScreen` (`#/unirse`) con `deviceId` en `localStorage` (con try/catch), `label` según el user agent, y los estados "Conectando…", "Conectado a la fiesta" y "Reconectando…". Si no hay servidor, muestra el mensaje para abrirla desde el QR. Agregar la ruta al router. Criterio de listo: pasan los tests de componentes con transporte falso, uno por estado, y el test del router para `#/unirse`.
 - [ ] 4.2 Crear `ui/lan/ConnectDevicesPanel` y el botón "Conectar dispositivos" en `OperatorScreen`, solo en escritorio. El panel incluye:
   - La URL y el QR SVG con `qrcode`.
   - El selector de interfaz.
