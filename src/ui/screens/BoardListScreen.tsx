@@ -1,6 +1,8 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { createEmptyBoard, type Board } from '../../domain/board';
 import { deleteBoard, listBoards, saveBoard } from '../../storage/db';
+import { getDesktopApi } from '../../platform/desktop';
+import { boardBackup } from '../boards/boardBackup';
 import { BoardListItem } from '../boards/BoardListItem';
 import { downloadBoardFile, importBoardFile } from '../boards/boardFiles';
 import { ConfirmDialog } from '../lib/ConfirmDialog';
@@ -37,6 +39,7 @@ export function BoardListScreen() {
     const board = createEmptyBoard(newId(), Date.now());
     try {
       await saveBoard(board);
+      void boardBackup.backupNow(board);
       navigate({ name: 'editor', boardId: board.id });
     } catch (e) {
       showError(errorMessage(e, 'No se pudo crear el tablero.'));
@@ -51,6 +54,7 @@ export function BoardListScreen() {
       showError(errorMessage(e, 'No se pudo eliminar el tablero.'));
       return;
     }
+    void boardBackup.trash(board.id);
     // Se actualiza en memoria: recargar podría fallar y ocultar que ya se eliminó.
     setBoards((prev) => prev?.filter((b) => b.id !== board.id) ?? null);
     showNotice(`Se eliminó "${boardDisplayTitle(board)}".`);
@@ -65,6 +69,14 @@ export function BoardListScreen() {
     }
   }
 
+  async function openBackupFolder() {
+    try {
+      await getDesktopApi()?.backup.openFolder();
+    } catch (e) {
+      showError(errorMessage(e, 'No se pudo abrir la carpeta de respaldos.'));
+    }
+  }
+
   async function handleImport(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -72,6 +84,7 @@ export function BoardListScreen() {
     setImporting(true);
     try {
       const board = await importBoardFile(file);
+      void boardBackup.backupNow(board);
       // El importado es el más reciente, así que va primero.
       setBoards((prev) => [board, ...(prev ?? []).filter((b) => b.id !== board.id)]);
       showNotice(`Se importó "${boardDisplayTitle(board)}".`);
@@ -104,6 +117,11 @@ export function BoardListScreen() {
             onChange={(event) => void handleImport(event)}
           />
         </label>
+        {getDesktopApi() && (
+          <button type="button" onClick={() => void openBackupFolder()}>
+            Abrir carpeta de respaldos
+          </button>
+        )}
       </div>
       {boards &&
         (boards.length === 0 ? (

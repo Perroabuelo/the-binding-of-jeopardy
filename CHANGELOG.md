@@ -8,6 +8,20 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [1.0.0] - 2026-09-26
+
+Primera versión de escritorio. No hay cambios incompatibles para la web.
+
+### Agregado
+
+- Nueva app de escritorio para Windows: instálala desde GitHub Releases y juega sin depender del
+  navegador.
+- La pantalla de TV se abre sola en el segundo monitor y a pantalla completa.
+- Conecta celulares escaneando un QR en la misma red wifi. Es la base para los pulsadores que
+  vienen en la próxima versión.
+- Tus tableros se respaldan automáticamente en `DocumentosThe Binding of JeopardyRespaldos`.
+- La versión web sigue funcionando como siempre.
+
 ## [0.6.0] - 2026-09-26
 
 ### Agregado

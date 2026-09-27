@@ -1,0 +1,24 @@
+.join {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  min-height: 100%;
+  text-align: center;
+}
+
+.status {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.status[data-state='connected'] {
+  color: var(--color-success);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+}

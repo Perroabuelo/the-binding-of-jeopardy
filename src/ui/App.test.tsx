@@ -16,6 +16,8 @@ describe('parseRoute', () => {
     expect(parseRoute('#/boards/b1/play')).toEqual({ name: 'teamSetup', boardId: 'b1' });
     expect(parseRoute('#/play/s1')).toEqual({ name: 'operator', sessionId: 's1' });
     expect(parseRoute('#/tv/s1')).toEqual({ name: 'tv', sessionId: 's1' });
+    expect(parseRoute('#/unirse')).toEqual({ name: 'join' });
+    expect(parseRoute('#/unirse/otra')).toEqual({ name: 'notFound' });
     expect(parseRoute('#/nada')).toEqual({ name: 'notFound' });
     expect(parseRoute('#/boards/b1/otra')).toEqual({ name: 'notFound' });
   });
@@ -28,6 +30,7 @@ describe('App', () => {
     ['#/boards/b1/play', 'Equipos'],
     ['#/play/s1', 'Operador'],
     ['#/tv/s1', 'Pantalla de TV'],
+    ['#/unirse', 'Unirse a la fiesta'],
     ['#/no-existe', 'Página no encontrada'],
   ])('en %s muestra "%s"', async (hash, heading) => {
     renderAt(hash);

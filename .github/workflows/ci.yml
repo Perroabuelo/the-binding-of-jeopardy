@@ -2,8 +2,13 @@ name: CI
 
 on:
   push:
+    # Con solo tags-ignore no se dispararía en las ramas: por eso también branches.
+    branches: ['**']
+    # Los tags de versión los corre release.yml, que reutiliza este workflow.
+    tags-ignore: ['v*']
   pull_request:
     branches: [main]
+  workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -53,6 +58,30 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
+  desktop:
+    name: desktop
+    needs: checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build:desktop
+      - run: npx playwright install chromium
+      - run: npm run test:e2e:desktop
+      # Verifica que empaqueta, sin generar el instalador.
+      - run: npx electron-builder --win --dir
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-desktop
+          path: playwright-report/
+          retention-days: 7
+
+  # Solo depende de checks y e2e: un problema del escritorio no bloquea la web.
   deploy:
     name: deploy
     needs: [checks, e2e]

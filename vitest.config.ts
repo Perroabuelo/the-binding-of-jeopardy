@@ -10,7 +10,11 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['src/{domain,storage,sync,ui}/**/*.test.ts', 'tests/**/*.test.ts'],
+          include: [
+            'src/{domain,net,platform,storage,sync,ui}/**/*.test.ts',
+            'electron/**/*.test.ts',
+            'tests/**/*.test.ts',
+          ],
         },
       },
       {

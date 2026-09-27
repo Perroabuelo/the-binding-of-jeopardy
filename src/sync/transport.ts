@@ -1,11 +1,15 @@
 import { channelName, isSyncMessage, type SyncMessage } from './protocol';
 
-export type SyncHandler = (msg: SyncMessage) => void;
+export type SyncHandler<M = SyncMessage> = (msg: M) => void;
 
-export interface SyncTransport {
-  send(msg: SyncMessage): void;
+/**
+ * Canal de mensajes. Por defecto, el de operador y TV (mismos mensajes en ambos sentidos); la
+ * red local lo usa con sus propios mensajes, distintos para recibir (`M`) y enviar (`Out`).
+ */
+export interface SyncTransport<M = SyncMessage, Out = M> {
+  send(msg: Out): void;
   /** Devuelve la función para desuscribirse. */
-  subscribe(handler: SyncHandler): () => void;
+  subscribe(handler: SyncHandler<M>): () => void;
   close(): void;
 }
 

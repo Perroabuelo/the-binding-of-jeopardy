@@ -212,7 +212,7 @@ function isControlChar(char: string): boolean {
 }
 
 /** Nombre de archivo de exportación: `<titulo-saneado>.jeopardy.json`. */
-export function exportFileName(board: Board): string {
+export function exportFileName(board: Pick<Board, 'title'>): string {
   let base = [...board.title]
     .map((char) => (isControlChar(char) ? ' ' : char))
     .join('')

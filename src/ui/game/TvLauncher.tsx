@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { getDesktopApi, type DesktopApi } from '../../platform/desktop';
 import { routeHref } from '../router';
 import styles from './TvLauncher.module.css';
 
@@ -11,6 +12,41 @@ function tvUrl(sessionId: string): string {
 }
 
 export function TvLauncher({ sessionId }: { sessionId: string }) {
+  const desktop = getDesktopApi();
+  return desktop ? (
+    <DesktopTvLauncher sessionId={sessionId} desktop={desktop} />
+  ) : (
+    <WebTvLauncher sessionId={sessionId} />
+  );
+}
+
+/**
+ * En escritorio la app abre la TV (en el segundo monitor, si hay): no hay ventanas emergentes
+ * que el navegador pueda bloquear ni una dirección que copiar.
+ */
+function DesktopTvLauncher({ sessionId, desktop }: { sessionId: string; desktop: DesktopApi }) {
+  const [failed, setFailed] = useState(false);
+
+  function openTv() {
+    setFailed(false);
+    desktop.openTv(sessionId).catch(() => setFailed(true));
+  }
+
+  return (
+    <section aria-label="Pantalla de TV" className={styles.launcher}>
+      <button type="button" className="primary" onClick={openTv}>
+        Abrir pantalla de TV
+      </button>
+      {failed && (
+        <p role="alert" className={styles.blocked}>
+          No se pudo abrir la pantalla de TV. Vuelve a intentarlo.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function WebTvLauncher({ sessionId }: { sessionId: string }) {
   const [blocked, setBlocked] = useState(false);
   const inputId = useId();
   const url = tvUrl(sessionId);

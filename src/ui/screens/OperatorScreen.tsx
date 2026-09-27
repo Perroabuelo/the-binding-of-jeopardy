@@ -19,6 +19,7 @@ import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
 import { TvLauncher } from '../game/TvLauncher';
 import { useOperatorSync } from '../game/useOperatorSync';
+import { ConnectDevicesButton } from '../lan/ConnectDevicesPanel';
 import { routeHref } from '../router';
 import styles from './OperatorScreen.module.css';
 
@@ -82,7 +83,10 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
               {`Ronda ${session.roundIndex + 1} de ${session.rounds.length} · x${currentRound(session).multiplier}`}
             </p>
           )}
-          <TvLauncher sessionId={sessionId} />
+          <div className={styles.tools}>
+            <TvLauncher sessionId={sessionId} />
+            <ConnectDevicesButton />
+          </div>
           {session.phase.kind !== 'finished' && (
             <section aria-label="Equipos" className={styles.section}>
               <TeamScores
