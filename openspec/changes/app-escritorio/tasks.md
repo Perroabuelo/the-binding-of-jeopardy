@@ -83,7 +83,7 @@
 
 ## 6. Publicación y documentación
 
-- [ ] 6.1 Crear `.github/workflows/release.yml` (tags `v*`, `contents: write`). Reutiliza `ci.yml` y después, en `windows-latest`:
+- [x] 6.1 Crear `.github/workflows/release.yml` (tags `v*`, `contents: write`). Reutiliza `ci.yml` y después, en `windows-latest`:
   - Verifica que el tag coincide con `v${version}` de `package.json`.
   - Ejecuta `build:desktop` y `electron-builder --win nsis --publish never`.
   - Publica con `gh release create` y las notas del CHANGELOG.
