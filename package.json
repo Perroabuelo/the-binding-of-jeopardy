@@ -21,7 +21,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:desktop": "playwright test -c playwright.desktop.config.ts"
+    "test:e2e:desktop": "playwright test -c playwright.desktop.config.ts",
+    "screenshots": "playwright test -c playwright.screenshots.config.ts"
   },
   "dependencies": {
     "idb": "^8.0.3",
