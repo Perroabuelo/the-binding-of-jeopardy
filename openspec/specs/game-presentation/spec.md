@@ -142,7 +142,7 @@ La vista de presentación MUST NOT indicar ni recibir qué celdas del tablero so
 Durante el Final, la vista de presentación SHALL mostrar la etapa en curso:
 - **Apuestas:** la categoría de la pista final, qué equipos participan y cuántos ya tienen su apuesta anotada.
 - **Pista:** la pregunta de la pista final, su imagen si la tiene y, si el temporizador fue iniciado, la cuenta regresiva de 30 segundos.
-- **Revelación:** la pregunta y, para cada equipo ya juzgado, su nombre, si acertó o falló, su apuesta y su puntaje actualizado. Debe indicar también qué equipo está en turno.
+- **Revelación:** la pregunta y, para cada equipo ya juzgado, su nombre, si acertó o falló, su apuesta y su puntaje actualizado. Debe indicar también qué equipo está en turno y, si ese equipo envió su respuesta desde un celular, el texto de esa respuesta. Para cada equipo ya juzgado que envió su respuesta, SHALL mostrar también ese texto.
 
 Cuando el operador revela la respuesta correcta, la presentación SHALL mostrarla junto a la pregunta. Si la respuesta tiene imagen, esa imagen SHALL reemplazar a la de la pregunta. Cada cambio del operador MUST verse en la presentación en menos de 1 segundo.
 
@@ -162,10 +162,15 @@ Cuando el operador revela la respuesta correcta, la presentación SHALL mostrarl
 - **WHEN** el operador revela la respuesta correcta durante la revelación
 - **THEN** en menos de 1 segundo la presentación muestra la respuesta junto a la pregunta
 
+#### Scenario: Respuesta escrita del equipo en turno
+- **WHEN** en la revelación pasa a estar en turno "Tíos", que envió "¿Qué es un pastel?" desde un celular
+- **THEN** en menos de 1 segundo la presentación muestra "¿Qué es un pastel?" como respuesta de "Tíos", sin mostrar su apuesta
+
 ### Requirement: No exponer el Final antes de tiempo
 La vista de presentación MUST NOT contener ni recibir, ni siquiera ocultos:
 - el texto de la pregunta de la pista final ni su imagen antes de que el operador muestre la pista;
 - el monto de la apuesta de un equipo antes de que ese equipo sea juzgado;
+- el texto de la respuesta enviada por un equipo antes de que ese equipo esté en turno en la revelación;
 - el texto de la respuesta de la pista final ni su imagen antes de que el operador la revele.
 
 #### Scenario: Pregunta oculta durante las apuestas
@@ -179,6 +184,10 @@ La vista de presentación MUST NOT contener ni recibir, ni siquiera ocultos:
 #### Scenario: Respuesta oculta
 - **WHEN** la pista final está mostrada y el operador no reveló la respuesta
 - **THEN** el estado que recibe la presentación no incluye el texto de la respuesta final ni su imagen
+
+#### Scenario: Respuesta enviada oculta
+- **WHEN** "Primos" envió su respuesta desde un celular y aún no está en turno en la revelación
+- **THEN** el estado que recibe la presentación no incluye el texto de la respuesta de "Primos"
 
 ### Requirement: Indicador de ronda y valores multiplicados
 En un juego con rondas, la vista de presentación SHALL mostrar en qué ronda va el juego, cuántas rondas tiene y el multiplicador de la ronda en curso. En un juego sin rondas, MUST NOT mostrar el indicador. Todos los valores que muestra la presentación (celdas del tablero, pregunta abierta y anuncio de Daily Double) MUST ser los valores de la ronda en curso, ya multiplicados. El título que muestra la presentación SHALL ser el del tablero de la ronda en curso.
@@ -213,3 +222,29 @@ Durante la transición hacia una ronda, la vista de presentación SHALL mostrar 
 #### Scenario: Inicio de la ronda
 - **WHEN** en la transición el operador inicia la ronda 2
 - **THEN** en menos de 1 segundo la presentación muestra el tablero de la ronda 2 con todas sus celdas sin usar
+
+### Requirement: Estado de los pulsadores en la TV
+En un juego con pulsadores y una pregunta abierta, la vista de presentación SHALL indicar cuando los pulsadores están activos y, cuando un equipo gana el toque, SHALL mostrar qué equipo responde junto a la cuenta regresiva de 5 segundos para responder, e indicar "¡Tiempo!" cuando llega a 0. Cada cambio MUST verse en la presentación en menos de 1 segundo. En un juego sin pulsadores, la presentación MUST NOT mostrar indicaciones de pulsadores.
+
+#### Scenario: Pulsadores activos
+- **WHEN** el operador activa los pulsadores
+- **THEN** en menos de 1 segundo la presentación indica que los pulsadores están activos
+
+#### Scenario: Equipo respondiendo
+- **WHEN** gana el toque de "Tíos"
+- **THEN** en menos de 1 segundo la presentación muestra que responde "Tíos" con una cuenta regresiva que empieza en 5 segundos
+
+#### Scenario: Tiempo agotado en la TV
+- **WHEN** pasan 5 segundos desde que "Tíos" ganó el toque sin que el operador juzgue
+- **THEN** la presentación muestra "¡Tiempo!"
+
+#### Scenario: Juego sin pulsadores
+- **WHEN** en un juego sin pulsadores hay una pregunta abierta
+- **THEN** la presentación no muestra indicaciones de pulsadores
+
+### Requirement: Equipo que elige en la TV
+En un juego con pulsadores, mientras un equipo esté indicado como el que elige, la vista de presentación SHALL mostrar ese equipo junto a los puntajes.
+
+#### Scenario: Equipo que elige
+- **WHEN** "Primos" acierta por pulsador y el juego vuelve al tablero
+- **THEN** la presentación indica que elige "Primos"
