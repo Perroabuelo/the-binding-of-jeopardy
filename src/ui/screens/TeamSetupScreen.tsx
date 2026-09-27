@@ -12,6 +12,7 @@ import {
   type RoundSetup,
 } from '../../domain/game';
 import { isFinalComplete, validateBoard } from '../../domain/validation';
+import { getDesktopApi } from '../../platform/desktop';
 import { getBoard, listBoards, saveSession } from '../../storage/db';
 import { newId } from '../lib/ids';
 import { navigate, routeHref } from '../router';
@@ -48,6 +49,9 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
   const [playFinal, setPlayFinal] = useState(true);
   const [withRounds, setWithRounds] = useState(false);
   const [rounds, setRounds] = useState<RoundRow[]>([]);
+  // Los pulsadores necesitan el servidor de la red local de la app de escritorio.
+  const buzzersAvailable = getDesktopApi() !== null;
+  const [useBuzzers, setUseBuzzers] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +122,7 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
         now: Date.now(),
         makeTeamId: () => newId(),
         withFinal,
+        withBuzzers: buzzersAvailable && useBuzzers,
       });
     } catch (e) {
       setError(errorMessage(e));
@@ -241,6 +246,17 @@ export function TeamSetupScreen({ boardId }: { boardId: string }) {
               </p>
             )}
           </div>
+          {buzzersAvailable && (
+            <div className={styles.checkbox}>
+              <input
+                id="use-buzzers"
+                type="checkbox"
+                checked={useBuzzers}
+                onChange={(event) => setUseBuzzers(event.target.checked)}
+              />
+              <label htmlFor="use-buzzers">Usar pulsadores</label>
+            </div>
+          )}
           <div className={styles.actions}>
             <button
               type="button"

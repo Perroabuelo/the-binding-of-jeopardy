@@ -9,6 +9,7 @@ import { makeCompleteBoard } from '../../../tests/fixtures/board';
 import {
   installDesktop,
   makeFakeDesktop,
+  makeLanStatus,
   uninstallDesktop,
   type FakeDesktop,
 } from '../../../tests/fixtures/desktop';
@@ -956,5 +957,140 @@ describe('OperatorScreen: publicación a los celulares', () => {
     await waitFor(() => expect(lastTvView()).toBeDefined());
     expect(fake.api.lan.publishGame).not.toHaveBeenCalled();
     expect(fake.api.lan.onDeviceEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe('OperatorScreen: pulsadores', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    uninstallDesktop();
+  });
+
+  /** Primos (equipo-1), Tíos (equipo-2) y Abuelos (equipo-3), con pulsadores; c0-r1 es Daily Double. */
+  function buzzSession(): GameSession {
+    const session = makeSession(['Primos', 'Tíos', 'Abuelos'], { buzzersEnabled: true });
+    session.rounds[0]!.boardSnapshot.categories[0]!.clues[1]!.dailyDouble = true;
+    return session;
+  }
+
+  function buzzRegion() {
+    return screen.getByRole('region', { name: 'Pulsadores' });
+  }
+
+  function answering(teamId: string, at = Date.now()): GameSession {
+    let session = gameReducer(buzzSession(), { type: 'openClue', clueKey: 'c0-r2' }, at);
+    session = gameReducer(session, { type: 'armBuzzers' }, at);
+    return gameReducer(
+      session,
+      { type: 'buzz', teamId, deviceId: 'celu', deviceLabel: 'Android 2' },
+      at,
+    );
+  }
+
+  it('activar y cerrar los pulsadores', async () => {
+    const user = userEvent.setup();
+    installDesktop();
+    await renderOperator(buzzSession());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    await user.click(within(buzzRegion()).getByRole('button', { name: 'Activar pulsadores' }));
+    expect(within(buzzRegion()).getByRole('status')).toHaveTextContent('Pulsadores activos…');
+    await user.click(within(buzzRegion()).getByRole('button', { name: 'Cerrar pulsadores' }));
+    expect(
+      within(buzzRegion()).getByRole('button', { name: 'Activar pulsadores' }),
+    ).toBeInTheDocument();
+    expect(scoreItem('Primos', 0)).toBeInTheDocument();
+  });
+
+  it('con un equipo respondiendo muestra quién, la cuenta de 5 s y el valor en juego', async () => {
+    await renderOperator(answering('equipo-2'));
+    const region = buzzRegion();
+    expect(within(region).getByRole('status')).toHaveTextContent('Responde: Tíos (Android 2)');
+    expect(region).toHaveTextContent('5 s');
+    expect(within(region).getByRole('button', { name: 'Correcta (+300)' })).toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: 'Incorrecta (−300)' })).not.toHaveAttribute(
+      'data-highlighted',
+    );
+    expect(within(region).getByRole('button', { name: 'Cerrar pulsadores' })).toBeInTheDocument();
+    // Los botones manuales siguen disponibles
+    expect(screen.getByRole('button', { name: 'Sumar 300 a Abuelos' })).toBeInTheDocument();
+  });
+
+  it('a los 5 s muestra ¡Tiempo! y resalta Incorrecta sin cambiar puntajes', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    const session = answering('equipo-2');
+    await saveSession(session);
+    render(<OperatorScreen sessionId={session.id} />);
+    await vi.waitFor(() => screen.getByRole('region', { name: 'Pulsadores' }));
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(buzzRegion()).toHaveTextContent('3 s');
+    act(() => vi.advanceTimersByTime(3_000));
+    expect(buzzRegion()).toHaveTextContent('¡Tiempo!');
+    expect(screen.getByRole('button', { name: 'Incorrecta (−300)' })).toHaveAttribute(
+      'data-highlighted',
+      'true',
+    );
+    expect(scoreItem('Tíos', 0)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Correcta (+300)' })).toBeEnabled();
+  });
+
+  it('Incorrecta resta, reabre y deja visibles los fallados', async () => {
+    const user = userEvent.setup();
+    await renderOperator(answering('equipo-2'));
+    await user.click(screen.getByRole('button', { name: 'Incorrecta (−300)' }));
+    expect(scoreItem('Tíos', -300)).toBeInTheDocument();
+    expect(within(buzzRegion()).getByRole('status')).toHaveTextContent('Pulsadores activos…');
+    expect(buzzRegion()).toHaveTextContent('Fallaron: Tíos');
+  });
+
+  it('Correcta suma, cierra y muestra quién elige', async () => {
+    const user = userEvent.setup();
+    await renderOperator(answering('equipo-1'));
+    expect(screen.queryByText(/^Elige:/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Correcta (+300)' }));
+    expect(scoreItem('Primos', 300)).toBeInTheDocument();
+    expect(screen.getByText('Elige: Primos')).toBeInTheDocument();
+    expect(
+      within(buzzRegion()).getByRole('button', { name: 'Activar pulsadores' }),
+    ).toBeInTheDocument();
+  });
+
+  it('en un Daily Double no aparece Activar pulsadores', async () => {
+    const user = userEvent.setup();
+    await renderOperator(buzzSession());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 200, Daily Double' }));
+    await user.type(screen.getByLabelText('Apuesta'), '100');
+    await user.click(screen.getByRole('button', { name: 'Registrar apuesta' }));
+    expect(screen.getByRole('region', { name: 'Pregunta abierta' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar pulsadores' })).not.toBeInTheDocument();
+  });
+
+  it('sin pulsadores no aparece Activar pulsadores', async () => {
+    const user = userEvent.setup();
+    await renderOperator(makeSession());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    expect(screen.queryByRole('region', { name: 'Pulsadores' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar pulsadores' })).not.toBeInTheDocument();
+  });
+
+  it('la lista de dispositivos muestra el equipo de cada uno', async () => {
+    const user = userEvent.setup();
+    installDesktop(
+      makeFakeDesktop(
+        makeLanStatus({
+          devices: [
+            { deviceId: 'a', label: 'Android', connectedAt: 1, teamId: 'equipo-2' },
+            { deviceId: 'b', label: 'iPhone', connectedAt: 2 },
+          ],
+        }),
+      ),
+    );
+    await renderOperator(buzzSession());
+    await user.click(screen.getByRole('button', { name: 'Conectar dispositivos' }));
+    const list = await screen.findByRole('list', { name: 'Dispositivos conectados' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Android · Tíos', 'iPhone · Sin equipo']);
   });
 });

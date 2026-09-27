@@ -160,3 +160,47 @@
 .tools > section {
   flex: 1;
 }
+
+/* "Elige: Primos" junto a los puntajes, en un juego con pulsadores. */
+.controlTeam {
+  margin: var(--space-3) 0 0;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.buzz {
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.buzzState {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.buzzCountdown,
+.buzzTimeUp {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2rem;
+}
+
+.buzzTimeUp {
+  color: var(--color-danger);
+}
+
+.buzzFailed {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+/* "Incorrecta" resaltada al agotarse el tiempo para responder. */
+.highlight {
+  outline: 3px solid var(--color-danger);
+  outline-offset: 2px;
+  font-weight: 700;
+}

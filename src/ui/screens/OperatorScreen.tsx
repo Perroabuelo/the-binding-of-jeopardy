@@ -1,11 +1,13 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { allClueKeys, getClue, parseClueKey, type Clue, type ClueKey } from '../../domain/board';
 import {
+  BUZZ_ANSWER_MS,
   clueValueInPlay,
   currentRound,
   gameReducer,
   hasNextRound,
   maxWager,
+  type BuzzState,
   type GameAction,
   type GameSession,
 } from '../../domain/game';
@@ -18,6 +20,7 @@ import { FinalPanel } from '../game/FinalPanel';
 import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
 import { TvLauncher } from '../game/TvLauncher';
+import { secondsLeft, useCountdown } from '../game/useCountdown';
 import { useDevicePublisher } from '../game/useDevicePublisher';
 import { useOperatorSync } from '../game/useOperatorSync';
 import { ConnectDevicesButton } from '../lan/ConnectDevicesPanel';
@@ -95,7 +98,7 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
           )}
           <div className={styles.tools}>
             <TvLauncher sessionId={sessionId} />
-            <ConnectDevicesButton />
+            <ConnectDevicesButton teams={session.buzzersEnabled ? session.teams : undefined} />
           </div>
           {session.phase.kind !== 'finished' && (
             <section aria-label="Equipos" className={styles.section}>
@@ -103,6 +106,7 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
                 teams={session.teams}
                 onSetScore={(teamId, score) => dispatch({ type: 'setScore', teamId, score })}
               />
+              <ControlTeam session={session} />
             </section>
           )}
           {session.phase.kind === 'board' && (
@@ -401,6 +405,9 @@ function CluePanel({
         value={value}
         answerState={phase.revealed ? 'Revelada en la TV' : 'No revelada: solo la ves tú'}
       />
+      {phase.buzz && (
+        <BuzzControls session={session} buzz={phase.buzz} points={value} dispatch={dispatch} />
+      )}
       <div className={styles.actions}>
         {!phase.revealed && (
           <button type="button" className="primary" onClick={() => dispatch({ type: 'reveal' })}>
@@ -432,5 +439,117 @@ function CluePanel({
         ))}
       </ul>
     </section>
+  );
+}
+
+/** "Elige: Primos": el equipo que acertó por pulsador elige la siguiente pregunta. */
+function ControlTeam({ session }: { session: GameSession }) {
+  const team = session.teams.find((t) => t.id === session.controlTeamId);
+  if (!session.buzzersEnabled || !team) return null;
+  return <p className={styles.controlTeam}>{`Elige: ${team.name}`}</p>;
+}
+
+function BuzzControls({
+  session,
+  buzz,
+  points,
+  dispatch,
+}: {
+  session: GameSession;
+  buzz: BuzzState;
+  points: number;
+  dispatch: (action: GameAction) => void;
+}) {
+  const nameOf = (teamId: string) => session.teams.find((team) => team.id === teamId)?.name ?? '';
+  const failed = buzz.failedTeamIds.map(nameOf);
+  const canArm = session.teams.some((team) => !buzz.failedTeamIds.includes(team.id));
+  const close = (
+    <button type="button" onClick={() => dispatch({ type: 'closeBuzzers' })}>
+      Cerrar pulsadores
+    </button>
+  );
+
+  return (
+    <section aria-label="Pulsadores" className={styles.buzz}>
+      {buzz.status === 'closed' && canArm && (
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => dispatch({ type: 'armBuzzers' })}
+          >
+            Activar pulsadores
+          </button>
+        </div>
+      )}
+      {buzz.status === 'closed' && !canArm && (
+        <p className={styles.buzzState}>Todos los equipos fallaron: pulsadores cerrados.</p>
+      )}
+      {buzz.status === 'armed' && (
+        <>
+          <p className={styles.buzzState} role="status">
+            Pulsadores activos…
+          </p>
+          <div className={styles.actions}>{close}</div>
+        </>
+      )}
+      {buzz.status === 'answering' && buzz.answering && (
+        <BuzzAnswering
+          buzz={buzz}
+          teamName={nameOf(buzz.answering.teamId)}
+          points={points}
+          close={close}
+          dispatch={dispatch}
+        />
+      )}
+      {failed.length > 0 && <p className={styles.buzzFailed}>{`Fallaron: ${failed.join(', ')}`}</p>}
+    </section>
+  );
+}
+
+function BuzzAnswering({
+  buzz,
+  teamName,
+  points,
+  close,
+  dispatch,
+}: {
+  buzz: BuzzState;
+  teamName: string;
+  points: number;
+  close: ReactNode;
+  dispatch: (action: GameAction) => void;
+}) {
+  const { startedAt } = buzz.answering!;
+  const endsAt = startedAt + BUZZ_ANSWER_MS;
+  const remaining = useCountdown(endsAt) ?? 0;
+  const timeUp = remaining === 0;
+  return (
+    <>
+      <p className={styles.buzzState} role="status">
+        {`Responde: ${teamName} (${buzz.answering!.deviceLabel})`}
+      </p>
+      <p className={timeUp ? styles.buzzTimeUp : styles.buzzCountdown} aria-live="polite">
+        {timeUp ? '¡Tiempo!' : `${secondsLeft(remaining)} s`}
+      </p>
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className="primary"
+          onClick={() => dispatch({ type: 'judgeBuzz', correct: true })}
+        >
+          {`Correcta (+${points})`}
+        </button>
+        <button
+          type="button"
+          className={timeUp ? `danger ${styles.highlight}` : 'danger'}
+          data-highlighted={timeUp || undefined}
+          onClick={() => dispatch({ type: 'judgeBuzz', correct: false })}
+        >
+          {`Incorrecta (−${points})`}
+        </button>
+        {close}
+      </div>
+    </>
   );
 }
