@@ -20,6 +20,8 @@ export const MAX_MULTIPLIER = 10;
 export const FINAL_TIMER_MS = 30_000;
 /** Tiempo para responder tras ganar el toque. Solo informativo: llegar a 0 no cambia nada. */
 export const BUZZ_ANSWER_MS = 5_000;
+/** Largo máximo de la respuesta del Final enviada desde un celular. */
+export const FINAL_ANSWER_MAX_LENGTH = 200;
 
 export interface Team {
   id: string;
@@ -51,6 +53,15 @@ export interface FinalPhase {
   timerStartedAt?: number;
   judged: { teamId: string; correct: boolean }[];
   answerRevealed: boolean;
+  /** Dispositivo que envió cada apuesta desde un celular. Sin entrada: anotada por el operador. */
+  wagerSources?: Record<string, DeviceSource>;
+  /** Respuestas enviadas desde los celulares, por id de equipo. */
+  answers?: Record<string, DeviceSource & { text: string }>;
+}
+
+export interface DeviceSource {
+  deviceId: string;
+  deviceLabel: string;
 }
 
 /** Estado de los pulsadores en una pregunta abierta de un juego con pulsadores. */
@@ -129,7 +140,9 @@ export type GameAction =
   | { type: 'armBuzzers' }
   | { type: 'closeBuzzers' }
   | { type: 'buzz'; teamId: string; deviceId: string; deviceLabel: string }
-  | { type: 'judgeBuzz'; correct: boolean };
+  | { type: 'judgeBuzz'; correct: boolean }
+  | ({ type: 'submitFinalWager'; teamId: string; amount: number } & DeviceSource)
+  | ({ type: 'submitFinalAnswer'; teamId: string; text: string } & DeviceSource);
 
 /** Lo que la TV necesita para dibujar. Nunca incluye respuestas no reveladas. */
 export type TvImageRole = 'question' | 'answer';
@@ -512,9 +525,51 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       if (!Number.isSafeInteger(amount) || amount < 0 || amount > participant.entryScore) {
         return session;
       }
+      // La apuesta ya no es la que envió el celular
+      const wagerSources = phase.wagerSources && { ...phase.wagerSources };
+      if (wagerSources) delete wagerSources[action.teamId];
       return {
         ...session,
-        phase: { ...phase, wagers: { ...phase.wagers, [action.teamId]: amount } },
+        phase: {
+          ...phase,
+          wagers: { ...phase.wagers, [action.teamId]: amount },
+          ...(wagerSources && { wagerSources }),
+        },
+        updatedAt: now,
+      };
+    }
+    case 'submitFinalWager': {
+      if (phase.kind !== 'final' || phase.stage !== 'wagers') return session;
+      const participant = phase.participants.find((p) => p.teamId === action.teamId);
+      if (!participant || phase.wagers[action.teamId] !== undefined) return session;
+      const { amount, deviceId, deviceLabel } = action;
+      if (!Number.isSafeInteger(amount) || amount < 0 || amount > participant.entryScore) {
+        return session;
+      }
+      return {
+        ...session,
+        phase: {
+          ...phase,
+          wagers: { ...phase.wagers, [action.teamId]: amount },
+          wagerSources: { ...phase.wagerSources, [action.teamId]: { deviceId, deviceLabel } },
+        },
+        updatedAt: now,
+      };
+    }
+    case 'submitFinalAnswer': {
+      if (phase.kind !== 'final' || phase.stage !== 'clue') return session;
+      if (!phase.participants.some((p) => p.teamId === action.teamId)) return session;
+      if (phase.answers?.[action.teamId]) return session;
+      if (finalTimeRemaining(phase, now) === 0) return session;
+      const text = action.text.trim();
+      if (text === '' || text.length > FINAL_ANSWER_MAX_LENGTH) return session;
+      const { deviceId, deviceLabel } = action;
+      return {
+        ...session,
+        phase: {
+          ...phase,
+          answers: { ...phase.answers, [action.teamId]: { text, deviceId, deviceLabel } },
+        },
         updatedAt: now,
       };
     }

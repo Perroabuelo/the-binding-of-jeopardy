@@ -11,7 +11,7 @@
   - `buzz` fija `answering.startedAt`. `BUZZ_ANSWER_MS` y `buzzTimeRemaining` bajan de 5000 a 0 sin pasar de 0 y devuelven `null` fuera de `answering`. Con el tiempo en 0 la sesión no cambia sola y `judgeBuzz(true)` sigue sumando. Tras `judgeBuzz(false)`, el siguiente `buzz` tiene un `startedAt` nuevo.
   - `award` y `setScore` siguen funcionando con un equipo respondiendo.
   - Una sesión sin los campos nuevos se comporta como antes.
-- [ ] 1.2 Agregar `submitFinalWager` y `submitFinalAnswer`, con `wagerSources` y `answers` en la fase `final`, y hacer que `setFinalWager` borre `wagerSources[teamId]` al sobrescribir. Verificar con tests unitarios en `game.test.ts`:
+- [x] 1.2 Agregar `submitFinalWager` y `submitFinalAnswer`, con `wagerSources` y `answers` en la fase `final`, y hacer que `setFinalWager` borre `wagerSources[teamId]` al sobrescribir. Verificar con tests unitarios en `game.test.ts`:
   - El primer `submitFinalWager` de un equipo queda y el segundo devuelve la misma referencia.
   - Un monto fuera de 0..`entryScore`, no entero, o de un equipo no participante no hace nada.
   - `setFinalWager` sobrescribe una apuesta enviada y borra su origen.
