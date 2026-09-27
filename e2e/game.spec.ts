@@ -566,7 +566,8 @@ test.describe('TV en 1920x1080 con rondas', () => {
 
 /**
  * Verifica que la TV no se desplace y que el título, la ronda, el tablero, los puntajes y
- * "Elige: …" queden completos dentro de la ventana, sin texto del tablero cortado a lo ancho.
+ * "Elige: …" queden completos dentro de la ventana, sin texto del tablero cortado a lo ancho ni
+ * a lo alto.
  */
 async function expectFitsWindow(tv: Page) {
   await expect(tv.getByRole('table', { name: 'Tablero' })).toBeVisible();
@@ -588,7 +589,9 @@ async function expectFitsWindow(tv: Page) {
       })
       .map((el) => el.textContent?.slice(0, 40));
     const cut = [...main.querySelectorAll<HTMLElement>('th, td, td > *')]
-      .filter((cell) => cell.scrollWidth > cell.clientWidth)
+      .filter(
+        (cell) => cell.scrollWidth > cell.clientWidth || cell.scrollHeight > cell.clientHeight,
+      )
       .map((cell) => cell.textContent);
     return {
       scrollsVertically: root.scrollHeight > root.clientHeight,
@@ -660,7 +663,6 @@ test.describe('TV sin desplazamiento en 1920x1080', () => {
   test.use({ viewport: { width: 1920, height: 1080 } });
 
   test('6 categorías con nombres largos y 2 equipos caben en la ventana', async ({ page }) => {
-    test.fail();
     await startGameWithBoard(page, boardWithLongNames(6));
     await expectFitsWindow(await openTv(page));
   });
@@ -689,7 +691,6 @@ test.describe('TV sin desplazamiento en 1280x720', () => {
   });
 
   test('3 categorías y 1 equipo caben en la ventana', async ({ page }) => {
-    test.fail();
     const board = makeCompleteBoard({ id: 'e2e-tv-uno' }, 3);
     await page.goto('./');
     await seedBoards(page, [board]);

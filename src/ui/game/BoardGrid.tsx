@@ -20,7 +20,7 @@ export function BoardGrid({ categories, onOpen, size = 'normal', dailyDoubles }:
     1,
     ...categories.flatMap((category) => category.clues.map((clue) => String(clue.value).length)),
   );
-  return (
+  const table = (
     <table
       aria-label="Tablero"
       className={`${styles.grid} ${size === 'tv' ? styles.tv : ''}`}
@@ -79,4 +79,6 @@ export function BoardGrid({ categories, onOpen, size = 'normal', dailyDoubles }:
       </tbody>
     </table>
   );
+  // En la TV, el contenedor toma el alto que dejan libre el encabezado y los puntajes.
+  return size === 'tv' ? <div className={styles.tvBoard}>{table}</div> : table;
 }

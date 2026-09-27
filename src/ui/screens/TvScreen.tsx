@@ -29,7 +29,7 @@ export function TvScreen({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   return (
-    <main className={styles.tv} data-session-id={sessionId}>
+    <main className={styles.tv} data-session-id={sessionId} data-phase={view?.phase.kind}>
       <h1 className={styles.srOnly}>Pantalla de TV</h1>
       {view ? <TvContent view={view} /> : <Waiting />}
     </main>
