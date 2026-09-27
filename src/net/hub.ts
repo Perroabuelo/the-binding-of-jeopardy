@@ -115,7 +115,8 @@ export function createDeviceHub(options: DeviceHubOptions): DeviceHub {
       }
       if (now - lastPing >= pingIntervalMs) {
         lastPing = now;
-        for (const socketId of sockets.keys()) options.send(socketId, { type: 'ping' });
+        for (const socketId of sockets.keys())
+          options.send(socketId, { type: 'ping', serverTime: now });
       }
       if (listChanged) changed();
     },

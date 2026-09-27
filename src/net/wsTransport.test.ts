@@ -89,8 +89,11 @@ describe('createWebSocketTransport', () => {
     last().serverSend({ type: 'welcome', serverTime: 123 });
     last().serverSend({ type: 'state', view: {} });
     last().serverSend('no es json');
-    last().serverSend({ type: 'ping' });
-    expect(received).toEqual([{ type: 'welcome', serverTime: 123 }, { type: 'ping' }]);
+    last().serverSend({ type: 'ping', serverTime: 456 });
+    expect(received).toEqual([
+      { type: 'welcome', serverTime: 123 },
+      { type: 'ping', serverTime: 456 },
+    ]);
   });
 
   it('envía como JSON solo con la conexión abierta', () => {
@@ -145,7 +148,7 @@ describe('createWebSocketTransport', () => {
     create({ idleTimeoutMs: 3000 });
     last().serverOpen();
     vi.advanceTimersByTime(2000);
-    last().serverSend({ type: 'ping' });
+    last().serverSend({ type: 'ping', serverTime: 456 });
     vi.advanceTimersByTime(2999);
     expect(statuses.at(-1)).toBe('open');
     vi.advanceTimersByTime(1);

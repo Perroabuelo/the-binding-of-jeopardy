@@ -90,13 +90,13 @@ describe('createDeviceHub', () => {
     expect(sent).toEqual([]);
     now = 2_000;
     hub.tick();
-    expect(sent).toEqual([{ socketId: 's1', msg: { type: 'ping' } }]);
+    expect(sent).toEqual([{ socketId: 's1', msg: { type: 'ping', serverTime: 2_000 } }]);
   });
 
   it('los mensajes inválidos se ignoran', () => {
     hub.connect('s1');
     hub.message('s1', { type: 'join', deviceId: '', label: 'Android' });
-    hub.message('s1', { type: 'buzz' });
+    hub.message('s1', { type: 'otro' });
     hub.message('s1', 'basura');
     hub.message('desconocido', { type: 'join', deviceId: 'celu-9', label: 'Android' });
     expect(hub.devices()).toEqual([]);

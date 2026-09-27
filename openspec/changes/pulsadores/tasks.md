@@ -24,7 +24,7 @@
 
 ## 2. Red y escritorio
 
-- [ ] 2.1 Extender `src/net/protocol.ts` con `chooseTeam`, `buzz`, `finalWager`, `finalAnswer`, `join.teamId`, `ping.serverTime` y `game`, con sus validadores, y crear `src/net/clock.ts` (`remainingWithOffset` y el cálculo del desfase). Verificar con tests unitarios: los mensajes nuevos válidos se aceptan, y los montos no enteros, los textos de más de 200 caracteres y los tipos desconocidos se rechazan. `remainingWithOffset` es correcto con desfase positivo, negativo y cero.
+- [x] 2.1 Extender `src/net/protocol.ts` con `chooseTeam`, `buzz`, `finalWager`, `finalAnswer`, `join.teamId`, `ping.serverTime` y `game`, con sus validadores, y crear `src/net/clock.ts` (`remainingWithOffset` y el cálculo del desfase). Verificar con tests unitarios: los mensajes nuevos válidos se aceptan, y los montos no enteros, los textos de más de 200 caracteres y los tipos desconocidos se rechazan. `remainingWithOffset` es correcto con desfase positivo, negativo y cero.
 - [ ] 2.2 Extender `src/net/hub.ts` con el registro de equipo por dispositivo, el bloqueo de 250 ms, `publishGame` con el envío por socket de `common + perTeam` propio, `youWon` y `lockedUntil`, y la emisión de `deviceEvent`. Verificar con tests unitarios en `hub.test.ts`, con reloj falso:
   - `chooseTeam` con un equipo existente lo guarda, y con uno inexistente lo ignora. `join` con `teamId` recupera el equipo si existe.
   - Un `buzz` antes de armar bloquea 250 ms y no se reenvía. Un `buzz` durante el bloqueo no se reenvía aunque ya esté armado. Otro dispositivo del mismo equipo no queda bloqueado. Un `buzz` sin equipo se ignora.

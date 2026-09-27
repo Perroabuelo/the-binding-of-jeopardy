@@ -192,9 +192,7 @@ describe('dispositivos por WebSocket', () => {
     for (const msg of client.received) {
       expect(isDeviceServerMessage(msg)).toBe(true);
       const keys = Object.keys(msg as object).sort();
-      expect(keys).toEqual(
-        (msg as { type: string }).type === 'welcome' ? ['serverTime', 'type'] : ['type'],
-      );
+      expect(keys).toEqual(['serverTime', 'type']);
     }
   });
 });

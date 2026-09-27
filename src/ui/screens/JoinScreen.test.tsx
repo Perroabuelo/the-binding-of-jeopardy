@@ -61,7 +61,7 @@ describe('JoinScreen', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Conectado a la fiesta');
 
     // Responde los latidos.
-    fake.receive({ type: 'ping' });
+    fake.receive({ type: 'ping', serverTime: 2 });
     expect(fake.sent.at(-1)).toEqual({ type: 'pong' });
   });
 
