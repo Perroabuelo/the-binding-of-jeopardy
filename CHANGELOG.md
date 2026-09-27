@@ -8,6 +8,8 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [0.6.0] - 2026-09-26
+
 ### Agregado
 
 - Rondas: arma una partida de 2 a 5 rondas, cada una con uno de tus tableros y su propio
