@@ -282,3 +282,36 @@ test('exportar e importar un tablero con pista final conserva sus textos e image
   ).toBeVisible();
   await expect(page.getByText('Pista final: completa.')).toBeVisible();
 });
+
+test('crear un tablero desde un ejemplo lo deja listo para jugar y se puede volver a crear', async ({
+  page,
+}) => {
+  await page.goto('./');
+  await expect(
+    page.getByText('Todavía no hay tableros. Crea uno nuevo o parte desde un ejemplo.'),
+  ).toBeVisible();
+
+  const createSample = async () => {
+    await page.getByRole('button', { name: 'Crear desde ejemplo' }).click();
+    await page
+      .getByRole('dialog', { name: 'Crear desde ejemplo' })
+      .getByRole('button', { name: 'Videojuegos' })
+      .click();
+    await expect(page.getByText('Se creó "Videojuegos" desde el ejemplo.')).toBeVisible();
+  };
+
+  await createSample();
+  await page.getByRole('link', { name: 'Videojuegos' }).click();
+  await expect(page.getByRole('heading', { name: 'Listo para jugar' })).toBeVisible();
+  await expect(page.getByText('Pista final: completa.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Jugar' })).toBeEnabled();
+
+  await page.getByRole('link', { name: '← Tableros' }).click();
+  await page.getByRole('button', { name: 'Eliminar Videojuegos' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Eliminar' }).click();
+  await expect(page.getByRole('link', { name: 'Videojuegos' })).toHaveCount(0);
+
+  await createSample();
+  await expect(page.getByRole('link', { name: 'Videojuegos' })).toHaveCount(1);
+  expect((await readStorage(page)).boards.map((board) => board.title)).toEqual(['Videojuegos']);
+});

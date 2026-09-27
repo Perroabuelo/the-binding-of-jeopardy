@@ -22,7 +22,7 @@
   - Con la lista vacía no se crea nada solo, y el mensaje menciona los ejemplos.
   - Si `saveBoard` falla, se muestra "No se pudo crear el tablero." y la lista no cambia.
   - Con `installDesktop`, crear un ejemplo llama a `backup.writeBoard`.
-- [ ] 2.2 Agregar a `e2e/boards.spec.ts` un e2e: crear el ejemplo de videojuegos, abrirlo y ver en el panel de Jugar que está listo y con la pista final completa. Luego eliminarlo y volver a crearlo. Verificar con `npm run test:e2e`.
+- [x] 2.2 Agregar a `e2e/boards.spec.ts` un e2e: crear el ejemplo de videojuegos, abrirlo y ver en el panel de Jugar que está listo y con la pista final completa. Luego eliminarlo y volver a crearlo. Verificar con `npm run test:e2e`.
 
 ## 3. Documentación
 
