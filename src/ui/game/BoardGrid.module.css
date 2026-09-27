@@ -41,13 +41,31 @@ button.cell:disabled {
   color: var(--color-cell-used-text);
 }
 
+.tvBoard {
+  flex: 1;
+  min-height: 0;
+}
+
+.tv {
+  height: 100%;
+}
+
 .tv .category {
   font-size: var(--tv-category-font);
+  line-height: 1.15;
+}
+
+/* Las filas reparten el alto de la tabla; cada celda llena su casilla. */
+.tv td {
+  position: relative;
 }
 
 .tv .cell {
-  min-height: 12vh;
+  position: absolute;
+  inset: 0;
+  min-height: 0;
   font-size: var(--tv-cell-font);
+  line-height: 1;
 }
 
 .srOnly {

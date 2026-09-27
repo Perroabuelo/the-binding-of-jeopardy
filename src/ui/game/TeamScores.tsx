@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import type { Team } from '../../domain/game';
 import styles from './TeamScores.module.css';
 
@@ -11,7 +11,12 @@ export interface TeamScoresProps {
 
 export function TeamScores({ teams, onSetScore, size = 'normal' }: TeamScoresProps) {
   return (
-    <ul aria-label="Puntajes" className={`${styles.list} ${size === 'tv' ? styles.tv : ''}`}>
+    <ul
+      aria-label="Puntajes"
+      className={`${styles.list} ${size === 'tv' ? styles.tv : ''}`}
+      // En la TV la letra se achica según la cantidad de equipos, para que quepan en una fila.
+      style={size === 'tv' ? ({ '--teams': teams.length } as CSSProperties) : undefined}
+    >
       {teams.map((team) => (
         <li key={team.id} className={styles.team} aria-label={`${team.name}: ${team.score} puntos`}>
           <span className={styles.name}>{team.name}</span>
