@@ -674,7 +674,6 @@ test.describe('TV sin desplazamiento en 1280x720', () => {
   test('8 categorías largas en x10, con 8 equipos y equipo que elige, caben en la ventana', async ({
     page,
   }) => {
-    test.fail();
     const other = makeCompleteBoard({ id: 'e2e-otra-ronda', title: 'Otra ronda' });
     await setupRounds(page, [boardWithLongNames(8), other]);
     await setTeams(page, EIGHT_TEAMS);

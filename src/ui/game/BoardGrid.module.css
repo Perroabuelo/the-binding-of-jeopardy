@@ -52,6 +52,7 @@ button.cell:disabled {
 
 .tv .category {
   font-size: var(--tv-category-font);
+  line-height: 1.15;
 }
 
 /* Las filas reparten el alto de la tabla; cada celda llena su casilla. */
@@ -64,6 +65,7 @@ button.cell:disabled {
   inset: 0;
   min-height: 0;
   font-size: var(--tv-cell-font);
+  line-height: 1;
 }
 
 .srOnly {

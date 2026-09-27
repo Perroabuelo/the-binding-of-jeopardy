@@ -43,6 +43,8 @@ Hoy los tokens de la TV dependen del ancho. Con una ventana de 16:9 eso basta a 
 
 Los valores exactos se ajustan al implementar, con los e2e de la decisión 4 como criterio, y cuidando el test existente que exige letra de valores ≥ 32px a 1920x1080.
 
+Al implementar quedaron así: `--tv-cell-font` con tope de `6vh` y `line-height: 1` en las celdas; `--tv-category-font` con tope de `2.6vh` y `line-height: 1.15` en los nombres. Además, el `gap` y el `padding` vertical de `.tv` se limitan por la altura (`min(var(--space-6), 2vh)` y `min(var(--space-6), 3vh)`), porque a 1280x720, con 8 categorías de nombre largo, los espacios fijos le quitaban al tablero el alto que necesitaba.
+
 ### 3. Puntajes en una fila, con letra según la cantidad de equipos
 
 `TeamScores` en modo TV define `style={{ '--teams': teams.length }}`, y el CSS define `--tv-score-font` en función de `--teams`. Por ejemplo `clamp(1rem, min(calc(24vw / (var(--teams) + 2)), 6vh), 4rem)`, con el nombre a un 45% de ese tamaño. La lista de la TV no se reparte en varias filas (`flex-wrap: nowrap`), y cada puntaje puede achicarse (`min-width: 0`). Con 8 equipos a 1280x720 caben en una fila. Si un nombre es muy largo, se corta con puntos suspensivos (`text-overflow: ellipsis`) y el puntaje se sigue viendo completo.
@@ -58,7 +60,7 @@ La línea "Elige: …" se queda debajo de los puntajes, pero con su letra limita
 - **E2E (`e2e/game.spec.ts`)**, en un `describe` nuevo por resolución (`test.use({ viewport })`), con un helper `expectFitsWindow(tv)` que verifica:
   - `document.documentElement.scrollHeight <= clientHeight` y `scrollWidth <= clientWidth`;
   - que el `getBoundingClientRect()` del título, la ronda (si hay), la tabla, la lista de puntajes y "Elige: …" (si hay) esté dentro de `window.innerHeight` y `innerWidth`;
-  - que ninguna celda ni encabezado corte su texto a lo ancho (el mismo chequeo `scrollWidth > clientWidth` de los tests existentes).
+  - que ninguna celda ni encabezado corte su texto a lo ancho ni a lo alto (`scrollWidth > clientWidth` o `scrollHeight > clientHeight`). El chequeo a lo alto es necesario porque las celdas se ajustan a la altura: sin él, un tablero aplastado pasaba el test.
 - Casos:
   - 1920x1080: 6 categorías con nombres largos y 2 equipos.
   - 1280x720: 8 categorías con nombres largos, ronda x10, 8 equipos y equipo que elige.

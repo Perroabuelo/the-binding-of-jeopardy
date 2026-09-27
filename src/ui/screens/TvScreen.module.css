@@ -2,8 +2,9 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-6) var(--space-8);
+  /* En pantallas bajas los espacios se achican para dejarle alto al tablero. */
+  gap: min(var(--space-6), 2vh);
+  padding: min(var(--space-6), 3vh) var(--space-8);
   background: var(--color-board-bg);
   color: var(--color-text);
 }
@@ -173,10 +174,10 @@
 
 /* "Elige: Primos" junto a los puntajes. */
 .controlTeam {
-  margin: var(--space-3) 0 0;
+  margin: 0;
   text-align: center;
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.5vw, 2.5rem);
+  font-size: clamp(1.25rem, min(2.5vw, 4vh), 2.5rem);
   color: var(--color-accent);
 }
 

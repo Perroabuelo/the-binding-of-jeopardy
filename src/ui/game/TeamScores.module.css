@@ -50,13 +50,24 @@
 }
 
 .tv {
+  --tv-score-font: clamp(1rem, min(calc(24vw / (var(--teams, 2) + 2)), 6vh), 4rem);
+  flex-wrap: nowrap;
   justify-content: center;
 }
 
 .tv .team {
-  font-size: var(--tv-category-font);
+  flex-wrap: nowrap;
+  min-width: 0;
+  font-size: max(0.9rem, calc(var(--tv-score-font) * 0.45));
+}
+
+.tv .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tv .score {
-  font-size: var(--tv-cell-font);
+  font-size: var(--tv-score-font);
 }

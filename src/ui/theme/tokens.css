@@ -53,7 +53,7 @@
 [data-columns] {
   --tv-cell-font: clamp(
     1.25rem,
-    min(calc(20vw / var(--columns, 5)), calc(90vw / (var(--columns, 5) * var(--digits, 3))), 7vh),
+    min(calc(20vw / var(--columns, 5)), calc(90vw / (var(--columns, 5) * var(--digits, 3))), 6vh),
     5rem
   );
   --tv-category-font: clamp(0.9rem, min(calc(10vw / var(--columns, 5)), 2.6vh), 2.5rem);

@@ -7,7 +7,7 @@
 ## 2. Corrección
 
 - [x] 2.1 Hacer que la TV mida exactamente la ventana y que el tablero tome el espacio sobrante (diseño, decisiones 1 y 2): `.tv` con `height: 100%`, `data-phase` en `TvScreen`, `overflow: hidden` solo en la fase de tablero, contenedor `.tvBoard` con `flex: 1; min-height: 0`, tabla con `height: 100%`, celdas sin `min-height: 12vh`, y topes en `vh` para `--tv-cell-font` y `--tv-category-font`. Verificar con `npm run test:e2e`: el caso de 1920x1080 y el de 3 categorías pasan (quitarles `test.fail()`), y los tests existentes de "TV en 1920x1080" siguen pasando, incluida la letra de valores ≥ 32px.
-- [ ] 2.2 Poner los puntajes de la TV en una fila con letra según la cantidad de equipos (decisiones 3 y 4): `--teams` en `TeamScores`, `--tv-score-font`, `flex-wrap: nowrap`, puntos suspensivos para nombres largos, y "Elige: …" con tope en `vh`. Verificar con un test de componente en `TeamScores` (en modo TV, la lista define `--teams` con la cantidad de equipos) y con `npm run test:e2e`: el caso de 1280x720 con 8 equipos pasa sin `test.fail()`.
+- [x] 2.2 Poner los puntajes de la TV en una fila con letra según la cantidad de equipos (decisiones 3 y 4): `--teams` en `TeamScores`, `--tv-score-font`, `flex-wrap: nowrap`, puntos suspensivos para nombres largos, y "Elige: …" con tope en `vh`. Verificar con un test de componente en `TeamScores` (en modo TV, la lista define `--teams` con la cantidad de equipos) y con `npm run test:e2e`: el caso de 1280x720 con 8 equipos pasa sin `test.fail()`.
 
 ## 3. Verificación visual
 
