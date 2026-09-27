@@ -2,7 +2,7 @@
   "name": "the-binding-of-jeopardy",
   "productName": "The Binding of Jeopardy",
   "private": true,
-  "version": "0.6.0",
+  "version": "1.0.0",
   "description": "Jeopardy casero con dos pantallas: operador y TV.",
   "author": "Perroabuelo",
   "type": "module",

@@ -89,7 +89,7 @@
   - Publica con `gh release create` y las notas del CHANGELOG.
 
   Criterio de listo: `actionlint` no da errores (o se revisa el workflow en el PR), y un tag de prueba en un fork o en una rama de prueba publica una release con el `.exe`. Si el tag no coincide con la versión, falla sin publicar.
-- [ ] 6.2 Actualizar el README:
+- [x] 6.2 Actualizar el README:
   - Modalidades web y escritorio.
   - Instalación desde GitHub Releases.
   - Aviso de SmartScreen ("Más información" → "Ejecutar de todas formas").

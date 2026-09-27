@@ -4,6 +4,21 @@ Juego estilo Jeopardy para jugar en casa con dos pantallas: una vista de operado
 y una vista de presentación para la TV. Los tableros (preguntas, respuestas e imágenes) se guardan
 solo en el navegador de quien los crea.
 
+## Modalidades
+
+La misma app se usa de dos formas:
+
+- **Web**: se abre en el navegador desde
+  [GitHub Pages](https://perroabuelo.github.io/the-binding-of-jeopardy/) y funciona sin conexión
+  después de la primera visita. No conecta celulares.
+- **Escritorio (Windows)**: una app que se instala desde
+  [GitHub Releases](https://github.com/Perroabuelo/the-binding-of-jeopardy/releases). Funciona sin
+  internet desde la primera vez, abre la TV sola en el segundo monitor a pantalla completa,
+  conecta celulares por la red wifi escaneando un QR y respalda los tableros en disco.
+
+Los tableros de la web y los del escritorio están separados (ver
+[Traer tableros de la web](#traer-tableros-de-la-web)).
+
 ## Cómo se usa
 
 1. Abre la app en Chrome o Edge y crea un tablero con **Nuevo tablero**.
@@ -92,6 +107,60 @@ Los tableros viven solo en el navegador donde se crearon. Para llevarlos a otro 
 respaldarlos, usa **Exportar** e **Importar tablero** en la lista. Después de abrir la app una vez
 con conexión, funciona sin internet.
 
+## App de escritorio (Windows)
+
+### Instalación
+
+1. Descarga el instalador `The-Binding-of-Jeopardy-Setup-X.Y.Z.exe` de la última versión en
+   [GitHub Releases](https://github.com/Perroabuelo/the-binding-of-jeopardy/releases).
+2. Ábrelo. Se instala para tu usuario, sin pedir permisos de administrador, y deja un acceso
+   directo en el escritorio y en el menú Inicio.
+3. Como el instalador no está firmado, Windows puede mostrar **"Windows protegió tu PC"**. Elige
+   **Más información** → **Ejecutar de todas formas**.
+
+Para actualizar, instala la versión nueva encima de la anterior: los tableros, sus imágenes y los
+respaldos se conservan. Si la app ya está abierta, abrirla de nuevo solo trae su ventana al frente.
+
+### Pantalla de TV
+
+**Abrir pantalla de TV** abre la TV en el otro monitor a pantalla completa. Con un solo monitor se
+abre como una ventana normal: arrástrala a la TV y usa F11 para la pantalla completa. Al cerrar la
+ventana del operador se cierran la TV y la app.
+
+### Conectar celulares
+
+En la vista de operador, **Conectar dispositivos** muestra una dirección y un código QR. Los
+celulares que estén en la **misma red wifi** lo escanean con la cámara y aparecen en la lista de
+dispositivos conectados. No se necesita internet. Por ahora es solo la conexión: los pulsadores
+llegan en una versión próxima.
+
+Si ningún celular logra conectarse:
+
+- **Firewall de Windows**: la primera vez que se abre la app, Windows pregunta si permite que use
+  la red. Acepta al menos para redes privadas. Si elegiste "Cancelar", abre "Permitir una
+  aplicación a través del Firewall de Windows" y marca The Binding of Jeopardy en redes privadas.
+- **Red Pública**: si Windows tiene la red marcada como Pública, el firewall bloquea a los
+  celulares y la app lo avisa. Cámbiala en Configuración → Red e Internet → Wi-Fi (o Ethernet) →
+  tu red → **Tipo de perfil de red: Privada**.
+- **Redes de invitados**: muchas redes de invitados aíslan a los dispositivos entre sí. Conecta el
+  equipo y los celulares a la red principal del router.
+- **Otra red**: si el equipo tiene VPN, WSL o máquinas virtuales, puede que la app haya elegido la
+  red equivocada. Elige la del wifi en el selector **Red**.
+
+### Respaldos
+
+Cada tablero se respalda solo en `DocumentosThe Binding of JeopardyRespaldos`, como un archivo
+de intercambio (`.jeopardy.json`, con sus imágenes). Hay un archivo por tablero, que se reemplaza
+en cada guardado. Los respaldos de los tableros eliminados pasan a la subcarpeta `eliminados`.
+**Abrir carpeta de respaldos**, en la lista de tableros, abre la carpeta. Para restaurar un
+respaldo, usa **Importar tablero**.
+
+### Traer tableros de la web
+
+La web y el escritorio guardan sus tableros por separado. Para pasar un tablero de uno a otro,
+usa **Exportar** en la lista de tableros de la web e **Importar tablero** en el escritorio (o al
+revés).
+
 ## Desarrollo
 
 Requiere Node 22 (ver `.nvmrc`).
@@ -104,6 +173,15 @@ npm run typecheck    # TypeScript
 npm test             # Vitest (unitarias y componentes)
 npm run test:e2e     # Playwright (Chromium); la primera vez: npx playwright install chromium
 npm run build        # build de producción en dist/
+```
+
+App de escritorio (en Windows):
+
+```bash
+npm run desktop           # build web + proceso principal, y abre la app con Electron
+npm run test:e2e:desktop  # Playwright _electron (requiere npm run build:desktop antes)
+npm run dist:desktop      # instalador en release/ (requiere npm run build:desktop antes)
+node scripts/make-icon.mjs  # regenera build/icon.ico desde public/icon.svg
 ```
 
 ## Flujo de trabajo
@@ -121,7 +199,13 @@ npm run build        # build de producción en dist/
 
 1. `checks`: lint, typecheck, tests unitarios y build.
 2. `e2e`: Playwright en Chromium contra el build servido bajo la ruta base real.
-3. `deploy`: solo en push a `main` y si los anteriores pasan; publica `dist/` en GitHub Pages.
+3. `desktop`: en Windows, compila la app de escritorio, corre sus e2e y verifica que empaqueta.
+4. `deploy`: solo en push a `main` y si `checks` y `e2e` pasan; publica `dist/` en GitHub
+   Pages. No depende de `desktop`, así que un problema del escritorio no bloquea la web.
+
+`.github/workflows/release.yml` corre con cada tag `vX.Y.Z`: verifica que el tag coincida con la
+versión de `package.json`, reutiliza el CI completo y publica el instalador en GitHub Releases con
+las notas del CHANGELOG.
 
 ### Configuración manual en GitHub (una vez)
 
