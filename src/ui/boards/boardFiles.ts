@@ -4,8 +4,8 @@ import { deleteImage, getImage, putImage, saveBoard } from '../../storage/db';
 import { newId } from '../lib/ids';
 import { blobToDataUrl, dataUrlToBlob } from '../lib/images';
 
-/** Arma el archivo de exportación del tablero con sus imágenes y lo descarga. */
-export async function downloadBoardFile(board: Board): Promise<void> {
+/** Arma el archivo de exportación del tablero con sus imágenes (también es el respaldo). */
+export async function buildBoardExport(board: Board): Promise<string> {
   const images: Record<string, string> = {};
   for (const imageId of boardImageIds(board)) {
     const stored = await getImage(imageId);
@@ -14,7 +14,12 @@ export async function downloadBoardFile(board: Board): Promise<void> {
       images[imageId] = await blobToDataUrl(blob);
     }
   }
-  const json = exportBoard(board, images);
+  return exportBoard(board, images);
+}
+
+/** Arma el archivo de exportación del tablero y lo descarga. */
+export async function downloadBoardFile(board: Board): Promise<void> {
+  const json = await buildBoardExport(board);
   const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
   const link = document.createElement('a');
   link.href = url;

@@ -75,7 +75,7 @@
 - [x] 5.1 Crear `src/domain/backup.ts` (`backupFileName` e `isBackupOf`) y `electron/backup.ts` (`writeBoard` atómico con temporal y `rename`, borrado de los archivos anteriores del mismo tablero, `trashBoard` hacia `eliminados/`, `openFolder`), con su IPC. Criterio de listo:
   - Pasan los tests unitarios de nombres (sanea el título, incluye el id, `isBackupOf` reconoce solo los del tablero).
   - Pasan los tests de `electron/backup.test.ts` sobre una carpeta temporal: escribe, reemplaza al cambiar el título dejando un solo archivo, mueve a `eliminados` y rechaza la promesa si la carpeta no se puede escribir.
-- [ ] 5.2 Extraer `buildBoardExport` de `downloadBoardFile` y crear `ui/boards/boardBackup.ts`: `scheduleBoardBackup` con debounce de 3 s por tablero y `flush` al salir del editor, respaldo inmediato al crear o importar, `trashBoard` al eliminar y aviso no bloqueante si falla. Agregar "Abrir carpeta de respaldos" en `BoardListScreen`, solo en escritorio. Criterio de listo:
+- [x] 5.2 Extraer `buildBoardExport` de `downloadBoardFile` y crear `ui/boards/boardBackup.ts`: `scheduleBoardBackup` con debounce de 3 s por tablero y `flush` al salir del editor, respaldo inmediato al crear o importar, `trashBoard` al eliminar y aviso no bloqueante si falla. Agregar "Abrir carpeta de respaldos" en `BoardListScreen`, solo en escritorio. Criterio de listo:
   - Pasan los tests de `boardBackup` con temporizadores falsos: varios guardados seguidos producen una sola escritura, y una falla muestra el aviso.
   - Pasan los tests de `BoardListScreen`: el botón solo aparece en escritorio, eliminar llama a `trashBoard` e importar respalda.
   - Pasa el test de exportación existente sin cambios.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board } from '../../domain/board';
 import { getBoard, saveBoard } from '../../storage/db';
+import { boardBackup } from '../boards/boardBackup';
 
 export const SAVE_DEBOUNCE_MS = 300;
 
@@ -58,6 +59,8 @@ export function useBoardEditor(boardId: string): BoardEditor {
   const save = useCallback(async (board: Board): Promise<boolean> => {
     try {
       await saveBoard(board);
+      // En escritorio, además se respalda en disco (con su propio debounce).
+      boardBackup.schedule(board);
       inFlightRef.current--;
       setSaveError(null);
       if (inFlightRef.current === 0 && !pendingRef.current) setSaveStatus('saved');
@@ -102,15 +105,15 @@ export function useBoardEditor(boardId: string): BoardEditor {
     [flush],
   );
 
-  // Lo pendiente se guarda al cerrar la pestaña y al salir del editor.
+  // Lo pendiente se guarda (y se respalda) al cerrar la pestaña y al salir del editor.
   useEffect(() => {
-    const onPageHide = () => void flush();
-    window.addEventListener('pagehide', onPageHide);
+    const flushAll = () => void flush().then(() => boardBackup.flush(boardId));
+    window.addEventListener('pagehide', flushAll);
     return () => {
-      window.removeEventListener('pagehide', onPageHide);
-      void flush();
+      window.removeEventListener('pagehide', flushAll);
+      flushAll();
     };
-  }, [flush]);
+  }, [flush, boardId]);
 
   return { load, saveStatus, saveError, update, flush };
 }

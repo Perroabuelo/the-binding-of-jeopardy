@@ -2,6 +2,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
+import { installDesktop, uninstallDesktop } from '../../../tests/fixtures/desktop';
+import { backupFileName } from '../../domain/backup';
 import { createEmptyBoard } from '../../domain/board';
 import { exportBoard } from '../../domain/exchange';
 import * as db from '../../storage/db';
@@ -345,5 +347,63 @@ describe('BoardListScreen: exportar e importar', () => {
     await user.click(screen.getByRole('button', { name: 'Exportar Trivia con imagen' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo exportar el tablero.');
     expect(clickSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('BoardListScreen: respaldo en escritorio', () => {
+  afterEach(() => {
+    uninstallDesktop();
+  });
+
+  it('en la web no ofrece abrir la carpeta de respaldos', async () => {
+    await seedTwoBoards();
+    await renderList();
+    expect(
+      screen.queryByRole('button', { name: 'Abrir carpeta de respaldos' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('en escritorio abre la carpeta de respaldos', async () => {
+    const user = userEvent.setup();
+    const { api } = installDesktop();
+    await seedTwoBoards();
+    await renderList();
+    await user.click(screen.getByRole('button', { name: 'Abrir carpeta de respaldos' }));
+    expect(api.backup.openFolder).toHaveBeenCalledTimes(1);
+  });
+
+  it('eliminar un tablero mueve su respaldo a eliminados', async () => {
+    const user = userEvent.setup();
+    const { api } = installDesktop();
+    await seedTwoBoards();
+    await renderList();
+    await user.click(screen.getByRole('button', { name: 'Eliminar Trivia de prueba' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Eliminar' }));
+    await waitFor(() => expect(api.backup.trashBoard).toHaveBeenCalledWith('b1'));
+  });
+
+  it('importar un tablero lo respalda de inmediato', async () => {
+    const user = userEvent.setup();
+    const { api } = installDesktop();
+    stubImageStore();
+    await seedTwoBoards();
+    await renderList();
+    await user.upload(screen.getByLabelText('Importar tablero'), exportedFile());
+    await screen.findByText('Se importó "Trivia con imagen".');
+    await waitFor(() => expect(api.backup.writeBoard).toHaveBeenCalledTimes(1));
+    const [file] = vi.mocked(api.backup.writeBoard).mock.calls[0]!;
+    const imported = (await listBoards()).find((board) => board.title === 'Trivia con imagen')!;
+    expect(file.boardId).toBe(imported.id);
+    expect(file.fileName).toBe(backupFileName(imported));
+    // El respaldo es un archivo de exportación completo, con la imagen.
+    expect(file.json).toContain(PNG_DATA_URL);
+  });
+
+  it('crear un tablero lo respalda de inmediato', async () => {
+    const user = userEvent.setup();
+    const { api } = installDesktop();
+    render(<BoardListScreen />);
+    await user.click(await screen.findByRole('button', { name: 'Nuevo tablero' }));
+    await waitFor(() => expect(api.backup.writeBoard).toHaveBeenCalledTimes(1));
   });
 });

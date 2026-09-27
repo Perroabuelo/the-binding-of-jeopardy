@@ -1,3 +1,4 @@
+import { BackupNotice } from './boards/BackupNotice';
 import { useRoute } from './router';
 import { BoardListScreen } from './screens/BoardListScreen';
 import { EditorScreen } from './screens/EditorScreen';
@@ -8,6 +9,15 @@ import { TeamSetupScreen } from './screens/TeamSetupScreen';
 import { TvScreen } from './screens/TvScreen';
 
 export function App() {
+  return (
+    <>
+      <Screen />
+      <BackupNotice />
+    </>
+  );
+}
+
+function Screen() {
   const route = useRoute();
   switch (route.name) {
     case 'boards':
