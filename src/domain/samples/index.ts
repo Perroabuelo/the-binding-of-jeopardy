@@ -1,4 +1,5 @@
 import { BOARD_SCHEMA_VERSION, CLUE_VALUES, type Board, type Category } from '../board';
+import { agriculture } from './agriculture';
 import { videogames } from './videogames';
 
 export interface SampleClue {
@@ -33,7 +34,7 @@ export interface SampleBoard {
 }
 
 /** Ejemplos en el orden en que se ofrecen. */
-export const SAMPLE_BOARDS: readonly SampleBoard[] = [videogames];
+export const SAMPLE_BOARDS: readonly SampleBoard[] = [agriculture, videogames];
 
 /** Crea un tablero nuevo e independiente con el contenido del ejemplo. */
 export function createBoardFromSample(sample: SampleBoard, id: string, now: number): Board {
