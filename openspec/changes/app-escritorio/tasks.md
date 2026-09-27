@@ -2,7 +2,7 @@
 
 ## 1. Base de escritorio y CI
 
-- [ ] 1.1 Agregar Electron al proyecto:
+- [x] 1.1 Agregar Electron al proyecto:
   - Dependencias `electron`, `electron-builder`, `ws`, `@types/ws`, `qrcode` y `@types/qrcode`.
   - `tsconfig.electron.json` (CommonJS a `dist-electron/`) referenciado desde `tsconfig.json`, y el script que escribe `dist-electron/package.json` con `{"type":"commonjs"}`.
   - Scripts `build:desktop`, `desktop`, `dist:desktop` y `test:e2e:desktop`.

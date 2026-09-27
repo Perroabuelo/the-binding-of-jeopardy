@@ -6,7 +6,17 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'dev-dist'] },
+  {
+    ignores: [
+      'dist',
+      'dist-electron',
+      'release',
+      'coverage',
+      'playwright-report',
+      'test-results',
+      'dev-dist',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -55,6 +65,29 @@ export default tseslint.config(
           'BroadcastChannel',
           'navigator',
         ].map((name) => ({ name, message: 'src/domain no puede usar APIs del navegador.' })),
+      ],
+    },
+  },
+  {
+    // La lógica de red es TypeScript puro: se usa en el navegador y en el proceso principal.
+    files: ['src/net/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: 'react', message: 'src/net no puede depender de React.' },
+            { name: 'react-dom', message: 'src/net no puede depender de React.' },
+            { name: 'idb', message: 'src/net no puede acceder al almacenamiento.' },
+            { name: 'electron', message: 'src/net no puede depender de Electron.' },
+          ],
+          patterns: [
+            {
+              group: ['**/storage', '**/storage/**', '**/ui', '**/ui/**'],
+              message: 'src/net no puede importar las capas storage ni ui.',
+            },
+          ],
+        },
       ],
     },
   },
