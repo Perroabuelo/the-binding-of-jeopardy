@@ -45,6 +45,14 @@
   border-radius: var(--radius-md);
 }
 
+.qrLight {
+  fill: var(--color-qr-light);
+}
+
+.qrDark {
+  fill: var(--color-qr-dark);
+}
+
 .address {
   flex: 1;
   min-width: 14rem;

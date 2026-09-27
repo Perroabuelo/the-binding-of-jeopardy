@@ -21,6 +21,10 @@
   --color-cell-used-text: #3a4270;
   --color-overlay: rgb(0 0 0 / 60%);
 
+  /* El QR necesita alto contraste (oscuro sobre claro) para que lo lean las cámaras. */
+  --color-qr-dark: #000;
+  --color-qr-light: #fff;
+
   --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Arial Black', 'Segoe UI Black', system-ui, sans-serif;
 

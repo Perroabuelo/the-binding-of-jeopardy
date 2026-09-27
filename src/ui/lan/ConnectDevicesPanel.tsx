@@ -32,8 +32,8 @@ function QrCode({ url }: { url: string }) {
       viewBox={`${-margin} ${-margin} ${side} ${side}`}
       shapeRendering="crispEdges"
     >
-      <rect x={-margin} y={-margin} width={side} height={side} fill="#fff" />
-      <path d={d} fill="#000" data-testid="qr-modules" />
+      <rect x={-margin} y={-margin} width={side} height={side} className={styles.qrLight} />
+      <path d={d} className={styles.qrDark} data-testid="qr-modules" />
     </svg>
   );
 }
