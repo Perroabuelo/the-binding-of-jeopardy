@@ -11,4 +11,4 @@
 
 ## 3. Verificación visual
 
-- [ ] 3.1 Revisar con capturas a 1920x1080 y 1280x720 (tablero de 6 categorías con 2 equipos, y de 8 con 8 equipos) que la TV se ve bien y legible, y adjuntarlas al PR. Verificar con el CI en verde en el PR.
+- [x] 3.1 Revisar con capturas a 1920x1080 y 1280x720 (tablero de 6 categorías con 2 equipos, y de 8 con 8 equipos) que la TV se ve bien y legible, y adjuntarlas al PR. Verificar con el CI en verde en el PR.
