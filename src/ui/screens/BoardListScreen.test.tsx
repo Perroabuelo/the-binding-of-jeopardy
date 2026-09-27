@@ -6,6 +6,7 @@ import { installDesktop, uninstallDesktop } from '../../../tests/fixtures/deskto
 import { backupFileName } from '../../domain/backup';
 import { createEmptyBoard } from '../../domain/board';
 import { exportBoard } from '../../domain/exchange';
+import { createBoardFromSample, SAMPLE_BOARDS } from '../../domain/samples';
 import * as db from '../../storage/db';
 import {
   getBoard,
@@ -350,6 +351,92 @@ describe('BoardListScreen: exportar e importar', () => {
   });
 });
 
+describe('BoardListScreen: tableros de ejemplo', () => {
+  async function openSamples() {
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Crear desde ejemplo' }));
+    return { user, dialog: screen.getByRole('dialog', { name: 'Crear desde ejemplo' }) };
+  }
+
+  it('muestra los tres ejemplos con su título y descripción', async () => {
+    render(<BoardListScreen />);
+    const { dialog } = await openSamples();
+    for (const sample of SAMPLE_BOARDS) {
+      const option = within(dialog).getByRole('button', { name: sample.title });
+      expect(option).toHaveAccessibleDescription(sample.description);
+    }
+    expect(within(dialog).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('elegir un ejemplo lo guarda y lo muestra primero, sin tocar los demás', async () => {
+    const { quiz, untitled } = await seedTwoBoards();
+    await renderList();
+    const { user, dialog } = await openSamples();
+    await user.click(within(dialog).getByRole('button', { name: 'Videojuegos' }));
+
+    expect(await screen.findByText('Se creó "Videojuegos" desde el ejemplo.')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const items = within(screen.getByRole('list', { name: 'Tableros guardados' })).getAllByRole(
+      'listitem',
+    );
+    expect(within(items[0]!).getByRole('link', { name: 'Videojuegos' })).toBeInTheDocument();
+
+    const stored = await listBoards();
+    expect(stored).toHaveLength(3);
+    const created = stored.find((board) => board.title === 'Videojuegos')!;
+    const sample = SAMPLE_BOARDS.find((s) => s.id === 'videojuegos')!;
+    expect(created).toEqual(createBoardFromSample(sample, created.id, created.createdAt));
+    expect(await getBoard('b1')).toEqual(quiz);
+    expect(await getBoard('b2')).toEqual(untitled);
+  });
+
+  it('crear dos veces el mismo ejemplo da dos tableros distintos', async () => {
+    render(<BoardListScreen />);
+    for (let i = 0; i < 2; i++) {
+      const { user, dialog } = await openSamples();
+      await user.click(within(dialog).getByRole('button', { name: 'Agricultura' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    }
+    await waitFor(async () => expect(await listBoards()).toHaveLength(2));
+    const [first, second] = await listBoards();
+    expect(first!.id).not.toBe(second!.id);
+    expect(first!.title).toBe('Agricultura');
+    expect(second!.title).toBe('Agricultura');
+  });
+
+  it('Escape y Cancelar cierran sin crear', async () => {
+    render(<BoardListScreen />);
+    const { user } = await openSamples();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const { dialog } = await openSamples();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(await listBoards()).toEqual([]);
+  });
+
+  it('con la lista vacía no crea ejemplos solos y los menciona', async () => {
+    render(<BoardListScreen />);
+    expect(
+      await screen.findByText('Todavía no hay tableros. Crea uno nuevo o parte desde un ejemplo.'),
+    ).toBeInTheDocument();
+    expect(await listBoards()).toEqual([]);
+  });
+
+  it('si falla guardar el ejemplo, avisa y la lista no cambia', async () => {
+    await seedTwoBoards();
+    await renderList();
+    vi.spyOn(db, 'saveBoard').mockRejectedValue(new Error('Disco lleno.'));
+    const { user, dialog } = await openSamples();
+    await user.click(within(dialog).getByRole('button', { name: 'Música: K-pop' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo crear el tablero. Disco lleno.',
+    );
+    const list = screen.getByRole('list', { name: 'Tableros guardados' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+  });
+});
+
 describe('BoardListScreen: respaldo en escritorio', () => {
   afterEach(() => {
     uninstallDesktop();
@@ -405,5 +492,17 @@ describe('BoardListScreen: respaldo en escritorio', () => {
     render(<BoardListScreen />);
     await user.click(await screen.findByRole('button', { name: 'Nuevo tablero' }));
     await waitFor(() => expect(api.backup.writeBoard).toHaveBeenCalledTimes(1));
+  });
+
+  it('crear un tablero desde un ejemplo lo respalda de inmediato', async () => {
+    const user = userEvent.setup();
+    const { api } = installDesktop();
+    render(<BoardListScreen />);
+    await user.click(await screen.findByRole('button', { name: 'Crear desde ejemplo' }));
+    await user.click(screen.getByRole('button', { name: 'Videojuegos' }));
+    await waitFor(() => expect(api.backup.writeBoard).toHaveBeenCalledTimes(1));
+    const [file] = vi.mocked(api.backup.writeBoard).mock.calls[0]!;
+    const [created] = await listBoards();
+    expect(file.boardId).toBe(created!.id);
   });
 });

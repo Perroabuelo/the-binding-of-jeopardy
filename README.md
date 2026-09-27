@@ -35,6 +35,14 @@ Los tableros de la web y los del escritorio están separados (ver
    resta puntos. Al revelar, la imagen de la respuesta reemplaza en la TV a la de la pregunta. Si
    recargas cualquiera de las dos ventanas, el juego sigue donde estaba.
 
+### Tableros de ejemplo
+
+Para probar la app sin escribir preguntas, usa **Crear desde ejemplo** en la lista de tableros y
+elige uno de los tres ejemplos: **Agricultura**, **Videojuegos** o **Música: K-pop**. Cada uno trae
+6 categorías completas, un Daily Double y la pista final, así que está listo para jugar, también
+como ronda de una partida con rondas. Se crea una copia que puedes editar, exportar o eliminar como
+cualquier tablero. Si la eliminas, puedes volver a crearla cuando quieras.
+
 ### Daily Double
 
 En el editor, abre una celda y marca **Daily Double**. Puedes marcar las que quieras, desde ninguna
