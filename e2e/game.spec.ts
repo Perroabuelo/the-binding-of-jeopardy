@@ -563,3 +563,140 @@ test.describe('TV en 1920x1080 con rondas', () => {
     expect(layout.cut).toEqual([]);
   });
 });
+
+/**
+ * Verifica que la TV no se desplace y que el título, la ronda, el tablero, los puntajes y
+ * "Elige: …" queden completos dentro de la ventana, sin texto del tablero cortado a lo ancho.
+ */
+async function expectFitsWindow(tv: Page) {
+  await expect(tv.getByRole('table', { name: 'Tablero' })).toBeVisible();
+  const layout = await tv.evaluate(() => {
+    const root = document.documentElement;
+    const main = document.querySelector('main')!;
+    const parts = [
+      ...main.querySelectorAll<HTMLElement>(
+        'header h2, header p, table, ul[aria-label="Puntajes"]',
+      ),
+      ...[...main.querySelectorAll<HTMLElement>('p')].filter((p) =>
+        p.textContent?.startsWith('Elige:'),
+      ),
+    ];
+    const outside = parts
+      .filter((el) => {
+        const box = el.getBoundingClientRect();
+        return box.top < 0 || box.left < 0 || box.bottom > innerHeight || box.right > innerWidth;
+      })
+      .map((el) => el.textContent?.slice(0, 40));
+    const cut = [...main.querySelectorAll<HTMLElement>('th, td, td > *')]
+      .filter((cell) => cell.scrollWidth > cell.clientWidth)
+      .map((cell) => cell.textContent);
+    return {
+      scrollsVertically: root.scrollHeight > root.clientHeight,
+      scrollsHorizontally: root.scrollWidth > root.clientWidth,
+      outside,
+      cut,
+    };
+  });
+  expect(layout).toEqual({
+    scrollsVertically: false,
+    scrollsHorizontally: false,
+    outside: [],
+    cut: [],
+  });
+}
+
+/** Deja los equipos de la configuración con estos nombres, agregando o quitando los que falten. */
+async function setTeams(page: Page, names: string[]) {
+  const inputs = page.getByLabel(/^Nombre del equipo \d+$/);
+  while ((await inputs.count()) < names.length) {
+    await page.getByRole('button', { name: 'Agregar equipo' }).click();
+  }
+  while ((await inputs.count()) > names.length) {
+    await page.getByRole('button', { name: `Quitar equipo ${await inputs.count()}` }).click();
+  }
+  for (const [index, name] of names.entries()) {
+    await page.getByLabel(`Nombre del equipo ${index + 1}`).fill(name);
+  }
+}
+
+/** Marca en la sesión guardada al primer equipo como el que elige y recarga el operador. */
+async function setControlTeam(page: Page) {
+  const sessionId = /#\/play\/([^/]+)$/.exec(page.url())![1]!;
+  await page.evaluate(async (id) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('jeopardy');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const store = () => db.transaction('sessions', 'readwrite').objectStore('sessions');
+    const session = await new Promise<{ teams: { id: string }[] }>((resolve, reject) => {
+      const request = store().get(id);
+      request.onsuccess = () => resolve(request.result as { teams: { id: string }[] });
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise((resolve, reject) => {
+      const request = store().put({ ...session, controlTeamId: session.teams[0]!.id });
+      request.onsuccess = resolve;
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+  }, sessionId);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+}
+
+const EIGHT_TEAMS = [
+  'Primos',
+  'Tíos',
+  'Abuelos',
+  'Vecinos',
+  'Amigos',
+  'Colegas',
+  'Sobrinos',
+  'Padrinos',
+];
+
+test.describe('TV sin desplazamiento en 1920x1080', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+
+  test('6 categorías con nombres largos y 2 equipos caben en la ventana', async ({ page }) => {
+    test.fail();
+    await startGameWithBoard(page, boardWithLongNames(6));
+    await expectFitsWindow(await openTv(page));
+  });
+});
+
+test.describe('TV sin desplazamiento en 1280x720', () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test('8 categorías largas en x10, con 8 equipos y equipo que elige, caben en la ventana', async ({
+    page,
+  }) => {
+    test.fail();
+    const other = makeCompleteBoard({ id: 'e2e-otra-ronda', title: 'Otra ronda' });
+    await setupRounds(page, [boardWithLongNames(8), other]);
+    await setTeams(page, EIGHT_TEAMS);
+    await page.getByLabel('Multiplicador de la ronda 1').fill('10');
+    await page.getByLabel('Tablero de la ronda 2').selectOption({ label: 'Otra ronda' });
+    await page.getByRole('button', { name: 'Comenzar juego' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+    await setControlTeam(page);
+    const tv = await openTv(page);
+    await expect(tv.getByText('Ronda 1 de 2 · x10')).toBeVisible();
+    await expect(tv.getByText('Elige: Primos')).toBeVisible();
+    await expect(tv.getByRole('list', { name: 'Puntajes' }).getByRole('listitem')).toHaveCount(8);
+    await expectFitsWindow(tv);
+  });
+
+  test('3 categorías y 1 equipo caben en la ventana', async ({ page }) => {
+    test.fail();
+    const board = makeCompleteBoard({ id: 'e2e-tv-uno' }, 3);
+    await page.goto('./');
+    await seedBoards(page, [board]);
+    await page.goto(`./#/boards/${board.id}/play`);
+    await setTeams(page, ['Primos']);
+    await page.getByRole('button', { name: 'Comenzar juego' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Operador' })).toBeVisible();
+    await expectFitsWindow(await openTv(page));
+  });
+});

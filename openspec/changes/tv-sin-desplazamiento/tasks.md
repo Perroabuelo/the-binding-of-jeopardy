@@ -2,7 +2,7 @@
 
 ## 1. Pruebas que muestran el problema
 
-- [ ] 1.1 En `e2e/game.spec.ts`, agregar el helper `expectFitsWindow(tv)` y los tres casos del diseño: 1920x1080 con 6 categorías largas y 2 equipos; 1280x720 con 8 categorías largas, ronda x10, 8 equipos y equipo que elige (escribiendo `controlTeamId` en la sesión guardada y recargando el operador); y 1280x720 con 3 categorías y 1 equipo. Marcarlos con `test.fail()` para dejar registrado que hoy fallan. Verificar con `npm run test:e2e`: los tres casos se reportan como fallas esperadas y el resto pasa.
+- [x] 1.1 En `e2e/game.spec.ts`, agregar el helper `expectFitsWindow(tv)` y los tres casos del diseño: 1920x1080 con 6 categorías largas y 2 equipos; 1280x720 con 8 categorías largas, ronda x10, 8 equipos y equipo que elige (escribiendo `controlTeamId` en la sesión guardada y recargando el operador); y 1280x720 con 3 categorías y 1 equipo. Marcarlos con `test.fail()` para dejar registrado que hoy fallan. Verificar con `npm run test:e2e`: los tres casos se reportan como fallas esperadas y el resto pasa.
 
 ## 2. Corrección
 
