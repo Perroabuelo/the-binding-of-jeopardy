@@ -102,7 +102,8 @@ describe('projectForDevices', () => {
       { type: 'buzz', teamId: 't1', deviceId: 'd1', deviceLabel: 'Android 2' },
       7_000,
     );
-    const { common } = projectForDevices(session)!;
+    const { common, answeringDeviceId } = projectForDevices(session)!;
+    expect(answeringDeviceId).toBe('d1');
     expect(common.buzz).toEqual({
       status: 'answering',
       answeringTeamId: 't1',

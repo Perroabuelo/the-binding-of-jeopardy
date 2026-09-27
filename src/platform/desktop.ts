@@ -13,6 +13,8 @@ export interface LanDevice {
   deviceId: string;
   label: string;
   connectedAt: number;
+  /** Equipo al que está unido, en un juego con pulsadores. */
+  teamId?: string;
 }
 
 export type NetworkCategory = 'public' | 'private' | 'domain' | 'unknown';

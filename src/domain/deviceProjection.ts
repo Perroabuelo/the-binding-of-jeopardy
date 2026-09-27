@@ -40,6 +40,11 @@ export interface DeviceGameView {
   common: DeviceCommonView;
   /** Por id de equipo: cada celular recibe solo la entrada de su equipo. */
   perTeam: Record<string, DeviceTeamView>;
+  /**
+   * Dispositivo cuyo toque ganó. Solo para el hub, que marca `youWon` en ese socket: nunca se
+   * reenvía a los celulares.
+   */
+  answeringDeviceId?: string;
 }
 
 /**
@@ -59,6 +64,7 @@ export function projectForDevices(session: GameSession | null): DeviceGameView |
     session.teams.map((team) => [team.id, {}]),
   );
 
+  let answeringDeviceId: string | undefined;
   switch (phase.kind) {
     case 'board':
     case 'roundBreak':
@@ -80,6 +86,7 @@ export function projectForDevices(session: GameSession | null): DeviceGameView |
             answerEndsAt: buzz.answering.startedAt + BUZZ_ANSWER_MS,
           }),
         };
+        answeringDeviceId = buzz.answering?.deviceId;
       }
       break;
     }
@@ -116,5 +123,5 @@ export function projectForDevices(session: GameSession | null): DeviceGameView |
       break;
     }
   }
-  return { common, perTeam };
+  return { common, perTeam, ...(answeringDeviceId && { answeringDeviceId }) };
 }

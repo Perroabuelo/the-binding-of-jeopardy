@@ -43,6 +43,14 @@ export type DeviceServerMessage =
   /** Estado del juego para este celular; null sin un juego con pulsadores en curso. */
   | { type: 'game'; view: PhoneView | null };
 
+/**
+ * Proceso principal -> operador (IPC): lo que hizo un celular. El equipo y la etiqueta salen del
+ * registro del hub, así que un celular no puede actuar por otro equipo.
+ */
+export type DeviceEvent = { deviceId: string; deviceLabel: string; teamId: string } & (
+  { type: 'buzz' } | { type: 'finalWager'; amount: number } | { type: 'finalAnswer'; text: string }
+);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

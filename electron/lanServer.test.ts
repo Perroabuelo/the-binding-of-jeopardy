@@ -192,7 +192,12 @@ describe('dispositivos por WebSocket', () => {
     for (const msg of client.received) {
       expect(isDeviceServerMessage(msg)).toBe(true);
       const keys = Object.keys(msg as object).sort();
-      expect(keys).toEqual(['serverTime', 'type']);
+      // Sin juego publicado, `game` va vacío.
+      if ((msg as { type: string }).type === 'game') {
+        expect(msg).toEqual({ type: 'game', view: null });
+      } else {
+        expect(keys).toEqual(['serverTime', 'type']);
+      }
     }
   });
 });
