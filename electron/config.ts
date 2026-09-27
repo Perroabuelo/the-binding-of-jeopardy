@@ -1,12 +1,11 @@
 import path from 'node:path';
 import { app } from 'electron';
+import { PREFERRED_LAN_PORT } from './lanServer';
 
 /**
  * Rutas y puerto de la app. Las pruebas los reemplazan con variables de entorno, que solo
  * se leen si están definidas.
  */
-export const LAN_PORT_RANGE_SIZE = 10;
-const DEFAULT_LAN_PORT = 47470;
 
 /** Debe llamarse antes de `app.ready` para que IndexedDB y localStorage usen esta carpeta. */
 export function applyUserDataOverride(): void {
@@ -24,5 +23,5 @@ export function preferredLanPort(): number {
   const override = Number(process.env.JEOPARDY_LAN_PORT);
   return Number.isInteger(override) && override > 0 && override < 65536
     ? override
-    : DEFAULT_LAN_PORT;
+    : PREFERRED_LAN_PORT;
 }

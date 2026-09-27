@@ -4,6 +4,8 @@ import { app, BrowserWindow, ipcMain, protocol, screen, session } from 'electron
 import { SITE_BASE } from '../site.config';
 import type { DesktopIpcChannel } from '../src/platform/desktop';
 import { applyUserDataOverride } from './config';
+import { startLan } from './lan';
+import type { LanServer } from './lanServer';
 import { mimeType, resolveStaticPath } from './static';
 import { pickTvDisplay, TV_WINDOW_SIZE } from './windows';
 
@@ -66,6 +68,7 @@ function createAppWindow(options: Electron.BrowserWindowConstructorOptions = {})
 
 let operatorWindow: BrowserWindow | null = null;
 let tvWindow: BrowserWindow | null = null;
+let lanServer: LanServer | null = null;
 
 function createOperatorWindow(): BrowserWindow {
   const window = createAppWindow({ width: 1280, height: 800 });
@@ -144,6 +147,16 @@ if (!app.requestSingleInstanceLock()) {
     // Por si una versión anterior hubiera dejado un service worker registrado.
     await session.defaultSession.clearStorageData({ storages: ['serviceworkers'] });
     protocol.handle(APP_SCHEME, serveAppFile);
+    lanServer = await startLan({ distDir, base: SITE_BASE });
     operatorWindow = createOperatorWindow();
+  });
+
+  // El servidor de la red local se detiene al cerrar la app.
+  app.on('will-quit', (event) => {
+    if (!lanServer) return;
+    const server = lanServer;
+    lanServer = null;
+    event.preventDefault();
+    void server.close().finally(() => app.quit());
   });
 }

@@ -40,7 +40,7 @@
   - Se descartan loopback, 169.254 e IPv6.
   - Sin interfaces privadas, el resultado está vacío.
   - El parser acepta un objeto y un arreglo, y ante JSON inválido o salida vacía devuelve `unknown`.
-- [ ] 3.3 Crear `electron/lanServer.ts`:
+- [x] 3.3 Crear `electron/lanServer.ts`:
   - `pickPort` en el rango 47470–47479.
   - Rutas: `/` redirige a `#/unirse`, los estáticos bajo `SITE_BASE` con `no-cache` para `index.html`, `/ws` y 404 para todo lo demás.
   - Conexión con el hub.
