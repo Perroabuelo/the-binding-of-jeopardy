@@ -6,7 +6,14 @@ import { gameReducer, startGame, type GameSession, type TvView } from '../../dom
 import { getSession, putImage, saveSession } from '../../storage/db';
 import { createMemoryBus, type MemoryBus, type SyncMessage } from '../../sync';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
-import { installDesktop, uninstallDesktop } from '../../../tests/fixtures/desktop';
+import {
+  installDesktop,
+  makeFakeDesktop,
+  makeLanStatus,
+  uninstallDesktop,
+  type FakeDesktop,
+} from '../../../tests/fixtures/desktop';
+import type { DeviceGameView } from '../../domain/deviceProjection';
 import { OperatorScreen } from './OperatorScreen';
 
 const SESSION_ID = 'sesion-prueba';
@@ -820,6 +827,95 @@ describe('OperatorScreen: Final', () => {
     expect(play).not.toHaveBeenCalled();
   });
 
+  describe('envíos desde los celulares', () => {
+    const withBuzzers = (session: GameSession): GameSession => ({
+      ...session,
+      buzzersEnabled: true,
+    });
+    const submitWager = (teamId: string, amount: number, deviceLabel: string) => ({
+      type: 'submitFinalWager' as const,
+      teamId,
+      amount,
+      deviceId: `d-${deviceLabel}`,
+      deviceLabel,
+    });
+    const submitAnswer = (teamId: string, text: string, deviceLabel: string) => ({
+      type: 'submitFinalAnswer' as const,
+      teamId,
+      text,
+      deviceId: `d-${deviceLabel}`,
+      deviceLabel,
+    });
+
+    it('en las apuestas muestra "Enviada desde …" o "Pendiente" y deja el campo manual', async () => {
+      const session = gameReducer(
+        withBuzzers(finalSession()),
+        submitWager('equipo-1', 500, 'Android'),
+        1,
+      );
+      await renderOperator(withWagers(session, { 'equipo-2': 100 }));
+      const primos = screen.getByRole('listitem', { name: 'Primos' });
+      expect(primos).toHaveTextContent('Apuesta anotada: 500');
+      expect(primos).toHaveTextContent('Enviada desde Android');
+      expect(screen.getByRole('listitem', { name: 'Abuelos' })).toHaveTextContent('Pendiente');
+      // Anotada a mano: ni enviada ni pendiente
+      const tios = screen.getByRole('listitem', { name: 'Tíos' });
+      expect(tios).not.toHaveTextContent('Enviada desde');
+      expect(tios).not.toHaveTextContent('Pendiente');
+      expect(screen.getByLabelText('Apuesta de Primos')).toBeEnabled();
+    });
+
+    it('corregir a mano una apuesta enviada quita "Enviada desde"', async () => {
+      const user = userEvent.setup();
+      const session = gameReducer(
+        withBuzzers(finalSession()),
+        submitWager('equipo-1', 500, 'Android'),
+        1,
+      );
+      await renderOperator(session);
+      await user.clear(screen.getByLabelText('Apuesta de Primos'));
+      await user.type(screen.getByLabelText('Apuesta de Primos'), '400');
+      await user.click(screen.getByRole('button', { name: 'Anotar apuesta de Primos' }));
+      const primos = screen.getByRole('listitem', { name: 'Primos' });
+      expect(primos).toHaveTextContent('Apuesta anotada: 400');
+      expect(primos).not.toHaveTextContent('Enviada desde');
+    });
+
+    it('sin pulsadores no muestra el origen de las apuestas', async () => {
+      await renderOperator(finalSession());
+      expect(finalRegion()).not.toHaveTextContent('Pendiente');
+    });
+
+    it('en la pista marca qué equipos respondieron, sin mostrar el texto', async () => {
+      const session = gameReducer(
+        withBuzzers(inClue()),
+        submitAnswer('equipo-2', '¿Qué es un pastel?', 'iPhone'),
+        Date.now(),
+      );
+      await renderOperator(session);
+      const list = screen.getByRole('list', { name: 'Respuestas desde los celulares' });
+      expect(
+        within(list)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Tíos: respondió', 'Abuelos: sin respuesta', 'Primos: sin respuesta']);
+      expect(document.body).not.toHaveTextContent('¿Qué es un pastel?');
+    });
+
+    it('en la revelación muestra la respuesta enviada del equipo en turno', async () => {
+      let session = gameReducer(
+        withBuzzers(inClue()),
+        submitAnswer('equipo-2', '¿Qué es un pastel?', 'iPhone'),
+        Date.now(),
+      );
+      session = gameReducer(session, { type: 'startFinalReveal' }, 1);
+      await renderOperator(session);
+      const current = screen.getByRole('region', { name: 'En turno: Tíos' });
+      expect(current).toHaveTextContent('Respuesta enviada desde iPhone: ¿Qué es un pastel?');
+      expect(within(current).getByRole('button', { name: 'Acertó' })).toBeInTheDocument();
+    });
+  });
+
   it('al recargar en la revelación sigue con el siguiente equipo sin rejuzgar', async () => {
     const session = gameReducer(
       inReveal(),
@@ -837,3 +933,253 @@ function scoreItemInPodium(name: string, score: number) {
     name: new RegExp(`${name}, ${score} puntos$`),
   });
 }
+
+describe('OperatorScreen: publicación a los celulares', () => {
+  afterEach(() => {
+    uninstallDesktop();
+  });
+
+  function buzzSession(): GameSession {
+    return makeSession(['Primos', 'Tíos'], { buzzersEnabled: true });
+  }
+
+  /** Pregunta c0-r0 abierta con los pulsadores activos. */
+  function armedSession(): GameSession {
+    const opened = gameReducer(buzzSession(), { type: 'openClue', clueKey: 'c0-r0' }, 1);
+    return gameReducer(opened, { type: 'armBuzzers' }, 1);
+  }
+
+  const buzzEvent = (teamId: string, deviceId: string) => ({
+    type: 'buzz' as const,
+    teamId,
+    deviceId,
+    deviceLabel: deviceId,
+  });
+
+  function lastPublished(fake: FakeDesktop): DeviceGameView | null | undefined {
+    const calls = vi.mocked(fake.api.lan.publishGame).mock.calls;
+    return calls.at(-1)?.[0];
+  }
+
+  it('dos toques en el mismo instante dejan como ganador al primero', async () => {
+    const fake = installDesktop();
+    await renderOperator(armedSession());
+    await waitFor(() => expect(lastPublished(fake)?.common.buzz?.status).toBe('armed'));
+
+    act(() => {
+      fake.emitDeviceEvent(buzzEvent('equipo-2', 'celu-tios'));
+      fake.emitDeviceEvent(buzzEvent('equipo-1', 'celu-primos'));
+    });
+
+    await waitFor(() =>
+      expect(lastPublished(fake)?.common.buzz).toMatchObject({
+        status: 'answering',
+        answeringTeamId: 'equipo-2',
+      }),
+    );
+    expect(lastPublished(fake)?.answeringDeviceId).toBe('celu-tios');
+    await waitFor(async () => {
+      const saved = await getSession(SESSION_ID);
+      expect(saved?.phase).toMatchObject({ buzz: { answering: { teamId: 'equipo-2' } } });
+    });
+  });
+
+  it('publica la proyección en cada cambio y null al desmontar', async () => {
+    const user = userEvent.setup();
+    const fake = installDesktop();
+    const view = await renderOperator(buzzSession());
+    await waitFor(() => expect(lastPublished(fake)?.common.stage).toBe('board'));
+
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    await waitFor(() =>
+      expect(lastPublished(fake)?.common).toMatchObject({
+        stage: 'clue',
+        buzz: { status: 'closed' },
+      }),
+    );
+    expect(JSON.stringify(vi.mocked(fake.api.lan.publishGame).mock.calls)).not.toMatch(
+      /Pregunta|Respuesta|Categoría/,
+    );
+
+    view.unmount();
+    expect(lastPublished(fake)).toBeNull();
+    expect(fake.api.lan.onDeviceEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('un envío del Final desde un celular llega al reducer', async () => {
+    const fake = installDesktop();
+    const board = makeCompleteBoard({
+      final: { category: 'Cumple', question: 'Pregunta final', answer: 'Respuesta final' },
+    });
+    let n = 0;
+    let session = startGame([{ board, multiplier: 1 }], ['Primos'], {
+      sessionId: SESSION_ID,
+      now: 1,
+      makeTeamId: () => `equipo-${++n}`,
+      withFinal: true,
+      withBuzzers: true,
+    });
+    session = gameReducer(session, { type: 'setScore', teamId: 'equipo-1', score: 800 }, 1);
+    session = gameReducer(session, { type: 'finish' }, 1);
+    await renderOperator(session);
+
+    act(() => {
+      fake.emitDeviceEvent({
+        type: 'finalWager',
+        teamId: 'equipo-1',
+        amount: 500,
+        deviceId: 'celu-1',
+        deviceLabel: 'Android',
+      });
+    });
+    await waitFor(() =>
+      expect(lastPublished(fake)?.perTeam['equipo-1']?.final?.wager).toEqual({
+        amount: 500,
+        deviceLabel: 'Android',
+      }),
+    );
+  });
+
+  it('en la web no publica nada', async () => {
+    const fake = makeFakeDesktop();
+    await renderOperator(buzzSession());
+    await waitFor(() => expect(lastTvView()).toBeDefined());
+    expect(fake.api.lan.publishGame).not.toHaveBeenCalled();
+    expect(fake.api.lan.onDeviceEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe('OperatorScreen: pulsadores', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    uninstallDesktop();
+  });
+
+  /** Primos (equipo-1), Tíos (equipo-2) y Abuelos (equipo-3), con pulsadores; c0-r1 es Daily Double. */
+  function buzzSession(): GameSession {
+    const session = makeSession(['Primos', 'Tíos', 'Abuelos'], { buzzersEnabled: true });
+    session.rounds[0]!.boardSnapshot.categories[0]!.clues[1]!.dailyDouble = true;
+    return session;
+  }
+
+  function buzzRegion() {
+    return screen.getByRole('region', { name: 'Pulsadores' });
+  }
+
+  function answering(teamId: string, at = Date.now()): GameSession {
+    let session = gameReducer(buzzSession(), { type: 'openClue', clueKey: 'c0-r2' }, at);
+    session = gameReducer(session, { type: 'armBuzzers' }, at);
+    return gameReducer(
+      session,
+      { type: 'buzz', teamId, deviceId: 'celu', deviceLabel: 'Android 2' },
+      at,
+    );
+  }
+
+  it('activar y cerrar los pulsadores', async () => {
+    const user = userEvent.setup();
+    installDesktop();
+    await renderOperator(buzzSession());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    await user.click(within(buzzRegion()).getByRole('button', { name: 'Activar pulsadores' }));
+    expect(within(buzzRegion()).getByRole('status')).toHaveTextContent('Pulsadores activos…');
+    await user.click(within(buzzRegion()).getByRole('button', { name: 'Cerrar pulsadores' }));
+    expect(
+      within(buzzRegion()).getByRole('button', { name: 'Activar pulsadores' }),
+    ).toBeInTheDocument();
+    expect(scoreItem('Primos', 0)).toBeInTheDocument();
+  });
+
+  it('con un equipo respondiendo muestra quién, la cuenta de 5 s y el valor en juego', async () => {
+    await renderOperator(answering('equipo-2'));
+    const region = buzzRegion();
+    expect(within(region).getByRole('status')).toHaveTextContent('Responde: Tíos (Android 2)');
+    expect(region).toHaveTextContent('5 s');
+    expect(within(region).getByRole('button', { name: 'Correcta (+300)' })).toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: 'Incorrecta (−300)' })).not.toHaveAttribute(
+      'data-highlighted',
+    );
+    expect(within(region).getByRole('button', { name: 'Cerrar pulsadores' })).toBeInTheDocument();
+    // Los botones manuales siguen disponibles
+    expect(screen.getByRole('button', { name: 'Sumar 300 a Abuelos' })).toBeInTheDocument();
+  });
+
+  it('a los 5 s muestra ¡Tiempo! y resalta Incorrecta sin cambiar puntajes', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    const session = answering('equipo-2');
+    await saveSession(session);
+    render(<OperatorScreen sessionId={session.id} />);
+    await vi.waitFor(() => screen.getByRole('region', { name: 'Pulsadores' }));
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(buzzRegion()).toHaveTextContent('3 s');
+    act(() => vi.advanceTimersByTime(3_000));
+    expect(buzzRegion()).toHaveTextContent('¡Tiempo!');
+    expect(screen.getByRole('button', { name: 'Incorrecta (−300)' })).toHaveAttribute(
+      'data-highlighted',
+      'true',
+    );
+    expect(scoreItem('Tíos', 0)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Correcta (+300)' })).toBeEnabled();
+  });
+
+  it('Incorrecta resta, reabre y deja visibles los fallados', async () => {
+    const user = userEvent.setup();
+    await renderOperator(answering('equipo-2'));
+    await user.click(screen.getByRole('button', { name: 'Incorrecta (−300)' }));
+    expect(scoreItem('Tíos', -300)).toBeInTheDocument();
+    expect(within(buzzRegion()).getByRole('status')).toHaveTextContent('Pulsadores activos…');
+    expect(buzzRegion()).toHaveTextContent('Fallaron: Tíos');
+  });
+
+  it('Correcta suma, cierra y muestra quién elige', async () => {
+    const user = userEvent.setup();
+    await renderOperator(answering('equipo-1'));
+    expect(screen.queryByText(/^Elige:/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Correcta (+300)' }));
+    expect(scoreItem('Primos', 300)).toBeInTheDocument();
+    expect(screen.getByText('Elige: Primos')).toBeInTheDocument();
+    expect(
+      within(buzzRegion()).getByRole('button', { name: 'Activar pulsadores' }),
+    ).toBeInTheDocument();
+  });
+
+  it('en un Daily Double no aparece Activar pulsadores', async () => {
+    const user = userEvent.setup();
+    await renderOperator(buzzSession());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 200, Daily Double' }));
+    await user.type(screen.getByLabelText('Apuesta'), '100');
+    await user.click(screen.getByRole('button', { name: 'Registrar apuesta' }));
+    expect(screen.getByRole('region', { name: 'Pregunta abierta' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar pulsadores' })).not.toBeInTheDocument();
+  });
+
+  it('sin pulsadores no aparece Activar pulsadores', async () => {
+    const user = userEvent.setup();
+    await renderOperator(makeSession());
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    expect(screen.queryByRole('region', { name: 'Pulsadores' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Activar pulsadores' })).not.toBeInTheDocument();
+  });
+
+  it('la lista de dispositivos muestra el equipo de cada uno', async () => {
+    const user = userEvent.setup();
+    installDesktop(
+      makeFakeDesktop(
+        makeLanStatus({
+          devices: [
+            { deviceId: 'a', label: 'Android', connectedAt: 1, teamId: 'equipo-2' },
+            { deviceId: 'b', label: 'iPhone', connectedAt: 2 },
+          ],
+        }),
+      ),
+    );
+    await renderOperator(buzzSession());
+    await user.click(screen.getByRole('button', { name: 'Conectar dispositivos' }));
+    const list = await screen.findByRole('list', { name: 'Dispositivos conectados' });
+    expect(
+      within(list)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Android · Tíos', 'iPhone · Sin equipo']);
+  });
+});

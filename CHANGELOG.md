@@ -8,6 +8,20 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [1.1.0] - 2026-09-27
+
+### Agregado
+
+- Pulsadores: en la app de escritorio, cada invitado escanea el QR, elige su equipo y usa su
+  celular como botón.
+- El operador activa los pulsadores después de leer la pregunta. Si alguien toca antes, queda
+  bloqueado un instante.
+- El equipo que pulsa tiene 5 segundos para responder, con la cuenta regresiva a la vista de todos.
+- Una respuesta incorrecta resta los puntos y le da la oportunidad a los demás equipos.
+- En la TV se ve qué equipo responde y quién elige la siguiente pregunta.
+- En el Final, cada equipo envía su apuesta y su respuesta en secreto desde el celular. Ya no hace
+  falta papel.
+
 ## [1.0.0] - 2026-09-26
 
 Primera versión de escritorio. No hay cambios incompatibles para la web.

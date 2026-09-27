@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { makeCompleteBoard } from '../../tests/fixtures/board';
 import { allClueKeys, clueKey, type Board, type ClueKey } from './board';
 import {
+  BUZZ_ANSWER_MS,
+  buzzTimeRemaining,
   clueValueInPlay,
   endBoard,
   endRound,
@@ -17,6 +19,7 @@ import {
   sessionBoards,
   startGame,
   validateRounds,
+  type BuzzState,
   type FinalPhase,
   type GameAction,
   type GameSession,
@@ -1145,5 +1148,369 @@ describe('Final: revelación', () => {
     const session = play(enterFinal({ Primos: 800 }), { type: 'finish' });
     expect(session.phase).toEqual({ kind: 'finished' });
     expect(scoreOf(session, 't0')).toBe(800);
+  });
+});
+
+/** Juego con pulsadores y los equipos t0, t1, t2…; la celda c0-r1 es Daily Double. */
+function buzzGame(names: string[] = ['Primos', 'Tíos', 'Abuelos'], multiplier = 1): GameSession {
+  const board = makeCompleteBoard();
+  board.categories[0]!.clues[1]!.dailyDouble = true;
+  return startGame([{ board, multiplier }], names, {
+    sessionId: 's1',
+    now: T0,
+    makeTeamId: (index) => `t${index}`,
+    withBuzzers: true,
+  });
+}
+
+function buzzOf(session: GameSession): BuzzState {
+  if (session.phase.kind !== 'clue' || !session.phase.buzz) {
+    throw new Error(`Fase ${session.phase.kind} sin pulsadores`);
+  }
+  return session.phase.buzz;
+}
+
+const buzz = (teamId: string): GameAction => ({
+  type: 'buzz',
+  teamId,
+  deviceId: `d-${teamId}`,
+  deviceLabel: `Android ${teamId}`,
+});
+const arm: GameAction = { type: 'armBuzzers' };
+const judgeBuzz = (correct: boolean): GameAction => ({ type: 'judgeBuzz', correct });
+
+describe('Pulsadores: apertura', () => {
+  it('startGame guarda buzzersEnabled según withBuzzers', () => {
+    expect(buzzGame().buzzersEnabled).toBe(true);
+    expect(newGame().buzzersEnabled).toBeUndefined();
+  });
+
+  it('openClue con pulsadores crea los pulsadores cerrados', () => {
+    const next = play(buzzGame(), openClue('c0-r0'));
+    expect(next.phase).toEqual({
+      kind: 'clue',
+      clueKey: 'c0-r0',
+      revealed: false,
+      buzz: { status: 'closed', failedTeamIds: [] },
+    });
+  });
+
+  it('openClue sin pulsadores no crea buzz', () => {
+    expect(play(newGame(), openClue('c0-r0')).phase).toEqual({
+      kind: 'clue',
+      clueKey: 'c0-r0',
+      revealed: false,
+    });
+  });
+
+  it('un Daily Double queda sin pulsadores después de placeWager', () => {
+    const session = play(buzzGame(), openClue('c0-r1'), placeWager('t0', 100));
+    expect(session.phase).toEqual({
+      kind: 'clue',
+      clueKey: 'c0-r1',
+      revealed: false,
+      wager: { teamId: 't0', amount: 100 },
+    });
+    expect(gameReducer(session, arm, T1)).toBe(session);
+  });
+});
+
+describe('Pulsadores: armar, tocar y cerrar', () => {
+  it('armBuzzers → buzz pasa a answering con el equipo y el dispositivo', () => {
+    const armed = play(buzzGame(), openClue('c0-r0'), arm);
+    expect(buzzOf(armed)).toEqual({ status: 'armed', failedTeamIds: [] });
+    const answering = gameReducer(armed, buzz('t1'), 7_000);
+    expect(buzzOf(answering)).toEqual({
+      status: 'answering',
+      answering: { teamId: 't1', deviceId: 'd-t1', deviceLabel: 'Android t1', startedAt: 7_000 },
+      failedTeamIds: [],
+    });
+  });
+
+  it('un segundo buzz devuelve la misma referencia', () => {
+    const answering = play(buzzGame(), openClue('c0-r0'), arm, buzz('t1'));
+    expect(gameReducer(answering, buzz('t0'), T1)).toBe(answering);
+  });
+
+  it('buzz sin armar, de un equipo inexistente o fallado no cuenta', () => {
+    const closed = play(buzzGame(), openClue('c0-r0'));
+    expect(gameReducer(closed, buzz('t0'), T1)).toBe(closed);
+    const armed = play(closed, arm);
+    expect(gameReducer(armed, buzz('nadie'), T1)).toBe(armed);
+    const reopened = play(armed, buzz('t1'), judgeBuzz(false));
+    expect(buzzOf(reopened).status).toBe('armed');
+    expect(gameReducer(reopened, buzz('t1'), T1)).toBe(reopened);
+  });
+
+  it('closeBuzzers vuelve a cerrado sin cambiar puntajes ni fallados', () => {
+    const answering = play(
+      buzzGame(),
+      openClue('c0-r0'),
+      arm,
+      buzz('t1'),
+      judgeBuzz(false),
+      buzz('t0'),
+    );
+    const closed = play(answering, { type: 'closeBuzzers' });
+    expect(buzzOf(closed)).toEqual({ status: 'closed', failedTeamIds: ['t1'] });
+    expect(closed.teams).toEqual(answering.teams);
+    expect(gameReducer(closed, { type: 'closeBuzzers' }, T1)).toBe(closed);
+    expect(buzzOf(play(closed, arm)).status).toBe('armed');
+  });
+
+  it('las acciones de pulsadores no valen sin pulsadores', () => {
+    const session = play(newGame(), openClue('c0-r0'));
+    const actions: GameAction[] = [arm, buzz('t0'), judgeBuzz(true), { type: 'closeBuzzers' }];
+    for (const action of actions) expect(gameReducer(session, action, T1)).toBe(session);
+  });
+});
+
+describe('Pulsadores: juzgar', () => {
+  it('correcta suma el valor, fija el equipo que elige y cierra', () => {
+    // c0-r3 vale 400
+    const session = play(
+      buzzGame(),
+      { type: 'setScore', teamId: 't0', score: 100 },
+      openClue('c0-r3'),
+      arm,
+      buzz('t0'),
+      judgeBuzz(true),
+    );
+    expect(scoreOf(session, 't0')).toBe(500);
+    expect(session.controlTeamId).toBe('t0');
+    expect(buzzOf(session)).toEqual({ status: 'closed', failedTeamIds: [] });
+  });
+
+  it('correcta en una ronda x2 suma el valor multiplicado', () => {
+    const session = play(
+      buzzGame(['Primos', 'Tíos'], 2),
+      { type: 'setScore', teamId: 't0', score: 100 },
+      openClue('c0-r3'),
+      arm,
+      buzz('t0'),
+      judgeBuzz(true),
+    );
+    expect(scoreOf(session, 't0')).toBe(900);
+  });
+
+  it('otro acierto cambia el equipo que elige', () => {
+    let session = play(buzzGame(), openClue('c0-r0'), arm, buzz('t0'), judgeBuzz(true));
+    session = play(session, { type: 'backToBoard' }, openClue('c1-r0'), arm, buzz('t1'));
+    expect(session.controlTeamId).toBe('t0');
+    expect(play(session, judgeBuzz(true)).controlTeamId).toBe('t1');
+  });
+
+  it('incorrecta resta, agrega a los fallados y rearma', () => {
+    // c0-r2 vale 300
+    const session = play(buzzGame(), openClue('c0-r2'), arm, buzz('t1'), judgeBuzz(false));
+    expect(scoreOf(session, 't1')).toBe(-300);
+    expect(buzzOf(session)).toEqual({ status: 'armed', failedTeamIds: ['t1'] });
+    expect(session.controlTeamId).toBeUndefined();
+  });
+
+  it('con todos los equipos fallados queda cerrado y armBuzzers no hace nada', () => {
+    const session = play(
+      buzzGame(['Primos', 'Tíos']),
+      openClue('c0-r0'),
+      arm,
+      buzz('t0'),
+      judgeBuzz(false),
+      buzz('t1'),
+      judgeBuzz(false),
+    );
+    expect(buzzOf(session)).toEqual({ status: 'closed', failedTeamIds: ['t0', 't1'] });
+    expect(gameReducer(session, arm, T1)).toBe(session);
+  });
+
+  it('judgeBuzz sin un equipo respondiendo no hace nada', () => {
+    const armed = play(buzzGame(), openClue('c0-r0'), arm);
+    expect(gameReducer(armed, judgeBuzz(true), T1)).toBe(armed);
+  });
+
+  it('award y setScore siguen funcionando con un equipo respondiendo', () => {
+    const answering = play(buzzGame(), openClue('c0-r0'), arm, buzz('t1'));
+    const awarded = play(answering, { type: 'award', teamId: 't2', direction: 1 });
+    expect(scoreOf(awarded, 't2')).toBe(100);
+    const set = play(awarded, { type: 'setScore', teamId: 't0', score: 50 });
+    expect(scoreOf(set, 't0')).toBe(50);
+    expect(buzzOf(set).status).toBe('answering');
+  });
+});
+
+describe('Pulsadores: tiempo para responder', () => {
+  it('BUZZ_ANSWER_MS es 5 s', () => {
+    expect(BUZZ_ANSWER_MS).toBe(5_000);
+  });
+
+  it.each([
+    [0, 5_000],
+    [2_000, 3_000],
+    [5_000, 0],
+    [9_000, 0],
+  ])('buzzTimeRemaining a los %i ms es %i', (elapsed, remaining) => {
+    const answering = gameReducer(play(buzzGame(), openClue('c0-r0'), arm), buzz('t0'), 50_000);
+    expect(buzzTimeRemaining(buzzOf(answering), 50_000 + elapsed)).toBe(remaining);
+  });
+
+  it('buzzTimeRemaining es null fuera de answering', () => {
+    const armed = play(buzzGame(), openClue('c0-r0'), arm);
+    expect(buzzTimeRemaining(buzzOf(armed), T1)).toBeNull();
+    expect(buzzTimeRemaining(undefined, T1)).toBeNull();
+  });
+
+  it('con el tiempo en 0 nada cambia solo y correcta sigue sumando', () => {
+    const answering = gameReducer(play(buzzGame(), openClue('c0-r0'), arm), buzz('t0'), 0);
+    const revealed = gameReducer(answering, { type: 'reveal' }, 60_000);
+    expect(buzzOf(revealed).status).toBe('answering');
+    const judged = gameReducer(answering, judgeBuzz(true), 60_000);
+    expect(scoreOf(judged, 't0')).toBe(100);
+  });
+
+  it('tras incorrecta, el siguiente buzz tiene un startedAt nuevo', () => {
+    let session = gameReducer(play(buzzGame(), openClue('c0-r0'), arm), buzz('t0'), 10_000);
+    session = gameReducer(session, judgeBuzz(false), 12_000);
+    session = gameReducer(session, buzz('t1'), 20_000);
+    expect(buzzOf(session).answering?.startedAt).toBe(20_000);
+    expect(buzzTimeRemaining(buzzOf(session), 20_000)).toBe(5_000);
+  });
+});
+
+describe('Pulsadores: sesión anterior', () => {
+  it('una sesión sin los campos nuevos se juega sin pulsadores', () => {
+    const session = { ...buzzGame() };
+    delete session.buzzersEnabled;
+    const opened = play(session, openClue('c0-r0'));
+    expect(opened.phase).toEqual({ kind: 'clue', clueKey: 'c0-r0', revealed: false });
+    expect(gameReducer(opened, arm, T1)).toBe(opened);
+    expect(scoreOf(play(opened, { type: 'award', teamId: 't0', direction: 1 }), 't0')).toBe(100);
+    expect(opened.controlTeamId).toBeUndefined();
+  });
+});
+
+describe('Final desde el celular: apuestas', () => {
+  const submit = (teamId: string, amount: number, deviceLabel = 'Android'): GameAction => ({
+    type: 'submitFinalWager',
+    teamId,
+    amount,
+    deviceId: `d-${deviceLabel}`,
+    deviceLabel,
+  });
+
+  it('el primer envío queda con su origen y el segundo devuelve la misma referencia', () => {
+    const first = play(enterFinal({ Primos: 800 }), submit('t0', 500, 'Android'));
+    expect(finalPhase(first).wagers).toEqual({ t0: 500 });
+    expect(finalPhase(first).wagerSources).toEqual({
+      t0: { deviceId: 'd-Android', deviceLabel: 'Android' },
+    });
+    expect(first.updatedAt).toBe(T1);
+    expect(gameReducer(first, submit('t0', 300, 'Android 2'), T1)).toBe(first);
+  });
+
+  it('no reemplaza una apuesta anotada por el operador', () => {
+    const session = play(enterFinal({ Primos: 800 }), {
+      type: 'setFinalWager',
+      teamId: 't0',
+      amount: 200,
+    });
+    expect(gameReducer(session, submit('t0', 500), T1)).toBe(session);
+  });
+
+  it.each([801, -1, 2.5, Number.NaN])('rechaza un envío de %d con 800', (amount) => {
+    const session = enterFinal({ Primos: 800 });
+    expect(gameReducer(session, submit('t0', amount), T1)).toBe(session);
+  });
+
+  it('rechaza el envío de un equipo que no participa o no existe', () => {
+    const session = enterFinal({ Primos: 800, Tíos: 0 });
+    expect(gameReducer(session, submit('t1', 0), T1)).toBe(session);
+    expect(gameReducer(session, submit('nadie', 0), T1)).toBe(session);
+  });
+
+  it('solo vale durante las apuestas', () => {
+    const inClue = play(enterFinal({ Primos: 800, Tíos: 400 }), submit('t0', 100), {
+      type: 'showFinalClue',
+    });
+    expect(finalPhase(inClue).stage).toBe('wagers');
+    const ready = play(inClue, submit('t1', 0), { type: 'showFinalClue' });
+    expect(finalPhase(ready).stage).toBe('clue');
+    expect(gameReducer(ready, submit('t1', 5), T1)).toBe(ready);
+  });
+
+  it('setFinalWager sobrescribe una apuesta enviada y borra su origen', () => {
+    const session = play(
+      enterFinal({ Primos: 800, Tíos: 400 }),
+      submit('t0', 500),
+      submit('t1', 100, 'iPhone'),
+      { type: 'setFinalWager', teamId: 't0', amount: 400 },
+    );
+    expect(finalPhase(session).wagers).toEqual({ t0: 400, t1: 100 });
+    expect(finalPhase(session).wagerSources).toEqual({
+      t1: { deviceId: 'd-iPhone', deviceLabel: 'iPhone' },
+    });
+  });
+
+  it('setFinalWager sin envíos no agrega wagerSources', () => {
+    const session = play(enterFinal({ Primos: 800 }), {
+      type: 'setFinalWager',
+      teamId: 't0',
+      amount: 400,
+    });
+    expect(finalPhase(session)).not.toHaveProperty('wagerSources');
+  });
+});
+
+describe('Final desde el celular: respuestas', () => {
+  const answer = (teamId: string, text: string, deviceLabel = 'Android'): GameAction => ({
+    type: 'submitFinalAnswer',
+    teamId,
+    text,
+    deviceId: `d-${deviceLabel}`,
+    deviceLabel,
+  });
+
+  function inClue(): GameSession {
+    return play(
+      enterFinal({ Primos: 800, Tíos: 400, Sobrinos: -200 }),
+      { type: 'setFinalWager', teamId: 't0', amount: 100 },
+      { type: 'setFinalWager', teamId: 't1', amount: 100 },
+      { type: 'showFinalClue' },
+    );
+  }
+
+  it('guarda la respuesta recortada con su origen, y el primer envío queda', () => {
+    const first = play(inClue(), answer('t1', '  ¿Qué es un pastel?  '));
+    expect(finalPhase(first).answers).toEqual({
+      t1: { text: '¿Qué es un pastel?', deviceId: 'd-Android', deviceLabel: 'Android' },
+    });
+    expect(gameReducer(first, answer('t1', 'Otra', 'iPhone'), T1)).toBe(first);
+  });
+
+  it('acepta hasta 200 caracteres y rechaza textos vacíos o más largos', () => {
+    const session = inClue();
+    expect(finalPhase(play(session, answer('t0', 'a'.repeat(200)))).answers?.t0?.text).toHaveLength(
+      200,
+    );
+    expect(gameReducer(session, answer('t0', 'a'.repeat(201)), T1)).toBe(session);
+    expect(gameReducer(session, answer('t0', '   '), T1)).toBe(session);
+  });
+
+  it('rechaza la respuesta de un equipo que no participa', () => {
+    const session = inClue();
+    expect(gameReducer(session, answer('t2', 'Algo'), T1)).toBe(session);
+    expect(gameReducer(session, answer('nadie', 'Algo'), T1)).toBe(session);
+  });
+
+  it('vale con el temporizador corriendo y no con el temporizador en 0', () => {
+    const started = gameReducer(inClue(), { type: 'startFinalTimer' }, 100_000);
+    const inTime = gameReducer(started, answer('t0', 'A tiempo'), 100_000 + FINAL_TIMER_MS - 1);
+    expect(finalPhase(inTime).answers?.t0?.text).toBe('A tiempo');
+    expect(gameReducer(started, answer('t0', 'Tarde'), 100_000 + FINAL_TIMER_MS)).toBe(started);
+  });
+
+  it('no vale durante las apuestas ni en la revelación', () => {
+    const wagers = enterFinal({ Primos: 800 });
+    expect(gameReducer(wagers, answer('t0', 'Algo'), T1)).toBe(wagers);
+    const reveal = play(inClue(), { type: 'startFinalReveal' });
+    expect(gameReducer(reveal, answer('t0', 'Algo'), T1)).toBe(reveal);
   });
 });

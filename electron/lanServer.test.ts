@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
+import type { DeviceGameView } from '../src/domain/deviceProjection';
 import type { ConnectedDevice } from '../src/net/hub';
-import { isDeviceServerMessage } from '../src/net/protocol';
+import { isDeviceServerMessage, type DeviceEvent, type PhoneView } from '../src/net/protocol';
 import { pickPort, portCandidates, startLanServer, type LanServer } from './lanServer';
 
 const BASE = '/the-binding-of-jeopardy/';
@@ -192,10 +193,82 @@ describe('dispositivos por WebSocket', () => {
     for (const msg of client.received) {
       expect(isDeviceServerMessage(msg)).toBe(true);
       const keys = Object.keys(msg as object).sort();
-      expect(keys).toEqual(
-        (msg as { type: string }).type === 'welcome' ? ['serverTime', 'type'] : ['type'],
-      );
+      // Sin juego publicado, `game` va vacío.
+      if ((msg as { type: string }).type === 'game') {
+        expect(msg).toEqual({ type: 'game', view: null });
+      } else {
+        expect(keys).toEqual(['serverTime', 'type']);
+      }
     }
+  });
+});
+
+describe('pulsadores por WebSocket', () => {
+  function view(buzz: NonNullable<DeviceGameView['common']['buzz']>): DeviceGameView {
+    return {
+      common: {
+        sessionId: 'g1',
+        teams: [
+          { id: 'primos', name: 'Primos' },
+          { id: 'tios', name: 'Tíos' },
+        ],
+        stage: 'clue',
+        buzz,
+      },
+      perTeam: {
+        primos: { final: { participating: true, maxWager: 800, wager: { amount: 7531 } } },
+        tios: {},
+      },
+    };
+  }
+
+  function lastGame(received: unknown[]): PhoneView | null | undefined {
+    const games = received.filter((msg) => (msg as { type: string }).type === 'game');
+    return (games.at(-1) as { view: PhoneView | null } | undefined)?.view;
+  }
+
+  it('un toque con los pulsadores activos produce un deviceEvent y el otro equipo ve quién responde', async () => {
+    const events: DeviceEvent[] = [];
+    const server = await startLanServer({
+      distDir,
+      base: BASE,
+      ports: freshPorts(),
+      host: '127.0.0.1',
+      onDevices: () => {},
+      onDeviceEvent: (event) => events.push(event),
+    });
+    cleanups.push(() => server.close());
+    server.publishGame(view({ status: 'armed', failedTeamIds: [] }));
+
+    const primos = connectClient(server.port!);
+    const tios = connectClient(server.port!);
+    await Promise.all([primos.opened, tios.opened]);
+    primos.socket.send(JSON.stringify({ type: 'join', deviceId: 'celu-1', label: 'Android' }));
+    primos.socket.send(JSON.stringify({ type: 'chooseTeam', teamId: 'primos' }));
+    tios.socket.send(JSON.stringify({ type: 'join', deviceId: 'celu-2', label: 'iPhone' }));
+    tios.socket.send(JSON.stringify({ type: 'chooseTeam', teamId: 'tios' }));
+    await waitFor(() => (lastGame(primos.received)?.teamId === 'primos' ? true : undefined));
+    await waitFor(() => (lastGame(tios.received)?.teamId === 'tios' ? true : undefined));
+
+    primos.socket.send(JSON.stringify({ type: 'buzz' }));
+    await waitFor(() => (events.length > 0 ? true : undefined));
+    expect(events).toEqual([
+      { type: 'buzz', deviceId: 'celu-1', deviceLabel: 'Android', teamId: 'primos' },
+    ]);
+
+    // El operador aplica el toque y publica la sesión nueva
+    server.publishGame({
+      ...view({ status: 'answering', answeringTeamId: 'primos', failedTeamIds: [] }),
+      answeringDeviceId: 'celu-1',
+    });
+    const seen = await waitFor(() => {
+      const game = lastGame(tios.received);
+      return game?.buzz?.status === 'answering' ? game : undefined;
+    });
+    expect(seen.buzz?.answeringTeamId).toBe('primos');
+    expect(seen).not.toHaveProperty('youWon');
+    expect(JSON.stringify(tios.received)).not.toMatch(/7531|800|celu-1/);
+    await waitFor(() => (lastGame(primos.received)?.youWon ? true : undefined));
   });
 });
 

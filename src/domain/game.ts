@@ -18,6 +18,10 @@ export const MIN_MULTIPLIER = 1;
 export const MAX_MULTIPLIER = 10;
 /** Duración del temporizador del Final. */
 export const FINAL_TIMER_MS = 30_000;
+/** Tiempo para responder tras ganar el toque. Solo informativo: llegar a 0 no cambia nada. */
+export const BUZZ_ANSWER_MS = 5_000;
+/** Largo máximo de la respuesta del Final enviada desde un celular. */
+export const FINAL_ANSWER_MAX_LENGTH = 200;
 
 export interface Team {
   id: string;
@@ -49,6 +53,24 @@ export interface FinalPhase {
   timerStartedAt?: number;
   judged: { teamId: string; correct: boolean }[];
   answerRevealed: boolean;
+  /** Dispositivo que envió cada apuesta desde un celular. Sin entrada: anotada por el operador. */
+  wagerSources?: Record<string, DeviceSource>;
+  /** Respuestas enviadas desde los celulares, por id de equipo. */
+  answers?: Record<string, DeviceSource & { text: string }>;
+}
+
+export interface DeviceSource {
+  deviceId: string;
+  deviceLabel: string;
+}
+
+/** Estado de los pulsadores en una pregunta abierta de un juego con pulsadores. */
+export interface BuzzState {
+  status: 'closed' | 'armed' | 'answering';
+  /** Presente solo en `answering`. `startedAt`: milisegundos desde epoch del toque ganador. */
+  answering?: { teamId: string; deviceId: string; deviceLabel: string; startedAt: number };
+  /** Equipos que fallaron en esta pregunta. */
+  failedTeamIds: string[];
 }
 
 export type FinalSkipReason = 'noPositiveScores';
@@ -63,6 +85,8 @@ export type GamePhase =
       revealed: boolean;
       /** Presente solo en un Daily Double. */
       wager?: Wager;
+      /** Presente solo en un juego con pulsadores y fuera de un Daily Double. */
+      buzz?: BuzzState;
     }
   /** Transición entre rondas: espera a que el operador inicie la siguiente. */
   | { kind: 'roundBreak'; nextRoundIndex: number }
@@ -88,6 +112,10 @@ export interface GameSession {
   phase: GamePhase;
   /** Se juega el Final al terminar el tablero. Ausente = false. */
   finalEnabled?: boolean;
+  /** Juego con pulsadores (solo en escritorio). Ausente = false. */
+  buzzersEnabled?: boolean;
+  /** Equipo que elige la siguiente pregunta: el último que acertó por pulsador. */
+  controlTeamId?: string;
   /** Milisegundos desde epoch. */
   updatedAt: number;
 }
@@ -108,7 +136,13 @@ export type GameAction =
   | { type: 'startFinalTimer' }
   | { type: 'startFinalReveal' }
   | { type: 'judgeFinal'; teamId: string; correct: boolean }
-  | { type: 'revealFinalAnswer' };
+  | { type: 'revealFinalAnswer' }
+  | { type: 'armBuzzers' }
+  | { type: 'closeBuzzers' }
+  | { type: 'buzz'; teamId: string; deviceId: string; deviceLabel: string }
+  | { type: 'judgeBuzz'; correct: boolean }
+  | ({ type: 'submitFinalWager'; teamId: string; amount: number } & DeviceSource)
+  | ({ type: 'submitFinalAnswer'; teamId: string; text: string } & DeviceSource);
 
 /** Lo que la TV necesita para dibujar. Nunca incluye respuestas no reveladas. */
 export type TvImageRole = 'question' | 'answer';
@@ -120,6 +154,8 @@ export interface TvView {
   title: string;
   categories: { name: string; clues: { key: ClueKey; value: number; used: boolean }[] }[];
   teams: Team[];
+  /** Equipo que elige la siguiente pregunta, en un juego con pulsadores. */
+  controlTeamName?: string;
   /** Presente solo en un juego con 2 o más rondas. `number` desde 1. */
   round?: { number: number; count: number; multiplier: number };
   phase:
@@ -137,6 +173,8 @@ export interface TvView {
         answer?: string;
         /** Presente solo en un Daily Double con apuesta. */
         dailyDouble?: { teamName: string; wager: number };
+        /** Presente solo en un juego con pulsadores. */
+        buzz?: TvBuzz;
       }
     /** Daily Double que espera la apuesta: sin pregunta, imágenes ni respuesta. */
     | { kind: 'dailyDouble'; clueKey: ClueKey; value: number }
@@ -148,6 +186,13 @@ export interface TvView {
         ranking: { team: Team; position: number }[];
         finalSkipped?: FinalSkipReason;
       };
+}
+
+export interface TvBuzz {
+  status: BuzzState['status'];
+  answeringTeamName?: string;
+  /** Milisegundos desde epoch en que termina el tiempo para responder. */
+  answerEndsAt?: number;
 }
 
 /**
@@ -166,9 +211,19 @@ export interface TvFinalPhase {
   imageRole?: TvImageRole;
   /** Milisegundos desde epoch en que el temporizador llega a 0. */
   timerEndsAt?: number;
-  judged?: { teamId: string; name: string; correct: boolean; wager: number; score: number }[];
+  judged?: {
+    teamId: string;
+    name: string;
+    correct: boolean;
+    wager: number;
+    score: number;
+    /** Respuesta enviada desde un celular, si la hay. */
+    answer?: string;
+  }[];
   /** Equipo en turno durante la revelación. */
   currentTeamName?: string;
+  /** Respuesta enviada desde un celular por el equipo en turno. */
+  currentTeamAnswer?: string;
   answer?: string;
 }
 
@@ -190,6 +245,8 @@ export interface StartGameOptions {
   makeTeamId: (index: number) => string;
   /** Jugar el Final. Exige una pista final completa. */
   withFinal?: boolean;
+  /** Jugar con pulsadores. */
+  withBuzzers?: boolean;
 }
 
 function cloneBoard(board: Board): Board {
@@ -238,7 +295,7 @@ export function validateRounds(rounds: readonly RoundDraft[]): string | null {
 export function startGame(
   rounds: readonly RoundSetup[],
   teamNames: readonly string[],
-  { sessionId, now, makeTeamId, withFinal = false }: StartGameOptions,
+  { sessionId, now, makeTeamId, withFinal = false, withBuzzers = false }: StartGameOptions,
 ): GameSession {
   const roundsError = validateRounds(rounds);
   if (roundsError) throw new Error(roundsError);
@@ -271,6 +328,7 @@ export function startGame(
     usedClues: [],
     phase: { kind: 'board' },
     finalEnabled: withFinal,
+    ...(withBuzzers && { buzzersEnabled: true }),
     updatedAt: now,
   };
 }
@@ -360,6 +418,20 @@ export function finalTimeRemaining(phase: GamePhase, now: number): number | null
   return Math.min(FINAL_TIMER_MS, Math.max(0, phase.timerStartedAt + FINAL_TIMER_MS - now));
 }
 
+/**
+ * Milisegundos que le quedan al equipo que ganó el toque, entre 0 y BUZZ_ANSWER_MS.
+ * null si nadie está respondiendo por pulsador.
+ */
+export function buzzTimeRemaining(buzz: BuzzState | undefined, now: number): number | null {
+  if (buzz?.status !== 'answering' || !buzz.answering) return null;
+  return Math.min(BUZZ_ANSWER_MS, Math.max(0, buzz.answering.startedAt + BUZZ_ANSWER_MS - now));
+}
+
+/** Queda algún equipo que todavía no falló en la pregunta. */
+function anyTeamCanBuzz(session: GameSession, buzz: BuzzState): boolean {
+  return session.teams.some((team) => !buzz.failedTeamIds.includes(team.id));
+}
+
 /** Siguiente participante sin juzgar en la revelación, o undefined si no queda ninguno. */
 export function nextFinalTeamId(phase: FinalPhase): string | undefined {
   return phase.participants[phase.judged.length]?.teamId;
@@ -401,7 +473,14 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
         ...session,
         phase: clue.dailyDouble
           ? { kind: 'wager', clueKey: action.clueKey }
-          : { kind: 'clue', clueKey: action.clueKey, revealed: false },
+          : {
+              kind: 'clue',
+              clueKey: action.clueKey,
+              revealed: false,
+              ...(session.buzzersEnabled && {
+                buzz: { status: 'closed' as const, failedTeamIds: [] },
+              }),
+            },
         updatedAt: now,
       };
     }
@@ -467,9 +546,51 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
       if (!Number.isSafeInteger(amount) || amount < 0 || amount > participant.entryScore) {
         return session;
       }
+      // La apuesta ya no es la que envió el celular
+      const wagerSources = phase.wagerSources && { ...phase.wagerSources };
+      if (wagerSources) delete wagerSources[action.teamId];
       return {
         ...session,
-        phase: { ...phase, wagers: { ...phase.wagers, [action.teamId]: amount } },
+        phase: {
+          ...phase,
+          wagers: { ...phase.wagers, [action.teamId]: amount },
+          ...(wagerSources && { wagerSources }),
+        },
+        updatedAt: now,
+      };
+    }
+    case 'submitFinalWager': {
+      if (phase.kind !== 'final' || phase.stage !== 'wagers') return session;
+      const participant = phase.participants.find((p) => p.teamId === action.teamId);
+      if (!participant || phase.wagers[action.teamId] !== undefined) return session;
+      const { amount, deviceId, deviceLabel } = action;
+      if (!Number.isSafeInteger(amount) || amount < 0 || amount > participant.entryScore) {
+        return session;
+      }
+      return {
+        ...session,
+        phase: {
+          ...phase,
+          wagers: { ...phase.wagers, [action.teamId]: amount },
+          wagerSources: { ...phase.wagerSources, [action.teamId]: { deviceId, deviceLabel } },
+        },
+        updatedAt: now,
+      };
+    }
+    case 'submitFinalAnswer': {
+      if (phase.kind !== 'final' || phase.stage !== 'clue') return session;
+      if (!phase.participants.some((p) => p.teamId === action.teamId)) return session;
+      if (phase.answers?.[action.teamId]) return session;
+      if (finalTimeRemaining(phase, now) === 0) return session;
+      const text = action.text.trim();
+      if (text === '' || text.length > FINAL_ANSWER_MAX_LENGTH) return session;
+      const { deviceId, deviceLabel } = action;
+      return {
+        ...session,
+        phase: {
+          ...phase,
+          answers: { ...phase.answers, [action.teamId]: { text, deviceId, deviceLabel } },
+        },
         updatedAt: now,
       };
     }
@@ -510,6 +631,73 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
         return session;
       }
       return { ...session, phase: { ...phase, answerRevealed: true }, updatedAt: now };
+    }
+    case 'armBuzzers': {
+      if (phase.kind !== 'clue' || phase.buzz?.status !== 'closed') return session;
+      if (!anyTeamCanBuzz(session, phase.buzz)) return session;
+      return {
+        ...session,
+        phase: { ...phase, buzz: { status: 'armed', failedTeamIds: phase.buzz.failedTeamIds } },
+        updatedAt: now,
+      };
+    }
+    case 'closeBuzzers': {
+      if (phase.kind !== 'clue' || !phase.buzz || phase.buzz.status === 'closed') return session;
+      return {
+        ...session,
+        phase: { ...phase, buzz: { status: 'closed', failedTeamIds: phase.buzz.failedTeamIds } },
+        updatedAt: now,
+      };
+    }
+    case 'buzz': {
+      if (phase.kind !== 'clue' || phase.buzz?.status !== 'armed') return session;
+      if (!session.teams.some((team) => team.id === action.teamId)) return session;
+      if (phase.buzz.failedTeamIds.includes(action.teamId)) return session;
+      const { teamId, deviceId, deviceLabel } = action;
+      return {
+        ...session,
+        phase: {
+          ...phase,
+          buzz: {
+            status: 'answering',
+            answering: { teamId, deviceId, deviceLabel, startedAt: now },
+            failedTeamIds: phase.buzz.failedTeamIds,
+          },
+        },
+        updatedAt: now,
+      };
+    }
+    case 'judgeBuzz': {
+      if (phase.kind !== 'clue' || phase.buzz?.status !== 'answering') return session;
+      const { teamId } = phase.buzz.answering!;
+      const clue = getClue(currentRound(session).boardSnapshot, phase.clueKey);
+      if (!clue) return session;
+      const points = clueValueInPlay(session, clue);
+      const scored = updateTeamScore(
+        session,
+        teamId,
+        (score) => score + (action.correct ? points : -points),
+        now,
+      );
+      if (scored === session) return session;
+      if (action.correct) {
+        return {
+          ...scored,
+          controlTeamId: teamId,
+          phase: { ...phase, buzz: { status: 'closed', failedTeamIds: phase.buzz.failedTeamIds } },
+        };
+      }
+      const failed: BuzzState = {
+        status: 'closed',
+        failedTeamIds: [...phase.buzz.failedTeamIds, teamId],
+      };
+      return {
+        ...scored,
+        phase: {
+          ...phase,
+          buzz: anyTeamCanBuzz(session, failed) ? { ...failed, status: 'armed' } : failed,
+        },
+      };
     }
     case 'award': {
       if (phase.kind !== 'clue') return session;

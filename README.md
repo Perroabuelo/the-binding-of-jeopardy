@@ -14,7 +14,8 @@ La misma app se usa de dos formas:
 - **Escritorio (Windows)**: una app que se instala desde
   [GitHub Releases](https://github.com/Perroabuelo/the-binding-of-jeopardy/releases). Funciona sin
   internet desde la primera vez, abre la TV sola en el segundo monitor a pantalla completa,
-  conecta celulares por la red wifi escaneando un QR y respalda los tableros en disco.
+  conecta celulares por la red wifi escaneando un QR para usarlos como pulsadores y respalda los
+  tableros en disco.
 
 Los tableros de la web y los del escritorio están separados (ver
 [Traer tableros de la web](#traer-tableros-de-la-web)).
@@ -131,8 +132,8 @@ ventana del operador se cierran la TV y la app.
 
 En la vista de operador, **Conectar dispositivos** muestra una dirección y un código QR. Los
 celulares que estén en la **misma red wifi** lo escanean con la cámara y aparecen en la lista de
-dispositivos conectados. No se necesita internet. Por ahora es solo la conexión: los pulsadores
-llegan en una versión próxima.
+dispositivos conectados. No se necesita internet. En un juego con pulsadores, la lista muestra
+el equipo de cada celular o **Sin equipo**.
 
 Si ningún celular logra conectarse:
 
@@ -146,6 +147,47 @@ Si ningún celular logra conectarse:
   equipo y los celulares a la red principal del router.
 - **Otra red**: si el equipo tiene VPN, WSL o máquinas virtuales, puede que la app haya elegido la
   red equivocada. Elige la del wifi en el selector **Red**.
+
+### Pulsadores
+
+Al configurar los equipos en la app de escritorio aparece la opción **Usar pulsadores**, marcada
+por defecto. Con ella, los celulares de los invitados funcionan como pulsadores. La versión web no
+tiene pulsadores: ahí el operador sigue sumando y restando a mano.
+
+1. **Unirse.** Cada invitado escanea el QR de **Conectar dispositivos** y elige su equipo en el
+   celular. Varios celulares pueden estar en el mismo equipo, y cualquiera de ellos pulsa por el
+   equipo. **Cambiar de equipo** está siempre disponible en el celular. Si el celular se recarga o
+   se reconecta, vuelve solo a su equipo.
+2. **Activar.** Con una pregunta abierta, el operador la lee y presiona **Activar pulsadores**. Recién
+   entonces el botón del celular dice **¡Pulsa!** (y vibra, si el celular lo permite), y la TV
+   muestra **¡Pulsadores activos!**. Un celular que toca antes queda bloqueado un instante (0,25 s).
+3. **Primer toque.** Gana el primer toque que llega a la app. El operador, la TV y los celulares
+   muestran qué equipo responde, con una cuenta regresiva de 5 segundos. Al llegar a 0 muestran
+   **¡Tiempo!** y el operador ve resaltado **Incorrecta**, pero no se descuenta nada solo: basta con
+   empezar a responder a tiempo, y eso lo decide el operador.
+4. **Juzgar.** **Correcta** suma el valor de la pregunta (con el multiplicador de la ronda) y cierra
+   los pulsadores. Ese equipo queda indicado como el que **elige** la siguiente pregunta, en el
+   operador y en la TV. **Incorrecta** resta el valor y reabre los pulsadores para los equipos que
+   todavía no fallaron en esa pregunta; si no queda ninguno, se cierran. **Cerrar pulsadores** los
+   cierra sin tocar los puntajes, y los botones para sumar y restar a mano siguen disponibles.
+
+En un Daily Double no hay pulsadores: responde el equipo que apostó, como siempre.
+
+**Final desde el celular.** En el Final, los celulares de cada equipo que juega muestran la
+categoría y un formulario para la apuesta, con su máximo. Después de mostrar la pista, un formulario
+para la respuesta escrita, con la cuenta regresiva de 30 segundos. El primer envío de cada equipo
+queda fijo: los demás celulares del equipo ven "Enviada por …". El operador ve quién ya apostó y
+respondió (sin leer la respuesta antes de tiempo), puede anotar o corregir apuestas a mano (por
+ejemplo, para un equipo sin celular) y, en la revelación, ve la respuesta del equipo en turno para
+juzgarla. La TV muestra esa respuesta recién cuando el equipo está en turno. Un equipo sin celular
+escribe en papel como antes.
+
+Los celulares nunca reciben las preguntas, las respuestas, los puntajes ni lo que envió otro
+equipo.
+
+**Sugerencia:** el celular no puede mantener la pantalla encendida solo desde la página. Antes de
+jugar, sube el tiempo de apagado de pantalla del celular (o déjalo en "Nunca" durante la fiesta).
+Si la pantalla se apaga, al encenderla la página se reconecta y muestra el estado actual.
 
 ### Respaldos
 

@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer, type RawData, type WebSocket } from 'ws';
+import type { DeviceGameView } from '../src/domain/deviceProjection';
 import { createDeviceHub, type ConnectedDevice } from '../src/net/hub';
-import { isDeviceClientMessage, parseMessage } from '../src/net/protocol';
+import { isDeviceClientMessage, parseMessage, type DeviceEvent } from '../src/net/protocol';
 import { mimeType, resolveStaticPath } from './static';
 
 export const PREFERRED_LAN_PORT = 47470;
@@ -37,6 +38,8 @@ export interface LanServerOptions {
   ports: readonly number[];
   host?: string;
   onDevices(devices: ConnectedDevice[]): void;
+  /** Toques y envíos del Final de los celulares, en orden de llegada. */
+  onDeviceEvent?(event: DeviceEvent): void;
   now?: () => number;
 }
 
@@ -44,6 +47,8 @@ export interface LanServer {
   /** `null` si no hubo ningún puerto libre en el rango. */
   port: number | null;
   devices(): ConnectedDevice[];
+  /** Estado del juego para los celulares (proyección del operador); null sin juego. */
+  publishGame(view: DeviceGameView | null): void;
   close(): Promise<void>;
 }
 
@@ -74,7 +79,8 @@ function sendText(res: ServerResponse, status: number, text: string): void {
 /**
  * Servidor de la red local: sirve los archivos de la app y la conexión de dispositivos por
  * WebSocket. No tiene ningún endpoint de datos: los tableros y el juego viven en el
- * almacenamiento de la app, que este servidor no lee.
+ * almacenamiento de la app, que este servidor no lee. A los celulares solo les llega la
+ * proyección que publica el operador (`publishGame`), repartida por equipo en el hub.
  */
 export async function startLanServer(options: LanServerOptions): Promise<LanServer> {
   const { distDir, base } = options;
@@ -134,6 +140,7 @@ export async function startLanServer(options: LanServerOptions): Promise<LanServ
       socket?.terminate();
     },
     onChange: options.onDevices,
+    onDeviceEvent: (event) => options.onDeviceEvent?.(event),
   });
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES });
@@ -175,6 +182,7 @@ export async function startLanServer(options: LanServerOptions): Promise<LanServ
   return {
     port,
     devices: () => hub.devices(),
+    publishGame: (view) => hub.publishGame(view),
     close() {
       closing ??= new Promise<void>((resolve) => {
         if (timer) clearInterval(timer);

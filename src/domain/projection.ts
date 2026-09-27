@@ -1,5 +1,6 @@
 import { clueKey, getClue, type FinalClue } from './board';
 import {
+  BUZZ_ANSWER_MS,
   clueValueInPlay,
   currentRound,
   FINAL_TIMER_MS,
@@ -74,6 +75,9 @@ export function projectForTv(session: GameSession): TvView {
             : {};
       const wager = phase.wager;
       const team = wager && teams.find((t) => t.id === wager.teamId);
+      const { buzz } = phase;
+      const answering = buzz?.answering;
+      const answeringTeam = answering && teams.find((t) => t.id === answering.teamId);
       tvPhase = {
         kind: 'clue',
         clueKey: phase.clueKey,
@@ -82,6 +86,16 @@ export function projectForTv(session: GameSession): TvView {
         ...image,
         ...(phase.revealed && { answer: clue.answer }),
         ...(wager && team && { dailyDouble: { teamName: team.name, wager: wager.amount } }),
+        ...(buzz && {
+          buzz: {
+            status: buzz.status,
+            ...(answering &&
+              answeringTeam && {
+                answeringTeamName: answeringTeam.name,
+                answerEndsAt: answering.startedAt + BUZZ_ANSWER_MS,
+              }),
+          },
+        }),
       };
     }
   }
@@ -95,11 +109,17 @@ export function projectForTv(session: GameSession): TvView {
         }
       : undefined;
 
+  const controlTeam =
+    session.controlTeamId !== undefined
+      ? teams.find((team) => team.id === session.controlTeamId)
+      : undefined;
+
   return {
     sessionId: session.id,
     title: board.title,
     categories,
     teams,
+    ...(controlTeam && { controlTeamName: controlTeam.name }),
     ...(round && { round }),
     phase: tvPhase,
   };
@@ -141,8 +161,14 @@ function projectFinal(phase: FinalPhase, final: FinalClue, teams: Team[]): TvFin
     correct,
     wager: phase.wagers[teamId] ?? 0,
     score: teams.find((team) => team.id === teamId)?.score ?? 0,
+    ...(phase.answers?.[teamId] && { answer: phase.answers[teamId].text }),
   }));
+  // Las respuestas enviadas salen recién cuando su equipo está en turno.
   const current = nextFinalTeamId(phase);
-  if (current !== undefined) view.currentTeamName = nameOf(current);
+  if (current !== undefined) {
+    view.currentTeamName = nameOf(current);
+    const answer = phase.answers?.[current];
+    if (answer) view.currentTeamAnswer = answer.text;
+  }
   return view;
 }

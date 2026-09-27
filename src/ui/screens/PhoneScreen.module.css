@@ -1,0 +1,166 @@
+.phone {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: var(--space-4);
+  min-height: 100%;
+  text-align: center;
+}
+
+.connection {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.connection[data-state='connected'] {
+  color: var(--color-success);
+}
+
+.waiting {
+  margin: var(--space-8) 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.teams {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 28rem;
+}
+
+.teams h1 {
+  margin: 0;
+}
+
+.teams ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.teams li button {
+  width: 100%;
+  padding: var(--space-4);
+  font-size: 1.25rem;
+}
+
+.team {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--color-accent);
+}
+
+/* El pulsador ocupa casi toda la pantalla. */
+.buzzer {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 55vh;
+  border: 4px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.buzzer[data-state='armed'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.buzzer[data-state='locked'],
+.buzzer[data-state='failed'] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.buzzer[data-state='won'] {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-bg);
+}
+
+.buzzer[data-state='answering'] {
+  color: var(--color-text);
+}
+
+.buzzerText {
+  font-size: clamp(2rem, 10vw, 4rem);
+  text-transform: uppercase;
+}
+
+.buzzerDetail {
+  font-size: clamp(1.5rem, 7vw, 3rem);
+}
+
+.footer {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.final {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 28rem;
+}
+
+.finalTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--color-accent);
+}
+
+.finalCategory {
+  margin: 0;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.finalStatus {
+  margin: var(--space-4) 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.finalForm {
+  display: grid;
+  gap: var(--space-2);
+  text-align: start;
+}
+
+.finalForm input,
+.finalForm textarea {
+  width: 100%;
+  font-size: 1.25rem;
+}
+
+.finalTimer {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 3rem;
+}
+
+.finalError {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-danger);
+}

@@ -1,7 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, type WebContents } from 'electron';
+import type { DeviceGameView } from '../src/domain/deviceProjection';
 import type { ConnectedDevice } from '../src/net/hub';
 import { rankInterfaces, type RankedInterface } from '../src/net/interfaces';
 import type { DesktopIpcChannel, LanStatus } from '../src/platform/desktop';
@@ -11,6 +12,7 @@ import { portCandidates, startLanServer, type LanServer } from './lanServer';
 import { categoryFor, readNetworkProfiles, type NetworkProfiles } from './networkProfile';
 
 const statusChannel: DesktopIpcChannel = 'jeopardy:lan-status-changed';
+const deviceEventChannel: DesktopIpcChannel = 'jeopardy:lan-device-event';
 
 function settingsFile(): string {
   return path.join(app.getPath('userData'), 'lan.json');
@@ -32,6 +34,8 @@ export async function startLan(options: { distDir: string; base: string }): Prom
   let savedInterface = await readSavedInterface();
   let profiles: NetworkProfiles = new Map();
   let devices: ConnectedDevice[] = [];
+  /** Ventana que publica el juego (el operador): recibe los eventos de los celulares. */
+  let publisher: WebContents | null = null;
 
   const server = await startLanServer({
     distDir: options.distDir,
@@ -40,6 +44,9 @@ export async function startLan(options: { distDir: string; base: string }): Prom
     onDevices(next) {
       devices = next;
       broadcast();
+    },
+    onDeviceEvent(event) {
+      if (publisher && !publisher.isDestroyed()) publisher.send(deviceEventChannel, event);
     },
   });
 
@@ -80,6 +87,12 @@ export async function startLan(options: { distDir: string; base: string }): Prom
       broadcast();
     },
   );
+
+  ipcMain.on('jeopardy:lan-publish-game' satisfies DesktopIpcChannel, (event, view: unknown) => {
+    if (view !== null && (typeof view !== 'object' || Array.isArray(view))) return;
+    publisher = event.sender;
+    server.publishGame(view as DeviceGameView | null);
+  });
 
   return server;
 }

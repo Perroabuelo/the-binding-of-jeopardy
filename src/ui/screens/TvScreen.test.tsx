@@ -504,3 +504,129 @@ describe('TvScreen: rondas', () => {
     expect(board.style.getPropertyValue('--digits')).toBe('4');
   });
 });
+
+describe('TvScreen: pulsadores', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function buzzSession(buzzersEnabled = true): GameSession {
+    return { ...makeSession(), buzzersEnabled };
+  }
+
+  function play(session: GameSession, ...actions: GameAction[]): GameSession {
+    return actions.reduce((current, action) => gameReducer(current, action, Date.now()), session);
+  }
+
+  const open: GameAction = { type: 'openClue', clueKey: 'c0-r0' };
+  const buzzTios: GameAction = {
+    type: 'buzz',
+    teamId: 'equipo-2',
+    deviceId: 'celu',
+    deviceLabel: 'Android',
+  };
+
+  it('con los pulsadores cerrados no muestra indicaciones', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(play(buzzSession(), open)));
+    expect(screen.getByRole('region', { name: 'Pregunta' })).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent('Pulsadores activos');
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+  });
+
+  it('muestra "¡Pulsadores activos!" al activarlos', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(play(buzzSession(), open, { type: 'armBuzzers' })));
+    expect(screen.getByRole('status')).toHaveTextContent('¡Pulsadores activos!');
+  });
+
+  it('muestra quién responde con la cuenta de 5 s y "¡Tiempo!" al llegar a 0', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    await sendView(projectForTv(play(buzzSession(), open, { type: 'armBuzzers' }, buzzTios)));
+    expect(screen.getByRole('status')).toHaveTextContent('Responde: Tíos');
+    const timer = screen.getByRole('timer', { name: 'Tiempo para responder' });
+    expect(timer).toHaveTextContent('5');
+    act(() => vi.advanceTimersByTime(2_000));
+    expect(timer).toHaveTextContent('3');
+    act(() => vi.advanceTimersByTime(3_000));
+    expect(timer).toHaveTextContent('¡Tiempo!');
+    expect(document.body).not.toHaveTextContent('Android');
+  });
+
+  it('muestra quién elige junto a los puntajes', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = play(
+      buzzSession(),
+      open,
+      { type: 'armBuzzers' },
+      buzzTios,
+      { type: 'judgeBuzz', correct: true },
+      { type: 'backToBoard' },
+    );
+    await sendView(projectForTv(session));
+    expect(screen.getByText('Elige: Tíos')).toBeInTheDocument();
+  });
+
+  it('en un juego sin pulsadores no muestra ninguna indicación', async () => {
+    render(<TvScreen sessionId={SESSION_ID} />);
+    const session = play(buzzSession(false), open, {
+      type: 'award',
+      teamId: 'equipo-1',
+      direction: 1,
+    });
+    await sendView(projectForTv(session));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/Pulsadores|Responde:|Elige:/);
+  });
+
+  it('en la revelación del Final muestra la respuesta escrita del equipo en turno y de los juzgados', async () => {
+    const FINAL = { category: 'Cumple', question: 'Pregunta final', answer: 'Respuesta final' };
+    let n = 0;
+    let session = startGame(
+      [{ board: makeCompleteBoard({ final: FINAL }), multiplier: 1 }],
+      ['Primos', 'Tíos'],
+      {
+        sessionId: SESSION_ID,
+        now: 0,
+        makeTeamId: () => `equipo-${++n}`,
+        withFinal: true,
+        withBuzzers: true,
+      },
+    );
+    const answer = (teamId: string, text: string): GameAction => ({
+      type: 'submitFinalAnswer',
+      teamId,
+      text,
+      deviceId: teamId,
+      deviceLabel: 'Android',
+    });
+    session = play(
+      session,
+      { type: 'setScore', teamId: 'equipo-1', score: 1200 },
+      { type: 'setScore', teamId: 'equipo-2', score: 400 },
+      { type: 'finish' },
+      { type: 'setFinalWager', teamId: 'equipo-1', amount: 777 },
+      { type: 'setFinalWager', teamId: 'equipo-2', amount: 333 },
+      { type: 'showFinalClue' },
+      answer('equipo-2', '¿Qué es un pastel?'),
+      answer('equipo-1', '¿Qué es una torta?'),
+      { type: 'startFinalReveal' },
+    );
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(session));
+    const region = screen.getByRole('region', { name: 'Final Jeopardy!' });
+    expect(region).toHaveTextContent('Respuesta de Tíos: ¿Qué es un pastel?');
+    expect(document.body).not.toHaveTextContent('¿Qué es una torta?');
+    expect(document.body).not.toHaveTextContent('333');
+
+    await sendView(
+      projectForTv(play(session, { type: 'judgeFinal', teamId: 'equipo-2', correct: true })),
+    );
+    expect(screen.getByRole('list', { name: 'Resultados del Final' })).toHaveTextContent(
+      '«¿Qué es un pastel?»',
+    );
+    expect(region).toHaveTextContent('Respuesta de Primos: ¿Qué es una torta?');
+  });
+});

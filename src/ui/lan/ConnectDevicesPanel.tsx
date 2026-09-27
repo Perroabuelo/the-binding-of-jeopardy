@@ -4,8 +4,11 @@ import { numberDeviceLabels } from './labels';
 import { qrPath } from './qr';
 import styles from './ConnectDevicesPanel.module.css';
 
+/** Equipos del juego con pulsadores en curso, para mostrar el equipo de cada dispositivo. */
+export type DeviceTeams = readonly { id: string; name: string }[];
+
 /** Botón "Conectar dispositivos": solo existe en la app de escritorio. */
-export function ConnectDevicesButton() {
+export function ConnectDevicesButton({ teams }: { teams?: DeviceTeams }) {
   const desktop = getDesktopApi();
   const [open, setOpen] = useState(false);
   if (!desktop) return null;
@@ -14,7 +17,9 @@ export function ConnectDevicesButton() {
       <button type="button" onClick={() => setOpen(true)}>
         Conectar dispositivos
       </button>
-      {open && <ConnectDevicesPanel desktop={desktop} onClose={() => setOpen(false)} />}
+      {open && (
+        <ConnectDevicesPanel desktop={desktop} teams={teams} onClose={() => setOpen(false)} />
+      )}
     </>
   );
 }
@@ -80,11 +85,13 @@ function PublicNetworkWarning() {
 
 interface ConnectDevicesPanelProps {
   desktop: DesktopApi;
+  /** Solo en un juego con pulsadores. */
+  teams?: DeviceTeams;
   onClose: () => void;
 }
 
 /** Dirección y QR para que los celulares se unan, con la lista de dispositivos conectados. */
-export function ConnectDevicesPanel({ desktop, onClose }: ConnectDevicesPanelProps) {
+export function ConnectDevicesPanel({ desktop, teams, onClose }: ConnectDevicesPanelProps) {
   const [status, setStatus] = useState<LanStatus | null>(null);
   const [error, setError] = useState(false);
   const titleId = useId();
@@ -193,7 +200,9 @@ export function ConnectDevicesPanel({ desktop, onClose }: ConnectDevicesPanelPro
             ) : (
               <ul aria-label="Dispositivos conectados">
                 {devices.map((device) => (
-                  <li key={device.id}>{device.name}</li>
+                  <li key={device.id}>
+                    {teams ? `${device.name} · ${teamName(teams, device.teamId)}` : device.name}
+                  </li>
                 ))}
               </ul>
             )}
@@ -204,4 +213,8 @@ export function ConnectDevicesPanel({ desktop, onClose }: ConnectDevicesPanelPro
       </div>
     </div>
   );
+}
+
+function teamName(teams: DeviceTeams, teamId: string | undefined): string {
+  return teams.find((team) => team.id === teamId)?.name ?? 'Sin equipo';
 }

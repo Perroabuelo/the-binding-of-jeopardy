@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { parseClueKey } from '../../domain/board';
-import { FINAL_TIMER_MS, type TvFinalPhase, type TvView } from '../../domain/game';
+import { FINAL_TIMER_MS, type TvBuzz, type TvFinalPhase, type TvView } from '../../domain/game';
 import { createBroadcastTransport, createTvSync } from '../../sync';
 import { BoardGrid } from '../game/BoardGrid';
 import { ClueImage } from '../game/ClueImage';
@@ -67,7 +67,12 @@ function TvContent({ view }: { view: TvView }) {
       {phase.kind === 'finished' ? (
         <Podium ranking={phase.ranking} size="tv" finalSkipped={phase.finalSkipped} />
       ) : (
-        <TeamScores teams={view.teams} size="tv" />
+        <>
+          <TeamScores teams={view.teams} size="tv" />
+          {view.controlTeamName !== undefined && (
+            <p className={styles.controlTeam}>{`Elige: ${view.controlTeamName}`}</p>
+          )}
+        </>
       )}
     </>
   );
@@ -120,6 +125,7 @@ function TvClue({ view, phase }: { view: TvView; phase: CluePhase }) {
           {`${phase.dailyDouble.teamName} apuesta ${phase.dailyDouble.wager}`}
         </p>
       )}
+      {phase.buzz && <TvBuzzBanner buzz={phase.buzz} />}
       <p className={styles.question}>{phase.question}</p>
       <ClueImage
         imageId={phase.imageId}
@@ -132,6 +138,33 @@ function TvClue({ view, phase }: { view: TvView; phase: CluePhase }) {
         </section>
       )}
     </section>
+  );
+}
+
+/** Estado de los pulsadores: activos, o qué equipo responde con su cuenta regresiva de 5 s. */
+function TvBuzzBanner({ buzz }: { buzz: TvBuzz }) {
+  if (buzz.status === 'armed') {
+    return (
+      <p className={styles.buzzBanner} role="status">
+        ¡Pulsadores activos!
+      </p>
+    );
+  }
+  if (buzz.status !== 'answering' || buzz.answeringTeamName === undefined) return null;
+  return (
+    <div className={styles.buzzBanner} role="status">
+      <span>{`Responde: ${buzz.answeringTeamName}`}</span>
+      {buzz.answerEndsAt !== undefined && <TvBuzzCountdown endsAt={buzz.answerEndsAt} />}
+    </div>
+  );
+}
+
+function TvBuzzCountdown({ endsAt }: { endsAt: number }) {
+  const remaining = useCountdown(endsAt) ?? 0;
+  return (
+    <span className={styles.buzzCountdown} role="timer" aria-label="Tiempo para responder">
+      {remaining === 0 ? '¡Tiempo!' : secondsLeft(remaining)}
+    </span>
   );
 }
 
@@ -172,12 +205,20 @@ function TvFinal({ phase }: { phase: TvFinalPhase }) {
               {phase.judged.map((team) => (
                 <li key={team.teamId}>
                   {`${team.name}: ${team.correct ? 'acertó' : 'falló'} · apuesta ${team.wager} · ${team.score} puntos`}
+                  {team.answer !== undefined && (
+                    <span className={styles.sentAnswer}>{` · «${team.answer}»`}</span>
+                  )}
                 </li>
               ))}
             </ol>
           )}
           {phase.currentTeamName !== undefined && (
             <p className={styles.wager}>{`En turno: ${phase.currentTeamName}`}</p>
+          )}
+          {phase.currentTeamAnswer !== undefined && (
+            <p className={styles.currentAnswer}>
+              {`Respuesta de ${phase.currentTeamName ?? ''}: ${phase.currentTeamAnswer}`}
+            </p>
           )}
         </>
       )}

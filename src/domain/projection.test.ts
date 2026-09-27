@@ -363,6 +363,50 @@ describe('projectForTv: Final', () => {
     });
   });
 
+  it('en la revelación envía la respuesta enviada del equipo en turno y de los juzgados', () => {
+    const answer = (teamId: string, text: string): GameAction => ({
+      type: 'submitFinalAnswer',
+      teamId,
+      text,
+      deviceId: `d-${teamId}`,
+      deviceLabel: 'Android',
+    });
+    const answered = play(
+      inClue(),
+      answer('t1', 'Respuesta escrita de Tíos'),
+      answer('t0', 'Respuesta escrita de Primos'),
+    );
+    expectHidden(
+      JSON.stringify(projectForTv(answered)),
+      'Respuesta escrita de Tíos',
+      'Respuesta escrita de Primos',
+    );
+
+    const reveal = play(answered, { type: 'startFinalReveal' });
+    const before = projectForTv(reveal);
+    expect(before.phase).toMatchObject({
+      currentTeamName: 'Tíos',
+      currentTeamAnswer: 'Respuesta escrita de Tíos',
+    });
+    expectHidden(JSON.stringify(before), 'Respuesta escrita de Primos', '333', '777');
+
+    const after = projectForTv(play(reveal, { type: 'judgeFinal', teamId: 't1', correct: true }));
+    expect(after.phase).toMatchObject({
+      judged: [{ name: 'Tíos', answer: 'Respuesta escrita de Tíos' }],
+      currentTeamName: 'Primos',
+      currentTeamAnswer: 'Respuesta escrita de Primos',
+    });
+  });
+
+  it('sin respuesta enviada no hay currentTeamAnswer ni answer en los juzgados', () => {
+    const view = projectForTv(
+      play(inReveal(), { type: 'judgeFinal', teamId: 't1', correct: true }),
+    );
+    expect(view.phase).not.toHaveProperty('currentTeamAnswer');
+    if (view.phase.kind !== 'final') throw new Error('no final');
+    expect(view.phase.judged![0]).not.toHaveProperty('answer');
+  });
+
   it('en el podio envía finalSkipped cuando el Final se saltó', () => {
     const session = startGame(
       [{ board: makeCompleteBoard({ final: { ...FINAL } }), multiplier: 1 }],
@@ -452,5 +496,56 @@ describe('projectForTv: rondas', () => {
     const json = JSON.stringify(view);
     expect(json).toContain('Cumple B');
     expect(json).not.toMatch(/Pregunta B|Respuesta B|img-b/);
+  });
+});
+
+describe('projectForTv: pulsadores', () => {
+  function buzzGame(withBuzzers = true): GameSession {
+    return startGame([{ board: makeCompleteBoard(), multiplier: 1 }], ['Primos', 'Tíos'], {
+      sessionId: 's1',
+      now: 0,
+      makeTeamId: (index) => `t${index}`,
+      withBuzzers,
+    });
+  }
+
+  it('publica los pulsadores cerrados y activos', () => {
+    const closed = play(buzzGame(), openClue('c0-r0'));
+    expect(projectForTv(closed).phase).toMatchObject({ buzz: { status: 'closed' } });
+    const armed = play(closed, { type: 'armBuzzers' });
+    expect(projectForTv(armed).phase).toMatchObject({ buzz: { status: 'armed' } });
+  });
+
+  it('con un equipo respondiendo publica su nombre y answerEndsAt = startedAt + 5000', () => {
+    const armed = play(buzzGame(), openClue('c0-r0'), { type: 'armBuzzers' });
+    const answering = gameReducer(
+      armed,
+      { type: 'buzz', teamId: 't1', deviceId: 'd-secreto', deviceLabel: 'Android 2' },
+      40_000,
+    );
+    const view = projectForTv(answering);
+    expect(view.phase).toMatchObject({
+      buzz: { status: 'answering', answeringTeamName: 'Tíos', answerEndsAt: 45_000 },
+    });
+    expect(JSON.stringify(view)).not.toContain('d-secreto');
+  });
+
+  it('publica el equipo que elige tras un acierto por pulsador', () => {
+    const session = play(
+      buzzGame(),
+      openClue('c0-r0'),
+      { type: 'armBuzzers' },
+      { type: 'buzz', teamId: 't0', deviceId: 'd0', deviceLabel: 'A' },
+      { type: 'judgeBuzz', correct: true },
+      { type: 'backToBoard' },
+    );
+    expect(projectForTv(session).controlTeamName).toBe('Primos');
+    expect(projectForTv(buzzGame())).not.toHaveProperty('controlTeamName');
+  });
+
+  it('en un juego sin pulsadores no publica nada de pulsadores', () => {
+    const view = projectForTv(play(buzzGame(false), openClue('c0-r0')));
+    expect(view.phase).not.toHaveProperty('buzz');
+    expect(view).not.toHaveProperty('controlTeamName');
   });
 });

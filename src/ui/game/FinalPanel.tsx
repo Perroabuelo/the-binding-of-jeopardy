@@ -49,7 +49,9 @@ export function FinalPanel({ session, phase, dispatch }: FinalPanelProps) {
       {phase.stage === 'wagers' && (
         <WagersStage session={session} phase={phase} dispatch={dispatch} teamName={teamName} />
       )}
-      {phase.stage === 'clue' && <ClueStage phase={phase} dispatch={dispatch} />}
+      {phase.stage === 'clue' && (
+        <ClueStage session={session} phase={phase} dispatch={dispatch} teamName={teamName} />
+      )}
       {phase.stage === 'reveal' && (
         <RevealStage session={session} phase={phase} dispatch={dispatch} teamName={teamName} />
       )}
@@ -81,6 +83,11 @@ function WagersStage({ session, phase, dispatch, teamName }: StageProps) {
             participant={participant}
             name={teamName(participant.teamId)}
             wager={phase.wagers[participant.teamId]}
+            source={
+              session.buzzersEnabled
+                ? (phase.wagerSources?.[participant.teamId]?.deviceLabel ?? null)
+                : undefined
+            }
             onSubmit={(amount) =>
               dispatch({ type: 'setFinalWager', teamId: participant.teamId, amount })
             }
@@ -116,11 +123,14 @@ function WagerRow({
   participant,
   name,
   wager,
+  source,
   onSubmit,
 }: {
   participant: FinalParticipant;
   name: string;
   wager: number | undefined;
+  /** En un juego con pulsadores: el dispositivo que envió la apuesta, o null si no la envió uno. */
+  source?: string | null;
   onSubmit: (amount: number) => void;
 }) {
   const inputId = useId();
@@ -163,18 +173,17 @@ function WagerRow({
         <p className={styles.status}>
           {wager === undefined ? 'Sin apuesta' : `Apuesta anotada: ${wager}`}
         </p>
+        {source !== undefined && (source !== null || wager === undefined) && (
+          <p className={styles.muted}>
+            {source !== null ? `Enviada desde ${source}` : 'Pendiente'}
+          </p>
+        )}
       </form>
     </li>
   );
 }
 
-function ClueStage({
-  phase,
-  dispatch,
-}: {
-  phase: FinalPhase;
-  dispatch: (action: GameAction) => void;
-}) {
+function ClueStage({ session, phase, dispatch, teamName }: StageProps) {
   const { timerStartedAt } = phase;
   const started = timerStartedAt !== undefined;
   const remaining = useCountdown(started ? timerStartedAt + FINAL_TIMER_MS : undefined);
@@ -189,6 +198,16 @@ function ClueStage({
       <p className={styles.timer} role="timer" aria-label="Tiempo restante">
         {secondsLeft(remaining ?? FINAL_TIMER_MS)}
       </p>
+      {session.buzzersEnabled && (
+        // Sin el texto: se lee recién en la revelación, para no decirlo en voz alta por error.
+        <ul aria-label="Respuestas desde los celulares" className={styles.list}>
+          {phase.participants.map(({ teamId }) => (
+            <li key={teamId}>
+              {`${teamName(teamId)}: ${phase.answers?.[teamId] ? 'respondió' : 'sin respuesta'}`}
+            </li>
+          ))}
+        </ul>
+      )}
       <audio ref={attachAudio} src={FINAL_MUSIC_URL} preload="auto" />
       {error && <p role="alert">{error}</p>}
       <div className={styles.actions}>
@@ -221,6 +240,12 @@ function RevealStage({ session, phase, dispatch, teamName }: StageProps) {
         <section aria-label={`En turno: ${teamName(currentId)}`} className={styles.current}>
           <h4>{`En turno: ${teamName(currentId)}`}</h4>
           <p>{`Apuesta: ${phase.wagers[currentId] ?? 0}`}</p>
+          {phase.answers?.[currentId] && (
+            <p className={styles.sentAnswer}>
+              {`Respuesta enviada desde ${phase.answers[currentId].deviceLabel}: `}
+              <strong>{phase.answers[currentId].text}</strong>
+            </p>
+          )}
           <div className={styles.actions}>
             <button
               type="button"

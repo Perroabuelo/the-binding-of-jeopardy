@@ -51,4 +51,12 @@ describe('buildLanStatus', () => {
     expect(onlyVirtual.interfaces).toHaveLength(1);
     expect(onlyVirtual.networkCategory).toBe('unknown');
   });
+
+  it('incluye el equipo de cada dispositivo', () => {
+    const devices = [
+      { deviceId: 'a', label: 'Android', connectedAt: 1, teamId: 'primos' },
+      { deviceId: 'b', label: 'iPhone', connectedAt: 2 },
+    ];
+    expect(buildLanStatus({ ...base, devices }).devices).toEqual(devices);
+  });
 });

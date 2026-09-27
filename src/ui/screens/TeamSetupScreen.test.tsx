@@ -1,10 +1,11 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Board } from '../../domain/board';
 import { MAX_ROUNDS, MAX_TEAMS, type GameSession } from '../../domain/game';
 import { getSession, saveBoard } from '../../storage/db';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
+import { installDesktop, uninstallDesktop } from '../../../tests/fixtures/desktop';
 import { App } from '../App';
 import { TeamSetupScreen } from './TeamSetupScreen';
 
@@ -299,5 +300,43 @@ describe('TeamSetupScreen', () => {
       expect(session?.roundIndex).toBe(0);
       expect(session?.finalEnabled).toBe(true);
     });
+  });
+});
+
+describe('TeamSetupScreen: pulsadores', () => {
+  afterEach(() => {
+    uninstallDesktop();
+  });
+
+  async function start(user: ReturnType<typeof userEvent.setup>): Promise<GameSession> {
+    await user.type(screen.getByLabelText('Nombre del equipo 1'), 'Primos');
+    await user.type(screen.getByLabelText('Nombre del equipo 2'), 'Tíos');
+    await user.click(screen.getByRole('button', { name: 'Comenzar juego' }));
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/play\//));
+    const sessionId = decodeURIComponent(/^#\/play\/(.+)$/.exec(window.location.hash)![1]!);
+    return (await getSession(sessionId))!;
+  }
+
+  it('en la web no ofrece "Usar pulsadores" y el juego queda sin pulsadores', async () => {
+    const user = userEvent.setup();
+    await renderWithBoard();
+    expect(screen.queryByLabelText('Usar pulsadores')).not.toBeInTheDocument();
+    expect((await start(user)).buzzersEnabled).toBeUndefined();
+  });
+
+  it('en escritorio la casilla aparece activada y el juego queda con pulsadores', async () => {
+    const user = userEvent.setup();
+    installDesktop();
+    await renderWithBoard();
+    expect(screen.getByLabelText('Usar pulsadores')).toBeChecked();
+    expect((await start(user)).buzzersEnabled).toBe(true);
+  });
+
+  it('en escritorio, desactivada, el juego queda sin pulsadores', async () => {
+    const user = userEvent.setup();
+    installDesktop();
+    await renderWithBoard();
+    await user.click(screen.getByLabelText('Usar pulsadores'));
+    expect((await start(user)).buzzersEnabled).toBeUndefined();
   });
 });
