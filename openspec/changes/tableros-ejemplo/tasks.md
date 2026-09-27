@@ -2,7 +2,7 @@
 
 ## 1. Dominio
 
-- [ ] 1.1 Crear `src/domain/samples/index.ts` con el tipo `SampleBoard`, `SAMPLE_BOARDS` y `createBoardFromSample(sample, id, now)`, y un primer ejemplo, `videogames.ts` (6 categorías de 5 preguntas, un Daily Double en una fila de 300 a 500 y pista final completa). Verificar con `src/domain/samples/samples.test.ts`, escrito para recorrer todos los `SAMPLE_BOARDS`:
+- [x] 1.1 Crear `src/domain/samples/index.ts` con el tipo `SampleBoard`, `SAMPLE_BOARDS` y `createBoardFromSample(sample, id, now)`, y un primer ejemplo, `videogames.ts` (6 categorías de 5 preguntas, un Daily Double en una fila de 300 a 500 y pista final completa). Verificar con `src/domain/samples/samples.test.ts`, escrito para recorrer todos los `SAMPLE_BOARDS`:
   - `validateBoard(board).ready` es `true` e `isFinalComplete(board.final)` también.
   - Hay 6 categorías con valores 100 a 500 y exactamente un Daily Double, en una fila de 300 a 500.
   - El título, la descripción y la clave no están vacíos, y las claves son únicas.
