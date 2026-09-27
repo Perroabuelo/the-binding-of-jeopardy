@@ -16,7 +16,7 @@
   - Un monto fuera de 0..`entryScore`, no entero, o de un equipo no participante no hace nada.
   - `setFinalWager` sobrescribe una apuesta enviada y borra su origen.
   - `submitFinalAnswer` solo en la etapa `clue`, con texto recortado no vacío de hasta 200 caracteres, no con el temporizador en 0 ni en `reveal`, y el primero queda.
-- [ ] 1.3 Crear `src/domain/deviceProjection.ts` (`projectForDevices`) y extender `projectForTv` con `buzz`, `controlTeamName` y las respuestas enviadas en la revelación del Final. Verificar con tests unitarios:
+- [x] 1.3 Crear `src/domain/deviceProjection.ts` (`projectForDevices`) y extender `projectForTv` con `buzz`, `controlTeamName` y las respuestas enviadas en la revelación del Final. Verificar con tests unitarios:
   - `projectForDevices(null)` es `null`.
   - Con una pregunta abierta, `JSON.stringify(common)` no contiene la pregunta, la respuesta, los nombres de categorías ni ningún puntaje.
   - Cada `perTeam[x]` no contiene montos ni textos de otros equipos, y `maxWager` es el `entryScore` del equipo.

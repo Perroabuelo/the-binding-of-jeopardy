@@ -154,6 +154,8 @@ export interface TvView {
   title: string;
   categories: { name: string; clues: { key: ClueKey; value: number; used: boolean }[] }[];
   teams: Team[];
+  /** Equipo que elige la siguiente pregunta, en un juego con pulsadores. */
+  controlTeamName?: string;
   /** Presente solo en un juego con 2 o más rondas. `number` desde 1. */
   round?: { number: number; count: number; multiplier: number };
   phase:
@@ -171,6 +173,8 @@ export interface TvView {
         answer?: string;
         /** Presente solo en un Daily Double con apuesta. */
         dailyDouble?: { teamName: string; wager: number };
+        /** Presente solo en un juego con pulsadores. */
+        buzz?: TvBuzz;
       }
     /** Daily Double que espera la apuesta: sin pregunta, imágenes ni respuesta. */
     | { kind: 'dailyDouble'; clueKey: ClueKey; value: number }
@@ -182,6 +186,13 @@ export interface TvView {
         ranking: { team: Team; position: number }[];
         finalSkipped?: FinalSkipReason;
       };
+}
+
+export interface TvBuzz {
+  status: BuzzState['status'];
+  answeringTeamName?: string;
+  /** Milisegundos desde epoch en que termina el tiempo para responder. */
+  answerEndsAt?: number;
 }
 
 /**
@@ -200,9 +211,19 @@ export interface TvFinalPhase {
   imageRole?: TvImageRole;
   /** Milisegundos desde epoch en que el temporizador llega a 0. */
   timerEndsAt?: number;
-  judged?: { teamId: string; name: string; correct: boolean; wager: number; score: number }[];
+  judged?: {
+    teamId: string;
+    name: string;
+    correct: boolean;
+    wager: number;
+    score: number;
+    /** Respuesta enviada desde un celular, si la hay. */
+    answer?: string;
+  }[];
   /** Equipo en turno durante la revelación. */
   currentTeamName?: string;
+  /** Respuesta enviada desde un celular por el equipo en turno. */
+  currentTeamAnswer?: string;
   answer?: string;
 }
 
