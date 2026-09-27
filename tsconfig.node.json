@@ -20,9 +20,11 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "playwright.desktop.config.ts",
+    "playwright.screenshots.config.ts",
     "site.config.ts",
     "e2e",
     "e2e-desktop",
+    "screenshots",
     "electron/**/*.test.ts"
   ]
 }

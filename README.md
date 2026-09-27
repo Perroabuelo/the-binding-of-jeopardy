@@ -4,6 +4,10 @@ Juego estilo Jeopardy para jugar en casa con dos pantallas: una vista de operado
 y una vista de presentación para la TV. Los tableros (preguntas, respuestas e imágenes) se guardan
 solo en el navegador de quien los crea.
 
+| Operador                                                                  | TV                                                |
+| ------------------------------------------------------------------------- | ------------------------------------------------- |
+| ![Vista de operador con una pregunta abierta](docs/capturas/operador.png) | ![Tablero en la TV](docs/capturas/tv-tablero.png) |
+
 ## Modalidades
 
 La misma app se usa de dos formas:
@@ -35,6 +39,10 @@ Los tableros de la web y los del escritorio están separados (ver
    resta puntos. Al revelar, la imagen de la respuesta reemplaza en la TV a la de la pregunta. Si
    recargas cualquiera de las dos ventanas, el juego sigue donde estaba.
 
+![Editor de un tablero con sus 6 categorías completas](docs/capturas/editor.png)
+
+![Pregunta abierta en la TV](docs/capturas/tv-pregunta.png)
+
 ### Tableros de ejemplo
 
 Para probar la app sin escribir preguntas, usa **Crear desde ejemplo** en la lista de tableros y
@@ -43,11 +51,15 @@ elige uno de los tres ejemplos: **Agricultura**, **Videojuegos** o **Música: K-
 como ronda de una partida con rondas. Se crea una copia que puedes editar, exportar o eliminar como
 cualquier tablero. Si la eliminas, puedes volver a crearla cuando quieras.
 
+![Lista de tableros con los tres ejemplos](docs/capturas/lista.png)
+
 ### Daily Double
 
 En el editor, abre una celda y marca **Daily Double**. Puedes marcar las que quieras, desde ninguna
 hasta todas. El editor y el tablero del operador las señalan con **DD**, pero la TV nunca revela
 dónde están.
+
+![Anuncio de Daily Double en la TV](docs/capturas/tv-daily-double.png)
 
 Al abrir un Daily Double, la TV anuncia **DAILY DOUBLE!** con la categoría y el valor, sin mostrar
 la pregunta. El operador ve la pregunta y la respuesta, elige qué equipo responde y registra su
@@ -143,6 +155,8 @@ celulares que estén en la **misma red wifi** lo escanean con la cámara y apare
 dispositivos conectados. No se necesita internet. En un juego con pulsadores, la lista muestra
 el equipo de cada celular o **Sin equipo**.
 
+![Panel Conectar dispositivos con el código QR](docs/capturas/conectar-dispositivos.png)
+
 Si ningún celular logra conectarse:
 
 - **Firewall de Windows**: la primera vez que se abre la app, Windows pregunta si permite que use
@@ -179,6 +193,12 @@ tiene pulsadores: ahí el operador sigue sumando y restando a mano.
    todavía no fallaron en esa pregunta; si no queda ninguno, se cierran. **Cerrar pulsadores** los
    cierra sin tocar los puntajes, y los botones para sumar y restar a mano siguen disponibles.
 
+| Celular                                                            | TV                                                                   |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| ![Pulsador del celular activo](docs/capturas/celular-pulsador.png) | ![La TV con los pulsadores activos](docs/capturas/tv-pulsadores.png) |
+
+![Operador con el equipo que ganó el pulsador y su cuenta regresiva](docs/capturas/operador-pulsadores.png)
+
 En un Daily Double no hay pulsadores: responde el equipo que apostó, como siempre.
 
 **Final desde el celular.** En el Final, los celulares de cada equipo que juega muestran la
@@ -199,7 +219,7 @@ Si la pantalla se apaga, al encenderla la página se reconecta y muestra el esta
 
 ### Respaldos
 
-Cada tablero se respalda solo en `DocumentosThe Binding of JeopardyRespaldos`, como un archivo
+Cada tablero se respalda solo en `Documentos\The Binding of Jeopardy\Respaldos`, como un archivo
 de intercambio (`.jeopardy.json`, con sus imágenes). Hay un archivo por tablero, que se reemplaza
 en cada guardado. Los respaldos de los tableros eliminados pasan a la subcarpeta `eliminados`.
 **Abrir carpeta de respaldos**, en la lista de tableros, abre la carpeta. Para restaurar un
@@ -232,6 +252,13 @@ npm run desktop           # build web + proceso principal, y abre la app con Ele
 npm run test:e2e:desktop  # Playwright _electron (requiere npm run build:desktop antes)
 npm run dist:desktop      # instalador en release/ (requiere npm run build:desktop antes)
 node scripts/make-icon.mjs  # regenera build/icon.ico desde public/icon.svg
+```
+
+Capturas del README (en `docs/capturas/`, con los tableros de ejemplo):
+
+```bash
+npm run build:desktop  # las capturas de escritorio usan la app compilada
+npm run screenshots    # regenera todas las capturas; no corre en el CI
 ```
 
 ## Flujo de trabajo
