@@ -2,7 +2,7 @@
 
 La versión web no puede recibir conexiones de otros dispositivos: una pestaña del navegador no puede actuar como servidor. Para que los invitados usen sus celulares como pulsadores (cambio `pulsadores`), alguien en la red local tiene que hacer de punto de encuentro. Este cambio crea la **modalidad fiesta**: una app de escritorio para Windows, hecha con Electron, que el anfitrión instala y abre como cualquier programa. Por dentro levanta un servidor en la red wifi, y además da más control que el navegador sobre las ventanas: la TV se abre sola en el segundo monitor y a pantalla completa. La versión web sigue existiendo igual que hoy, sin pulsadores.
 
-**Rama del cambio:** `change/app-escritorio`. Se crea desde `change/rondas` porque asume implementados y archivados `daily-double`, `final-jeopardy` y `rondas`. Se archiva después de ellos y se integra por PR con CI en verde.
+**Rama del cambio:** `change/app-escritorio`. Se creó desde `change/rondas`, porque asume implementados y archivados `daily-double`, `final-jeopardy` y `rondas`, y tras la integración de los tres (v0.4.0, v0.5.0 y v0.6.0) quedó rebasada sobre `main`. Se integra por PR con CI en verde.
 
 Roadmap encadenado, cada cambio sobre la rama del anterior:
 

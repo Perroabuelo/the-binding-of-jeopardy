@@ -1,4 +1,4 @@
-> Cada tarea es un commit en la rama `change/app-escritorio`. La rama se crea desde `change/rondas` y se implementa después de `daily-double`, `final-jeopardy` y `rondas`. Antes de commitear deben pasar `npm run lint`, `npm run typecheck` y `npm test`. Si la tarea toca la UI o el build web, también `npm run test:e2e`. Si toca `electron/` o el escritorio, también `npm run test:e2e:desktop` (en Windows). Después se hace push y se verifica que el CI quede en verde. Ninguna tarea se marca completa si alguno de esos pasos falla.
+> Cada tarea es un commit en la rama `change/app-escritorio`. La rama parte de `main`, con `daily-double`, `final-jeopardy` y `rondas` ya integrados. Antes de commitear deben pasar `npm run lint`, `npm run typecheck` y `npm test`. Si la tarea toca la UI o el build web, también `npm run test:e2e`. Si toca `electron/` o el escritorio, también `npm run test:e2e:desktop` (en Windows). Después se hace push y se verifica que el CI quede en verde. Ninguna tarea se marca completa si alguno de esos pasos falla.
 
 ## 1. Base de escritorio y CI
 
