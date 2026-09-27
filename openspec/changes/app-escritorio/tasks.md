@@ -35,7 +35,7 @@
   - Sin `pong` durante 4 s, `tick` lo expulsa.
   - `welcome` trae `serverTime`.
   - Los mensajes inválidos se ignoran.
-- [ ] 3.2 Crear `src/net/interfaces.ts` (`rankInterfaces`) y `electron/networkProfile.ts` (`parseNetworkProfiles` más la ejecución de PowerShell con un tiempo máximo de 3 s). Criterio de listo: pasan los tests unitarios:
+- [x] 3.2 Crear `src/net/interfaces.ts` (`rankInterfaces`) y `electron/networkProfile.ts` (`parseNetworkProfiles` más la ejecución de PowerShell con un tiempo máximo de 3 s). Criterio de listo: pasan los tests unitarios:
   - El Wi-Fi 192.168.x queda antes que `vEthernet (WSL)`.
   - Se descartan loopback, 169.254 e IPv6.
   - Sin interfaces privadas, el resultado está vacío.
