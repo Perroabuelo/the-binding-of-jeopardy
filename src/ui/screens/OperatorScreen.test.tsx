@@ -827,6 +827,95 @@ describe('OperatorScreen: Final', () => {
     expect(play).not.toHaveBeenCalled();
   });
 
+  describe('envíos desde los celulares', () => {
+    const withBuzzers = (session: GameSession): GameSession => ({
+      ...session,
+      buzzersEnabled: true,
+    });
+    const submitWager = (teamId: string, amount: number, deviceLabel: string) => ({
+      type: 'submitFinalWager' as const,
+      teamId,
+      amount,
+      deviceId: `d-${deviceLabel}`,
+      deviceLabel,
+    });
+    const submitAnswer = (teamId: string, text: string, deviceLabel: string) => ({
+      type: 'submitFinalAnswer' as const,
+      teamId,
+      text,
+      deviceId: `d-${deviceLabel}`,
+      deviceLabel,
+    });
+
+    it('en las apuestas muestra "Enviada desde …" o "Pendiente" y deja el campo manual', async () => {
+      const session = gameReducer(
+        withBuzzers(finalSession()),
+        submitWager('equipo-1', 500, 'Android'),
+        1,
+      );
+      await renderOperator(withWagers(session, { 'equipo-2': 100 }));
+      const primos = screen.getByRole('listitem', { name: 'Primos' });
+      expect(primos).toHaveTextContent('Apuesta anotada: 500');
+      expect(primos).toHaveTextContent('Enviada desde Android');
+      expect(screen.getByRole('listitem', { name: 'Abuelos' })).toHaveTextContent('Pendiente');
+      // Anotada a mano: ni enviada ni pendiente
+      const tios = screen.getByRole('listitem', { name: 'Tíos' });
+      expect(tios).not.toHaveTextContent('Enviada desde');
+      expect(tios).not.toHaveTextContent('Pendiente');
+      expect(screen.getByLabelText('Apuesta de Primos')).toBeEnabled();
+    });
+
+    it('corregir a mano una apuesta enviada quita "Enviada desde"', async () => {
+      const user = userEvent.setup();
+      const session = gameReducer(
+        withBuzzers(finalSession()),
+        submitWager('equipo-1', 500, 'Android'),
+        1,
+      );
+      await renderOperator(session);
+      await user.clear(screen.getByLabelText('Apuesta de Primos'));
+      await user.type(screen.getByLabelText('Apuesta de Primos'), '400');
+      await user.click(screen.getByRole('button', { name: 'Anotar apuesta de Primos' }));
+      const primos = screen.getByRole('listitem', { name: 'Primos' });
+      expect(primos).toHaveTextContent('Apuesta anotada: 400');
+      expect(primos).not.toHaveTextContent('Enviada desde');
+    });
+
+    it('sin pulsadores no muestra el origen de las apuestas', async () => {
+      await renderOperator(finalSession());
+      expect(finalRegion()).not.toHaveTextContent('Pendiente');
+    });
+
+    it('en la pista marca qué equipos respondieron, sin mostrar el texto', async () => {
+      const session = gameReducer(
+        withBuzzers(inClue()),
+        submitAnswer('equipo-2', '¿Qué es un pastel?', 'iPhone'),
+        Date.now(),
+      );
+      await renderOperator(session);
+      const list = screen.getByRole('list', { name: 'Respuestas desde los celulares' });
+      expect(
+        within(list)
+          .getAllByRole('listitem')
+          .map((item) => item.textContent),
+      ).toEqual(['Tíos: respondió', 'Abuelos: sin respuesta', 'Primos: sin respuesta']);
+      expect(document.body).not.toHaveTextContent('¿Qué es un pastel?');
+    });
+
+    it('en la revelación muestra la respuesta enviada del equipo en turno', async () => {
+      let session = gameReducer(
+        withBuzzers(inClue()),
+        submitAnswer('equipo-2', '¿Qué es un pastel?', 'iPhone'),
+        Date.now(),
+      );
+      session = gameReducer(session, { type: 'startFinalReveal' }, 1);
+      await renderOperator(session);
+      const current = screen.getByRole('region', { name: 'En turno: Tíos' });
+      expect(current).toHaveTextContent('Respuesta enviada desde iPhone: ¿Qué es un pastel?');
+      expect(within(current).getByRole('button', { name: 'Acertó' })).toBeInTheDocument();
+    });
+  });
+
   it('al recargar en la revelación sigue con el siguiente equipo sin rejuzgar', async () => {
     const session = gameReducer(
       inReveal(),

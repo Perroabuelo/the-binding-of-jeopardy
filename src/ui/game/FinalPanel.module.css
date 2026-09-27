@@ -134,3 +134,8 @@
   align-items: center;
   gap: var(--space-3);
 }
+
+/* Respuesta que el equipo en turno envió desde un celular. */
+.sentAnswer {
+  font-size: 1.25rem;
+}
