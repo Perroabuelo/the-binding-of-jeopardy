@@ -8,6 +8,13 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [1.2.1] - 2026-09-27
+
+### Corregido
+
+- En la TV, el tablero y los puntajes ahora caben completos en la pantalla, sin que se corten los
+  puntajes abajo.
+
 ## [1.2.0] - 2026-09-27
 
 ### Agregado
