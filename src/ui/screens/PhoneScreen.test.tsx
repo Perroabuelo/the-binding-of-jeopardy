@@ -369,3 +369,130 @@ describe('PhoneScreen: equipo y pulsador', () => {
     expect(vibrate).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('PhoneScreen: Final', () => {
+  const TEAMS = [
+    { id: 'primos', name: 'Primos' },
+    { id: 'sobrinos', name: 'Sobrinos' },
+  ];
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function finalView(
+    final: NonNullable<PhoneView['final']>,
+    team: NonNullable<PhoneView['team']>['final'],
+    teamId = 'primos',
+  ): PhoneView {
+    return { sessionId: 'g1', teams: TEAMS, stage: 'final', final, teamId, team: { final: team } };
+  }
+
+  function connected() {
+    const fake = fakeTransport();
+    render(<PhoneScreen createTransport={fake.create} />);
+    fake.status('open');
+    fake.receive({ type: 'welcome', serverTime: Date.now() });
+    return fake;
+  }
+
+  const WAGERS = { stage: 'wagers' as const, category: 'Cumpleañero' };
+
+  it('una apuesta mayor al máximo se rechaza en el celular', async () => {
+    const user = userEvent.setup();
+    const fake = connected();
+    fake.receive({
+      type: 'game',
+      view: finalView(WAGERS, { participating: true, maxWager: 800 }),
+    });
+    expect(screen.getByText('Categoría: Cumpleañero')).toBeInTheDocument();
+    const input = screen.getByLabelText('Apuesta de tu equipo');
+    await user.type(input, '900');
+    expect(screen.getByText(/el máximo es 800/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enviar apuesta' })).toBeDisabled();
+    await user.clear(input);
+    await user.type(input, '500');
+    await user.click(screen.getByRole('button', { name: 'Enviar apuesta' }));
+    expect(fake.sent.at(-1)).toEqual({ type: 'finalWager', amount: 500 });
+  });
+
+  it('una apuesta enviada muestra "Enviada por …", también en otro celular del equipo', () => {
+    const fake = connected();
+    fake.receive({
+      type: 'game',
+      view: finalView(WAGERS, {
+        participating: true,
+        maxWager: 800,
+        wager: { amount: 500, deviceLabel: 'Android' },
+      }),
+    });
+    expect(screen.getByText('Enviada por Android: 500')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Apuesta de tu equipo')).not.toBeInTheDocument();
+  });
+
+  it('una apuesta anotada por el operador se muestra sin dispositivo', () => {
+    const fake = connected();
+    fake.receive({
+      type: 'game',
+      view: finalView(WAGERS, { participating: true, maxWager: 800, wager: { amount: 400 } }),
+    });
+    expect(screen.getByText('Anotada: 400')).toBeInTheDocument();
+  });
+
+  it('envía la respuesta y muestra "Enviada por …"', async () => {
+    const user = userEvent.setup();
+    const fake = connected();
+    const clue = { stage: 'clue' as const, category: 'Cumpleañero' };
+    fake.receive({ type: 'game', view: finalView(clue, { participating: true, maxWager: 800 }) });
+    await user.type(screen.getByLabelText('Respuesta de tu equipo'), '  ¿Qué es un pastel?  ');
+    await user.click(screen.getByRole('button', { name: 'Enviar respuesta' }));
+    expect(fake.sent.at(-1)).toEqual({ type: 'finalAnswer', text: '¿Qué es un pastel?' });
+
+    fake.receive({
+      type: 'game',
+      view: finalView(clue, {
+        participating: true,
+        maxWager: 800,
+        answer: { text: '¿Qué es un pastel?', deviceLabel: 'iPhone' },
+      }),
+    });
+    expect(screen.getByText('Enviada por iPhone: ¿Qué es un pastel?')).toBeInTheDocument();
+  });
+
+  it('la cuenta regresiva, corregida por desfase, deshabilita la respuesta en 0', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    const fake = fakeTransport();
+    render(<PhoneScreen createTransport={fake.create} />);
+    fake.status('open');
+    // El servidor va 3 s atrasado respecto del celular
+    const serverNow = Date.now() - 3_000;
+    fake.receive({ type: 'welcome', serverTime: serverNow });
+    fake.receive({
+      type: 'game',
+      view: finalView(
+        { stage: 'clue', category: 'Cumpleañero', timerEndsAt: serverNow + 30_000 },
+        { participating: true, maxWager: 800 },
+      ),
+    });
+    const timer = screen.getByRole('timer', { name: 'Tiempo restante' });
+    expect(timer).toHaveTextContent('30');
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(timer).toHaveTextContent('20');
+    expect(screen.getByLabelText('Respuesta de tu equipo')).toBeEnabled();
+    act(() => vi.advanceTimersByTime(20_000));
+    expect(timer).toHaveTextContent('0');
+    expect(screen.getByLabelText('Respuesta de tu equipo')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enviar respuesta' })).toBeDisabled();
+    expect(screen.getByText('Se acabó el tiempo.')).toBeInTheDocument();
+  });
+
+  it('un equipo que no participa ve el aviso', () => {
+    const fake = connected();
+    fake.receive({
+      type: 'game',
+      view: finalView(WAGERS, { participating: false }, 'sobrinos'),
+    });
+    expect(screen.getByText('Tu equipo no juega el Final')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Apuesta de tu equipo')).not.toBeInTheDocument();
+  });
+});

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { addOffsetSample, averageOffset, offsetSample } from '../../net/clock';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { FINAL_ANSWER_MAX_LENGTH } from '../../domain/game';
+import { addOffsetSample, averageOffset, offsetSample, remainingWithOffset } from '../../net/clock';
 import {
   isDeviceServerMessage,
   type DeviceClientMessage,
@@ -166,13 +167,17 @@ export function PhoneScreen({
       {view && team && !choosing && (
         <>
           <h1 className={styles.team}>{`Equipo: ${team.name}`}</h1>
-          <Buzzer
-            // Se vuelve a montar con cada bloqueo o toque ganador: su reloj parte de ese momento.
-            key={`${view.lockedUntil ?? ''}-${view.buzz?.answerEndsAt ?? ''}`}
-            view={view}
-            offset={offset}
-            onBuzz={() => send({ type: 'buzz' })}
-          />
+          {view.stage === 'final' ? (
+            <PhoneFinal view={view} offset={offset} send={send} />
+          ) : (
+            <Buzzer
+              // Se vuelve a montar con cada bloqueo o toque ganador: su reloj parte de ese momento.
+              key={`${view.lockedUntil ?? ''}-${view.buzz?.answerEndsAt ?? ''}`}
+              view={view}
+              offset={offset}
+              onBuzz={() => send({ type: 'buzz' })}
+            />
+          )}
           <div className={styles.footer}>
             <button type="button" onClick={() => setConfirmingChange(true)}>
               Cambiar de equipo
@@ -265,5 +270,140 @@ function Buzzer({ view, offset, onBuzz }: { view: PhoneView; offset: number; onB
         </span>
       )}
     </button>
+  );
+}
+
+/** "Enviada por Android: 500"; sin dispositivo, la anotó el operador. */
+function sentText(value: string | number, deviceLabel: string | undefined): string {
+  return deviceLabel !== undefined ? `Enviada por ${deviceLabel}: ${value}` : `Anotada: ${value}`;
+}
+
+/** El Final en el celular: apuesta y respuesta secretas de su equipo. */
+function PhoneFinal({
+  view,
+  offset,
+  send,
+}: {
+  view: PhoneView;
+  offset: number;
+  send: (msg: DeviceClientMessage) => void;
+}) {
+  const final = view.final;
+  const own = view.team?.final;
+  if (!final) return null;
+  return (
+    <section aria-label="Final Jeopardy!" className={styles.final}>
+      <h2 className={styles.finalTitle}>Final Jeopardy!</h2>
+      <p className={styles.finalCategory}>{`Categoría: ${final.category}`}</p>
+      {!own?.participating ? (
+        <p className={styles.finalStatus}>Tu equipo no juega el Final</p>
+      ) : final.stage === 'wagers' ? (
+        own.wager ? (
+          <p className={styles.finalStatus}>{sentText(own.wager.amount, own.wager.deviceLabel)}</p>
+        ) : (
+          <FinalWagerForm
+            max={own.maxWager ?? 0}
+            onSubmit={(amount) => send({ type: 'finalWager', amount })}
+          />
+        )
+      ) : own.answer ? (
+        <p className={styles.finalStatus}>{sentText(own.answer.text, own.answer.deviceLabel)}</p>
+      ) : final.stage === 'clue' ? (
+        <FinalAnswerForm
+          key={final.timerEndsAt ?? 'sin-temporizador'}
+          timerEndsAt={final.timerEndsAt}
+          offset={offset}
+          onSubmit={(text) => send({ type: 'finalAnswer', text })}
+        />
+      ) : (
+        <p className={styles.finalStatus}>Tu equipo no envió respuesta.</p>
+      )}
+    </section>
+  );
+}
+
+function FinalWagerForm({ max, onSubmit }: { max: number; onSubmit: (amount: number) => void }) {
+  const inputId = useId();
+  const limitId = useId();
+  const [draft, setDraft] = useState('');
+  const amount = Number(draft);
+  const filled = draft.trim() !== '';
+  const valid = filled && Number.isSafeInteger(amount) && amount >= 0 && amount <= max;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (valid) onSubmit(amount);
+  }
+
+  return (
+    <form className={styles.finalForm} onSubmit={submit}>
+      <label htmlFor={inputId}>Apuesta de tu equipo</label>
+      <input
+        id={inputId}
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={max}
+        step={1}
+        value={draft}
+        aria-describedby={limitId}
+        aria-invalid={filled && !valid}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <p id={limitId} className={filled && !valid ? styles.finalError : styles.hint}>
+        {filled && !valid
+          ? `Apuesta no válida: el máximo es ${max}, en números enteros desde 0.`
+          : `Mínimo 0, máximo ${max}.`}
+      </p>
+      <button type="submit" className="primary" disabled={!valid}>
+        Enviar apuesta
+      </button>
+    </form>
+  );
+}
+
+function FinalAnswerForm({
+  timerEndsAt,
+  offset,
+  onSubmit,
+}: {
+  timerEndsAt: number | undefined;
+  offset: number;
+  onSubmit: (text: string) => void;
+}) {
+  const inputId = useId();
+  const [draft, setDraft] = useState('');
+  const now = useNow(timerEndsAt !== undefined);
+  const remaining =
+    timerEndsAt !== undefined ? remainingWithOffset(timerEndsAt, now, offset) : null;
+  const timeUp = remaining === 0;
+  const valid = draft.trim() !== '' && draft.length <= FINAL_ANSWER_MAX_LENGTH && !timeUp;
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (valid) onSubmit(draft.trim());
+  }
+
+  return (
+    <form className={styles.finalForm} onSubmit={submit}>
+      {remaining !== null && (
+        <p className={styles.finalTimer} role="timer" aria-label="Tiempo restante">
+          {secondsLeft(remaining)}
+        </p>
+      )}
+      <label htmlFor={inputId}>Respuesta de tu equipo</label>
+      <textarea
+        id={inputId}
+        rows={3}
+        maxLength={FINAL_ANSWER_MAX_LENGTH}
+        value={draft}
+        disabled={timeUp}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      {timeUp && <p className={styles.finalError}>Se acabó el tiempo.</p>}
+      <button type="submit" className="primary" disabled={!valid}>
+        Enviar respuesta
+      </button>
+    </form>
   );
 }
