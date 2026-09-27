@@ -21,7 +21,7 @@
   - Pasa el test unitario de `shouldRegisterServiceWorker`: web segura sí, escritorio no, `http://IP` no.
   - En el e2e de escritorio, no hay service workers registrados.
   - En el e2e de escritorio, una segunda instancia termina y deja una sola ventana del operador.
-- [ ] 2.2 Agregar `pickTvDisplay` (pura, `electron/windows.ts`) y la IPC `openTv`: reutiliza la ventana de TV existente, la abre en el otro monitor a pantalla completa o como ventana de 1280x720 si hay un solo monitor, y F11 alterna la pantalla completa. Al cerrar el operador se cierra la TV y termina la app. En `TvLauncher`, usar `openTv` en escritorio y ocultar la URL y el aviso de bloqueo. Criterio de listo:
+- [x] 2.2 Agregar `pickTvDisplay` (pura, `electron/windows.ts`) y la IPC `openTv`: reutiliza la ventana de TV existente, la abre en el otro monitor a pantalla completa o como ventana de 1280x720 si hay un solo monitor, y F11 alterna la pantalla completa. Al cerrar el operador se cierra la TV y termina la app. En `TvLauncher`, usar `openTv` en escritorio y ocultar la URL y el aviso de bloqueo. Criterio de listo:
   - Pasan los tests de `pickTvDisplay` con uno y con dos monitores, y con el operador en el secundario.
   - Pasan los tests de componentes de `TvLauncher` en escritorio (llama a `openTv`, no muestra la URL) y en la web (sin cambios).
   - En el e2e de escritorio, "Abrir pantalla de TV" abre una segunda ventana que se sincroniza al abrir una celda, presionarlo otra vez no crea una tercera, y cerrar el operador cierra ambas.

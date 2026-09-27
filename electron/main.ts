@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, protocol, session } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, screen, session } from 'electron';
 import { SITE_BASE } from '../site.config';
 import type { DesktopIpcChannel } from '../src/platform/desktop';
 import { applyUserDataOverride } from './config';
 import { mimeType, resolveStaticPath } from './static';
+import { pickTvDisplay, TV_WINDOW_SIZE } from './windows';
 
 /** Origen propio y estable: no depende del puerto de la red local. */
 const APP_SCHEME = 'app';
@@ -64,14 +65,57 @@ function createAppWindow(options: Electron.BrowserWindowConstructorOptions = {})
 }
 
 let operatorWindow: BrowserWindow | null = null;
+let tvWindow: BrowserWindow | null = null;
 
 function createOperatorWindow(): BrowserWindow {
   const window = createAppWindow({ width: 1280, height: 800 });
   window.on('closed', () => {
     operatorWindow = null;
+    // Cerrar el operador cierra la TV; sin ventanas, la app termina.
+    tvWindow?.close();
   });
   void window.loadURL(appUrl());
   return window;
+}
+
+function tvUrl(sessionId: string): string {
+  return appUrl(`#/tv/${encodeURIComponent(sessionId)}`);
+}
+
+/** Abre la TV en otro monitor a pantalla completa, o como ventana normal si hay uno solo. */
+function createTvWindow(sessionId: string): BrowserWindow {
+  const operatorDisplay = operatorWindow
+    ? screen.getDisplayMatching(operatorWindow.getBounds())
+    : screen.getPrimaryDisplay();
+  const display = pickTvDisplay(screen.getAllDisplays(), operatorDisplay.id);
+  const window = display
+    ? createAppWindow({ ...display.bounds, fullscreen: true })
+    : createAppWindow({ ...TV_WINDOW_SIZE });
+
+  window.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.key === 'F11') {
+      event.preventDefault();
+      window.setFullScreen(!window.isFullScreen());
+    }
+  });
+  window.on('closed', () => {
+    tvWindow = null;
+  });
+  void window.loadURL(tvUrl(sessionId));
+  return window;
+}
+
+/** Reutiliza la ventana de TV si ya existe: carga la sesión si cambió y la pasa al frente. */
+function openTv(sessionId: string): void {
+  if (!tvWindow) {
+    tvWindow = createTvWindow(sessionId);
+    return;
+  }
+  const url = tvUrl(sessionId);
+  if (tvWindow.webContents.getURL() !== url) void tvWindow.loadURL(url);
+  if (tvWindow.isMinimized()) tvWindow.restore();
+  tvWindow.show();
+  tvWindow.focus();
 }
 
 function focusOperator(): void {
@@ -90,6 +134,10 @@ if (!app.requestSingleInstanceLock()) {
 
   ipcMain.on('jeopardy:version' satisfies DesktopIpcChannel, (event) => {
     event.returnValue = app.getVersion();
+  });
+  ipcMain.handle('jeopardy:open-tv' satisfies DesktopIpcChannel, (_event, sessionId: unknown) => {
+    if (typeof sessionId !== 'string' || sessionId === '') throw new Error('Sesión inválida');
+    openTv(sessionId);
   });
 
   void app.whenReady().then(async () => {
