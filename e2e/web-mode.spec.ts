@@ -14,3 +14,12 @@ test('la vista de operador no ofrece "Conectar dispositivos"', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Abrir pantalla de TV' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Conectar dispositivos' })).toHaveCount(0);
 });
+
+test('la lista de tableros no ofrece abrir la carpeta de respaldos', async ({ page }) => {
+  await page.goto('./');
+  await seedCompleteBoard(page);
+  await page.reload();
+  await expect(page.getByRole('link', { name: 'Tablero de prueba' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nuevo tablero' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Abrir carpeta de respaldos' })).toHaveCount(0);
+});
