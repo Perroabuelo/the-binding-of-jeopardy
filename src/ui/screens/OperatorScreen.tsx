@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { allClueKeys, getClue, parseClueKey, type Clue, type ClueKey } from '../../domain/board';
 import {
   clueValueInPlay,
@@ -18,6 +18,7 @@ import { FinalPanel } from '../game/FinalPanel';
 import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
 import { TvLauncher } from '../game/TvLauncher';
+import { useDevicePublisher } from '../game/useDevicePublisher';
 import { useOperatorSync } from '../game/useOperatorSync';
 import { ConnectDevicesButton } from '../lan/ConnectDevicesPanel';
 import { routeHref } from '../router';
@@ -35,12 +36,18 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<'finish' | 'finishRound' | null>(null);
   const confirmQuestionId = useId();
+  /**
+   * Última sesión, actualizada al aplicar cada acción: dos acciones seguidas (p. ej. dos toques
+   * de celulares en el mismo instante) se aplican una después de la otra, sin pisarse.
+   */
+  const sessionRef = useRef<GameSession | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     getSession(sessionId)
       .then((session) => {
         if (cancelled) return;
+        sessionRef.current = session ?? null;
         setState(session ? { status: 'loaded', session } : { status: 'missing' });
       })
       .catch((e: unknown) => {
@@ -55,11 +62,14 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
 
   const session = state.status === 'loaded' ? state.session : null;
   useOperatorSync(sessionId, session);
+  useDevicePublisher(session, dispatch);
 
   function dispatch(action: GameAction) {
-    if (!session) return;
-    const next = gameReducer(session, action, Date.now());
-    if (next === session) return;
+    const current = sessionRef.current;
+    if (!current) return;
+    const next = gameReducer(current, action, Date.now());
+    if (next === current) return;
+    sessionRef.current = next;
     setState({ status: 'loaded', session: next });
     // Se guarda en cada cambio: una recarga reanuda en el mismo punto.
     saveSession(next).catch((e: unknown) => setError(errorMessage(e)));

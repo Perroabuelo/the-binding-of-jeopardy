@@ -6,7 +6,13 @@ import { gameReducer, startGame, type GameSession, type TvView } from '../../dom
 import { getSession, putImage, saveSession } from '../../storage/db';
 import { createMemoryBus, type MemoryBus, type SyncMessage } from '../../sync';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
-import { installDesktop, uninstallDesktop } from '../../../tests/fixtures/desktop';
+import {
+  installDesktop,
+  makeFakeDesktop,
+  uninstallDesktop,
+  type FakeDesktop,
+} from '../../../tests/fixtures/desktop';
+import type { DeviceGameView } from '../../domain/deviceProjection';
 import { OperatorScreen } from './OperatorScreen';
 
 const SESSION_ID = 'sesion-prueba';
@@ -837,3 +843,118 @@ function scoreItemInPodium(name: string, score: number) {
     name: new RegExp(`${name}, ${score} puntos$`),
   });
 }
+
+describe('OperatorScreen: publicación a los celulares', () => {
+  afterEach(() => {
+    uninstallDesktop();
+  });
+
+  function buzzSession(): GameSession {
+    return makeSession(['Primos', 'Tíos'], { buzzersEnabled: true });
+  }
+
+  /** Pregunta c0-r0 abierta con los pulsadores activos. */
+  function armedSession(): GameSession {
+    const opened = gameReducer(buzzSession(), { type: 'openClue', clueKey: 'c0-r0' }, 1);
+    return gameReducer(opened, { type: 'armBuzzers' }, 1);
+  }
+
+  const buzzEvent = (teamId: string, deviceId: string) => ({
+    type: 'buzz' as const,
+    teamId,
+    deviceId,
+    deviceLabel: deviceId,
+  });
+
+  function lastPublished(fake: FakeDesktop): DeviceGameView | null | undefined {
+    const calls = vi.mocked(fake.api.lan.publishGame).mock.calls;
+    return calls.at(-1)?.[0];
+  }
+
+  it('dos toques en el mismo instante dejan como ganador al primero', async () => {
+    const fake = installDesktop();
+    await renderOperator(armedSession());
+    await waitFor(() => expect(lastPublished(fake)?.common.buzz?.status).toBe('armed'));
+
+    act(() => {
+      fake.emitDeviceEvent(buzzEvent('equipo-2', 'celu-tios'));
+      fake.emitDeviceEvent(buzzEvent('equipo-1', 'celu-primos'));
+    });
+
+    await waitFor(() =>
+      expect(lastPublished(fake)?.common.buzz).toMatchObject({
+        status: 'answering',
+        answeringTeamId: 'equipo-2',
+      }),
+    );
+    expect(lastPublished(fake)?.answeringDeviceId).toBe('celu-tios');
+    await waitFor(async () => {
+      const saved = await getSession(SESSION_ID);
+      expect(saved?.phase).toMatchObject({ buzz: { answering: { teamId: 'equipo-2' } } });
+    });
+  });
+
+  it('publica la proyección en cada cambio y null al desmontar', async () => {
+    const user = userEvent.setup();
+    const fake = installDesktop();
+    const view = await renderOperator(buzzSession());
+    await waitFor(() => expect(lastPublished(fake)?.common.stage).toBe('board'));
+
+    await user.click(screen.getByRole('button', { name: 'Categoría 1, 100' }));
+    await waitFor(() =>
+      expect(lastPublished(fake)?.common).toMatchObject({
+        stage: 'clue',
+        buzz: { status: 'closed' },
+      }),
+    );
+    expect(JSON.stringify(vi.mocked(fake.api.lan.publishGame).mock.calls)).not.toMatch(
+      /Pregunta|Respuesta|Categoría/,
+    );
+
+    view.unmount();
+    expect(lastPublished(fake)).toBeNull();
+    expect(fake.api.lan.onDeviceEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('un envío del Final desde un celular llega al reducer', async () => {
+    const fake = installDesktop();
+    const board = makeCompleteBoard({
+      final: { category: 'Cumple', question: 'Pregunta final', answer: 'Respuesta final' },
+    });
+    let n = 0;
+    let session = startGame([{ board, multiplier: 1 }], ['Primos'], {
+      sessionId: SESSION_ID,
+      now: 1,
+      makeTeamId: () => `equipo-${++n}`,
+      withFinal: true,
+      withBuzzers: true,
+    });
+    session = gameReducer(session, { type: 'setScore', teamId: 'equipo-1', score: 800 }, 1);
+    session = gameReducer(session, { type: 'finish' }, 1);
+    await renderOperator(session);
+
+    act(() => {
+      fake.emitDeviceEvent({
+        type: 'finalWager',
+        teamId: 'equipo-1',
+        amount: 500,
+        deviceId: 'celu-1',
+        deviceLabel: 'Android',
+      });
+    });
+    await waitFor(() =>
+      expect(lastPublished(fake)?.perTeam['equipo-1']?.final?.wager).toEqual({
+        amount: 500,
+        deviceLabel: 'Android',
+      }),
+    );
+  });
+
+  it('en la web no publica nada', async () => {
+    const fake = makeFakeDesktop();
+    await renderOperator(buzzSession());
+    await waitFor(() => expect(lastTvView()).toBeDefined());
+    expect(fake.api.lan.publishGame).not.toHaveBeenCalled();
+    expect(fake.api.lan.onDeviceEvent).not.toHaveBeenCalled();
+  });
+});
