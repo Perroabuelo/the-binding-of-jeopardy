@@ -43,7 +43,7 @@ El sistema SHALL conservar el juego en curso (equipos, puntajes, rondas con su t
 - **WHEN** el operador reanuda un juego guardado antes de que existieran las rondas
 - **THEN** el juego sigue con su tablero, sus puntajes y sus celdas usadas, como una sola ronda con valores sin multiplicar
 
-#### Scenario: Recarga con un equipo respondiendo por pulsador
+#### Scenario: Recarga con un equipo ya fallado
 - **WHEN** con "Tíos" ya fallado y "Primos" respondiendo por pulsador la vista de operador se recarga
 - **THEN** al reanudar, "Primos" sigue respondiendo, "Tíos" sigue marcado como fallado y el equipo que elige es el mismo
 
