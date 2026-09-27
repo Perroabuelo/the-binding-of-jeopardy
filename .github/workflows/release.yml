@@ -66,8 +66,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          args=(release/*.exe --title "$GITHUB_REF_NAME")
+          # Una versión con sufijo (p. ej. v1.1.0-beta.1) se publica como prerelease.
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then args+=(--prerelease); fi
           if [ -n "${notes:-}" ]; then
-            gh release create "$GITHUB_REF_NAME" release/*.exe --title "$GITHUB_REF_NAME" --notes-file "$notes"
+            args+=(--notes-file "$notes")
           else
-            gh release create "$GITHUB_REF_NAME" release/*.exe --title "$GITHUB_REF_NAME" --generate-notes
+            args+=(--generate-notes)
           fi
+          gh release create "$GITHUB_REF_NAME" "${args[@]}"

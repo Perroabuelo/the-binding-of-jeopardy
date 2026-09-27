@@ -57,7 +57,7 @@
 ## 4. UI de conexión
 
 - [x] 4.1 Crear `ui/screens/JoinScreen` (`#/unirse`) con `deviceId` en `localStorage` (con try/catch), `label` según el user agent, y los estados "Conectando…", "Conectado a la fiesta" y "Reconectando…". Si no hay servidor, muestra el mensaje para abrirla desde el QR. Agregar la ruta al router. Criterio de listo: pasan los tests de componentes con transporte falso, uno por estado, y el test del router para `#/unirse`.
-- [ ] 4.2 Crear `ui/lan/ConnectDevicesPanel` y el botón "Conectar dispositivos" en `OperatorScreen`, solo en escritorio. El panel incluye:
+- [x] 4.2 Crear `ui/lan/ConnectDevicesPanel` y el botón "Conectar dispositivos" en `OperatorScreen`, solo en escritorio. El panel incluye:
   - La URL y el QR SVG con `qrcode`.
   - El selector de interfaz.
   - El contador y la lista de dispositivos, con numeración de los repetidos.
@@ -68,7 +68,7 @@
   Criterio de listo:
   - Pasan los tests de componentes con un `DesktopApi` falso: la URL y un QR que la codifica, la lista actualizada con `onStatus`, el aviso de red Pública, `noPort`, `noInterface`, la guía, que elegir una interfaz llama a `selectInterface`, y que el botón no aparece sin `DesktopApi`.
   - Pasa un e2e web que verifica que la versión web no muestra "Conectar dispositivos".
-- [ ] 4.3 Agregar al e2e de escritorio el caso de conexión: abrir "Conectar dispositivos", abrir `http://127.0.0.1:<puerto>/` desde Chromium de Playwright, ver "Conectado a la fiesta" y 1 dispositivo en el operador, recargar y seguir con 1, cerrar y quedar en 0 en menos de 2 s. Criterio de listo: el caso pasa en el job `desktop` del CI.
+- [x] 4.3 Agregar al e2e de escritorio el caso de conexión: abrir "Conectar dispositivos", abrir `http://127.0.0.1:<puerto>/` desde Chromium de Playwright, ver "Conectado a la fiesta" y 1 dispositivo en el operador, recargar y seguir con 1, cerrar y quedar en 0 en menos de 2 s. Criterio de listo: el caso pasa en el job `desktop` del CI.
 
 ## 5. Respaldo en disco
 
@@ -79,7 +79,7 @@
   - Pasan los tests de `boardBackup` con temporizadores falsos: varios guardados seguidos producen una sola escritura, y una falla muestra el aviso.
   - Pasan los tests de `BoardListScreen`: el botón solo aparece en escritorio, eliminar llama a `trashBoard` e importar respalda.
   - Pasa el test de exportación existente sin cambios.
-- [ ] 5.3 Agregar al e2e de escritorio: crear un tablero listo, verificar que su archivo aparece en `JEOPARDY_BACKUP_DIR`, que al importarlo en la web crea un tablero equivalente (validado con `importBoard` en el test), y que al eliminarlo pasa a `eliminados`. Agregar también un e2e web que verifica que no aparece "Abrir carpeta de respaldos". Criterio de listo: ambos casos pasan en el CI.
+- [x] 5.3 Agregar al e2e de escritorio: crear un tablero listo, verificar que su archivo aparece en `JEOPARDY_BACKUP_DIR`, que al importarlo en la web crea un tablero equivalente (validado con `importBoard` en el test), y que al eliminarlo pasa a `eliminados`. Agregar también un e2e web que verifica que no aparece "Abrir carpeta de respaldos". Criterio de listo: ambos casos pasan en el CI.
 
 ## 6. Publicación y documentación
 
