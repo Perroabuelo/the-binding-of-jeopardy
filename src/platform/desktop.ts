@@ -1,3 +1,6 @@
+import type { DeviceGameView } from '../domain/deviceProjection';
+import type { DeviceEvent } from '../net/protocol';
+
 /**
  * API que expone la app de escritorio (preload de Electron) en `window.jeopardyDesktop`.
  * En la versión web no existe: la UI decide qué mostrar solo con `getDesktopApi()`.
@@ -29,6 +32,9 @@ export interface LanStatus {
   problem?: 'noInterface' | 'noPort';
 }
 
+export type { DeviceEvent } from '../net/protocol';
+export type { DeviceGameView } from '../domain/deviceProjection';
+
 export interface BackupFile {
   boardId: string;
   fileName: string;
@@ -43,6 +49,10 @@ export interface DesktopApi {
     /** Devuelve la función para desuscribirse. */
     onStatus(listener: (status: LanStatus) => void): () => void;
     selectInterface(name: string): Promise<void>;
+    /** Estado del juego para los celulares; null al salir del juego. */
+    publishGame(view: DeviceGameView | null): void;
+    /** Toques y envíos del Final de los celulares. Devuelve la función para desuscribirse. */
+    onDeviceEvent(listener: (event: DeviceEvent) => void): () => void;
   };
   backup: {
     writeBoard(file: BackupFile): Promise<void>;
@@ -58,6 +68,8 @@ export type DesktopIpcChannel =
   | 'jeopardy:lan-status'
   | 'jeopardy:lan-status-changed'
   | 'jeopardy:lan-select-interface'
+  | 'jeopardy:lan-publish-game'
+  | 'jeopardy:lan-device-event'
   | 'jeopardy:backup-write'
   | 'jeopardy:backup-trash'
   | 'jeopardy:backup-open-folder';

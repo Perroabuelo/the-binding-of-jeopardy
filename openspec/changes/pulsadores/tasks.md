@@ -32,7 +32,7 @@
   - Cada socket recibe solo su `perTeam`. `youWon` sale solo para el dispositivo ganador. `publishGame(null)` envía `view: null`.
   - `finalWager` y `finalAnswer` se reenvían con el equipo del registro.
   - `LanStatus.devices` incluye `teamId`.
-- [ ] 2.3 En el proceso principal y el preload, agregar `lan.publishGame` y `lan.onDeviceEvent` a `DesktopApi` y conectarlos con el hub. Verificar con `electron/lanServer.test.ts` (integración en Node): un cliente `ws` que elige equipo y pulsa con los pulsadores publicados como activos produce un `deviceEvent`, y un segundo cliente de otro equipo recibe `game` con `answeringTeamId` pero sin el `perTeam` del primero.
+- [x] 2.3 En el proceso principal y el preload, agregar `lan.publishGame` y `lan.onDeviceEvent` a `DesktopApi` y conectarlos con el hub. Verificar con `electron/lanServer.test.ts` (integración en Node): un cliente `ws` que elige equipo y pulsa con los pulsadores publicados como activos produce un `deviceEvent`, y un segundo cliente de otro equipo recibe `game` con `answeringTeamId` pero sin el `perTeam` del primero.
 
 ## 3. UI del operador y TV
 
