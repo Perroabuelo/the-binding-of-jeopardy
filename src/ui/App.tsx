@@ -2,7 +2,7 @@ import { BackupNotice } from './boards/BackupNotice';
 import { useRoute } from './router';
 import { BoardListScreen } from './screens/BoardListScreen';
 import { EditorScreen } from './screens/EditorScreen';
-import { JoinScreen } from './screens/JoinScreen';
+import { PhoneScreen } from './screens/PhoneScreen';
 import { NotFoundScreen } from './screens/NotFoundScreen';
 import { OperatorScreen } from './screens/OperatorScreen';
 import { TeamSetupScreen } from './screens/TeamSetupScreen';
@@ -31,7 +31,7 @@ function Screen() {
     case 'tv':
       return <TvScreen key={route.sessionId} sessionId={route.sessionId} />;
     case 'join':
-      return <JoinScreen />;
+      return <PhoneScreen />;
     case 'notFound':
       return <NotFoundScreen />;
   }
