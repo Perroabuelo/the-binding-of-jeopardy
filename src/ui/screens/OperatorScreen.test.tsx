@@ -6,6 +6,7 @@ import { gameReducer, startGame, type GameSession, type TvView } from '../../dom
 import { getSession, putImage, saveSession } from '../../storage/db';
 import { createMemoryBus, type MemoryBus, type SyncMessage } from '../../sync';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
+import { installDesktop, uninstallDesktop } from '../../../tests/fixtures/desktop';
 import { OperatorScreen } from './OperatorScreen';
 
 const SESSION_ID = 'sesion-prueba';
@@ -59,6 +60,23 @@ function lastTvView(): TvView | undefined {
   const states = tvMessages.filter((msg) => msg.type === 'state');
   return states.at(-1)?.view;
 }
+
+describe('conectar dispositivos', () => {
+  afterEach(() => {
+    uninstallDesktop();
+  });
+
+  it('en la web no ofrece "Conectar dispositivos"', async () => {
+    await renderOperator();
+    expect(screen.queryByRole('button', { name: 'Conectar dispositivos' })).not.toBeInTheDocument();
+  });
+
+  it('en escritorio ofrece "Conectar dispositivos"', async () => {
+    installDesktop();
+    await renderOperator();
+    expect(screen.getByRole('button', { name: 'Conectar dispositivos' })).toBeVisible();
+  });
+});
 
 describe('pantalla de TV desde el operador', () => {
   it('abre la TV en una ventana con nombre fijo y muestra la dirección para copiar', async () => {

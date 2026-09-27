@@ -148,3 +148,15 @@
 .wagerError {
   color: var(--color-danger);
 }
+
+/* "Abrir pantalla de TV" y, en escritorio, "Conectar dispositivos". */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.tools > section {
+  flex: 1;
+}
