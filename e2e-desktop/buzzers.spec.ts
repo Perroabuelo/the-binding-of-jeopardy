@@ -86,15 +86,18 @@ test('pulsadores y Final desde los celulares', async () => {
     // 1. Cada celular elige su equipo y el operador lo ve en "Conectar dispositivos".
     const primos = await openPhone(browser);
     const tios = await openPhone(browser);
-    await joinTeam(primos, 'Primos');
-    await joinTeam(tios, 'Tíos');
     await operator.getByRole('button', { name: 'Conectar dispositivos' }).click();
     const devices = operator.getByRole('list', { name: 'Dispositivos conectados' });
+    // El panel tarda en cargar el estado de la red; los 2 s cuentan desde que eligen equipo.
+    await expect(devices.getByRole('listitem')).toHaveText([
+      'Celular · Sin equipo',
+      'Celular 2 · Sin equipo',
+    ]);
+    await joinTeam(primos, 'Primos');
+    await joinTeam(tios, 'Tíos');
     await expect(devices.getByRole('listitem')).toHaveText(
       ['Celular · Primos', 'Celular 2 · Tíos'],
-      {
-        timeout: 2000,
-      },
+      { timeout: 2000 },
     );
     await operator.getByRole('button', { name: 'Cerrar' }).click();
 
