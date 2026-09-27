@@ -14,7 +14,7 @@
 
 ## 2. Interfaz
 
-- [ ] 2.1 Crear `src/ui/boards/SampleDialog.tsx` (con el patrón de `ConfirmDialog`) y, en `BoardListScreen`, el botón **Crear desde ejemplo**. Elegir un ejemplo lo guarda con `saveBoard`, lo respalda con `boardBackup.backupNow`, lo pone primero en la lista y muestra `Se creó "<título>" desde el ejemplo.`. El mensaje de lista vacía pasa a "Todavía no hay tableros. Crea uno nuevo o parte desde un ejemplo.". Verificar con tests en `BoardListScreen.test.tsx`:
+- [x] 2.1 Crear `src/ui/boards/SampleDialog.tsx` (con el patrón de `ConfirmDialog`) y, en `BoardListScreen`, el botón **Crear desde ejemplo**. Elegir un ejemplo lo guarda con `saveBoard`, lo respalda con `boardBackup.backupNow`, lo pone primero en la lista y muestra `Se creó "<título>" desde el ejemplo.`. El mensaje de lista vacía pasa a "Todavía no hay tableros. Crea uno nuevo o parte desde un ejemplo.". Verificar con tests en `BoardListScreen.test.tsx`:
   - El botón abre el diálogo con los tres títulos y sus descripciones.
   - Elegir uno lo deja en `listBoards()` y primero en la lista, con el aviso.
   - Crear dos veces el mismo ejemplo da dos tableros distintos, y los existentes no cambian.

@@ -1,10 +1,12 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { createEmptyBoard, type Board } from '../../domain/board';
+import { createBoardFromSample, SAMPLE_BOARDS, type SampleBoard } from '../../domain/samples';
 import { deleteBoard, listBoards, saveBoard } from '../../storage/db';
 import { getDesktopApi } from '../../platform/desktop';
 import { boardBackup } from '../boards/boardBackup';
 import { BoardListItem } from '../boards/BoardListItem';
 import { downloadBoardFile, importBoardFile } from '../boards/boardFiles';
+import { SampleDialog } from '../boards/SampleDialog';
 import { ConfirmDialog } from '../lib/ConfirmDialog';
 import { errorMessage } from '../boards/errors';
 import { boardDisplayTitle } from '../boards/format';
@@ -18,6 +20,7 @@ export function BoardListScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Board | null>(null);
   const [importing, setImporting] = useState(false);
+  const [choosingSample, setChoosingSample] = useState(false);
 
   useEffect(() => {
     listBoards()
@@ -44,6 +47,21 @@ export function BoardListScreen() {
     } catch (e) {
       showError(errorMessage(e, 'No se pudo crear el tablero.'));
     }
+  }
+
+  async function createFromSample(sample: SampleBoard) {
+    setChoosingSample(false);
+    const board = createBoardFromSample(sample, newId(), Date.now());
+    try {
+      await saveBoard(board);
+    } catch (e) {
+      showError(errorMessage(e, 'No se pudo crear el tablero.'));
+      return;
+    }
+    void boardBackup.backupNow(board);
+    // El nuevo es el más reciente, así que va primero.
+    setBoards((prev) => [board, ...(prev ?? [])]);
+    showNotice(`Se creó "${boardDisplayTitle(board)}" desde el ejemplo.`);
   }
 
   async function confirmDelete(board: Board) {
@@ -108,6 +126,9 @@ export function BoardListScreen() {
         <button type="button" className="primary" onClick={createBoard}>
           Nuevo tablero
         </button>
+        <button type="button" onClick={() => setChoosingSample(true)}>
+          Crear desde ejemplo
+        </button>
         <label className={styles.import}>
           Importar tablero
           <input
@@ -125,7 +146,9 @@ export function BoardListScreen() {
       </div>
       {boards &&
         (boards.length === 0 ? (
-          <p className={styles.empty}>Todavía no hay tableros. Crea uno para empezar.</p>
+          <p className={styles.empty}>
+            Todavía no hay tableros. Crea uno nuevo o parte desde un ejemplo.
+          </p>
         ) : (
           <ul aria-label="Tableros guardados" className={styles.list}>
             {boards.map((board) => (
@@ -138,6 +161,13 @@ export function BoardListScreen() {
             ))}
           </ul>
         ))}
+      {choosingSample && (
+        <SampleDialog
+          samples={SAMPLE_BOARDS}
+          onChoose={(sample) => void createFromSample(sample)}
+          onCancel={() => setChoosingSample(false)}
+        />
+      )}
       {pendingDelete && (
         <ConfirmDialog
           title="Eliminar tablero"
