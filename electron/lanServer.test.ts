@@ -267,7 +267,8 @@ describe('pulsadores por WebSocket', () => {
     });
     expect(seen.buzz?.answeringTeamId).toBe('primos');
     expect(seen).not.toHaveProperty('youWon');
-    expect(JSON.stringify(tios.received)).not.toMatch(/7531|800|celu-1/);
+    // Con \b, los montos no coinciden con cifras dentro de otros números (como serverTime).
+    expect(JSON.stringify(tios.received)).not.toMatch(/\b(7531|800)\b|celu-1/);
     await waitFor(() => (lastGame(primos.received)?.youWon ? true : undefined));
   });
 });
