@@ -1,9 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { app, BrowserWindow, ipcMain, protocol, screen, session } from 'electron';
+import { mkdir } from 'node:fs/promises';
+import { app, BrowserWindow, ipcMain, protocol, screen, session, shell } from 'electron';
 import { SITE_BASE } from '../site.config';
-import type { DesktopIpcChannel } from '../src/platform/desktop';
-import { applyUserDataOverride } from './config';
+import type { BackupFile, DesktopIpcChannel } from '../src/platform/desktop';
+import { createBackupStore } from './backup';
+import { applyUserDataOverride, backupDir } from './config';
 import { startLan } from './lan';
 import type { LanServer } from './lanServer';
 import { mimeType, resolveStaticPath } from './static';
@@ -141,6 +143,20 @@ if (!app.requestSingleInstanceLock()) {
   ipcMain.handle('jeopardy:open-tv' satisfies DesktopIpcChannel, (_event, sessionId: unknown) => {
     if (typeof sessionId !== 'string' || sessionId === '') throw new Error('Sesión inválida');
     openTv(sessionId);
+  });
+
+  // Respaldo de tableros en disco. Si falla, la promesa se rechaza y la UI avisa.
+  const backups = createBackupStore(backupDir());
+  ipcMain.handle('jeopardy:backup-write' satisfies DesktopIpcChannel, (_event, file: BackupFile) =>
+    backups.writeBoard(file),
+  );
+  ipcMain.handle('jeopardy:backup-trash' satisfies DesktopIpcChannel, (_event, boardId: string) =>
+    backups.trashBoard(boardId),
+  );
+  ipcMain.handle('jeopardy:backup-open-folder' satisfies DesktopIpcChannel, async () => {
+    await mkdir(backups.dir, { recursive: true });
+    const error = await shell.openPath(backups.dir);
+    if (error) throw new Error(error);
   });
 
   void app.whenReady().then(async () => {
