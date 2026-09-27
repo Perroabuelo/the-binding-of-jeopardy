@@ -52,7 +52,7 @@
   - Un cliente `ws` con `join` aparece en la lista, y al cerrar desaparece.
   - Con el primer puerto ocupado se usa el siguiente, y con todos ocupados queda `noPort`.
   - Ningún mensaje enviado al cliente contiene datos del juego.
-- [ ] 3.4 Hacer genérico `SyncTransport<M = SyncMessage>`, sin cambios para los usos actuales, y crear `src/net/wsTransport.ts` (`createWebSocketTransport`, con reconexión con espera creciente y estado `connecting | open | reconnecting`). Criterio de listo: pasan los tests existentes de `src/sync` y los nuevos con WebSocket falso: entrega los mensajes válidos, filtra los inválidos, se reconecta con espera creciente y `close` detiene los reintentos.
+- [x] 3.4 Hacer genérico `SyncTransport<M = SyncMessage>`, sin cambios para los usos actuales, y crear `src/net/wsTransport.ts` (`createWebSocketTransport`, con reconexión con espera creciente y estado `connecting | open | reconnecting`). Criterio de listo: pasan los tests existentes de `src/sync` y los nuevos con WebSocket falso: entrega los mensajes válidos, filtra los inválidos, se reconecta con espera creciente y `close` detiene los reintentos.
 
 ## 4. UI de conexión
 
