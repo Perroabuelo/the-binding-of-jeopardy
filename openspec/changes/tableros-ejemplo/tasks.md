@@ -10,7 +10,7 @@
   - Dos llamadas dan tableros independientes: mutar uno no cambia el otro ni `SAMPLE_BOARDS`.
   - La ida y vuelta `exportBoard` → `importBoard` conserva el contenido, el Daily Double y la pista final.
 - [x] 1.2 Agregar `agriculture.ts` (Agricultura) a `SAMPLE_BOARDS`, con hechos estables y verificables (design, decisión 5) y el Daily Double en otra categoría que la de videojuegos. Verificar con los mismos tests de 1.1, que ahora cubren dos ejemplos.
-- [ ] 1.3 Agregar `kpop.ts` (Música: K-pop) a `SAMPLE_BOARDS`, sin información privada de los artistas y sin datos que cambien con el tiempo. Verificar con los tests de 1.1 y con un test de que `SAMPLE_BOARDS` tiene exactamente los tres ejemplos, en el orden agricultura, videojuegos, K-pop.
+- [x] 1.3 Agregar `kpop.ts` (Música: K-pop) a `SAMPLE_BOARDS`, sin información privada de los artistas y sin datos que cambien con el tiempo. Verificar con los tests de 1.1 y con un test de que `SAMPLE_BOARDS` tiene exactamente los tres ejemplos, en el orden agricultura, videojuegos, K-pop.
 
 ## 2. Interfaz
 

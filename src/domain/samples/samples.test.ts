@@ -7,6 +7,14 @@ import { createBoardFromSample, SAMPLE_BOARDS } from '.';
 const NOW = 1_800_000_000_000;
 
 describe('SAMPLE_BOARDS', () => {
+  it('ofrece agricultura, videojuegos y K-pop, en ese orden', () => {
+    expect(SAMPLE_BOARDS.map((sample) => sample.id)).toEqual([
+      'agricultura',
+      'videojuegos',
+      'kpop',
+    ]);
+  });
+
   it('las claves de los ejemplos son únicas', () => {
     const ids = SAMPLE_BOARDS.map((sample) => sample.id);
     expect(new Set(ids).size).toBe(ids.length);
