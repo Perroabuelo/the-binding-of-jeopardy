@@ -2,7 +2,7 @@
 
 ## 1. Dominio
 
-- [ ] 1.1 En `src/domain/game.ts`, agregar `buzzersEnabled`, `controlTeamId`, `BuzzState` en la fase `clue`, `startGame(..., { withBuzzers })`, y las acciones `armBuzzers`, `closeBuzzers`, `buzz` y `judgeBuzz`. `openClue` crea `buzz` cerrado solo con `buzzersEnabled`, y `placeWager` deja la `clue` sin `buzz`. Verificar con tests unitarios en `game.test.ts`:
+- [x] 1.1 En `src/domain/game.ts`, agregar `buzzersEnabled`, `controlTeamId`, `BuzzState` en la fase `clue`, `startGame(..., { withBuzzers })`, y las acciones `armBuzzers`, `closeBuzzers`, `buzz` y `judgeBuzz`. `openClue` crea `buzz` cerrado solo con `buzzersEnabled`, y `placeWager` deja la `clue` sin `buzz`. Verificar con tests unitarios en `game.test.ts`:
   - `openClue` con y sin `buzzersEnabled`, y el Daily Double sin `buzz` después de `placeWager`.
   - `armBuzzers` → `buzz` pasa a `answering`, y un segundo `buzz` devuelve la misma referencia.
   - `judgeBuzz(true)` suma `clueValueInPlay` (también en x2), fija `controlTeamId` y cierra.
