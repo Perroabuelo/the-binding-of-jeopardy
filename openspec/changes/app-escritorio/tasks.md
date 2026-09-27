@@ -17,7 +17,7 @@
 
 ## 2. Modalidad y ventanas
 
-- [ ] 2.1 Agregar el preload (`electron/preload.ts`) con `contextBridge` y `src/platform/desktop.ts`, con `DesktopApi`, `LanStatus` y `getDesktopApi()`. Agregar `shouldRegisterServiceWorker` y usarla en `src/main.tsx`. En el proceso principal, limpiar los `serviceworkers` de la sesión al arrancar y usar `requestSingleInstanceLock`: una segunda apertura enfoca la ventana existente. Criterio de listo:
+- [x] 2.1 Agregar el preload (`electron/preload.ts`) con `contextBridge` y `src/platform/desktop.ts`, con `DesktopApi`, `LanStatus` y `getDesktopApi()`. Agregar `shouldRegisterServiceWorker` y usarla en `src/main.tsx`. En el proceso principal, limpiar los `serviceworkers` de la sesión al arrancar y usar `requestSingleInstanceLock`: una segunda apertura enfoca la ventana existente. Criterio de listo:
   - Pasa el test unitario de `shouldRegisterServiceWorker`: web segura sí, escritorio no, `http://IP` no.
   - En el e2e de escritorio, no hay service workers registrados.
   - En el e2e de escritorio, una segunda instancia termina y deja una sola ventana del operador.

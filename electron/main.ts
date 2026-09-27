@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, session } from 'electron';
 import { SITE_BASE } from '../site.config';
+import type { DesktopIpcChannel } from '../src/platform/desktop';
 import { applyUserDataOverride } from './config';
 import { mimeType, resolveStaticPath } from './static';
 
@@ -46,26 +47,55 @@ function lockDown(window: BrowserWindow): void {
   });
 }
 
-function createOperatorWindow(): BrowserWindow {
+function createAppWindow(options: Electron.BrowserWindowConstructorOptions = {}): BrowserWindow {
   const window = new BrowserWindow({
-    width: 1280,
-    height: 800,
     title: 'The Binding of Jeopardy',
     autoHideMenuBar: true,
+    ...options,
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
     },
   });
   lockDown(window);
+  return window;
+}
+
+let operatorWindow: BrowserWindow | null = null;
+
+function createOperatorWindow(): BrowserWindow {
+  const window = createAppWindow({ width: 1280, height: 800 });
+  window.on('closed', () => {
+    operatorWindow = null;
+  });
   void window.loadURL(appUrl());
   return window;
 }
 
-app.on('window-all-closed', () => app.quit());
+function focusOperator(): void {
+  if (!operatorWindow) return;
+  if (operatorWindow.isMinimized()) operatorWindow.restore();
+  operatorWindow.show();
+  operatorWindow.focus();
+}
 
-void app.whenReady().then(() => {
-  protocol.handle(APP_SCHEME, serveAppFile);
-  createOperatorWindow();
-});
+// Una sola instancia por usuario: una segunda apertura enfoca la ventana existente y termina.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', focusOperator);
+  app.on('window-all-closed', () => app.quit());
+
+  ipcMain.on('jeopardy:version' satisfies DesktopIpcChannel, (event) => {
+    event.returnValue = app.getVersion();
+  });
+
+  void app.whenReady().then(async () => {
+    // Por si una versión anterior hubiera dejado un service worker registrado.
+    await session.defaultSession.clearStorageData({ storages: ['serviceworkers'] });
+    protocol.handle(APP_SCHEME, serveAppFile);
+    operatorWindow = createOperatorWindow();
+  });
+}
