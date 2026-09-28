@@ -1514,3 +1514,33 @@ describe('Final desde el celular: respuestas', () => {
     expect(gameReducer(reveal, answer('t0', 'Algo'), T1)).toBe(reveal);
   });
 });
+
+describe('QR para unirse en la TV', () => {
+  const showQr: GameAction = { type: 'setJoinQr', visible: true };
+  const hideQr: GameAction = { type: 'setJoinQr', visible: false };
+
+  it('empieza oculto', () => {
+    expect(buzzGame().joinQrVisible).toBeUndefined();
+  });
+
+  it('con pulsadores se muestra y se oculta en cualquier fase', () => {
+    const shown = play(buzzGame(), showQr);
+    expect(shown.joinQrVisible).toBe(true);
+    expect(shown.updatedAt).toBe(T1);
+    const inClue = play(shown, openClue('c0-r0'));
+    expect(inClue.joinQrVisible).toBe(true);
+    expect(play(inClue, hideQr).joinQrVisible).toBe(false);
+  });
+
+  it('pedir el mismo estado devuelve la misma sesión', () => {
+    const session = buzzGame();
+    expect(gameReducer(session, hideQr, T1)).toBe(session);
+    const shown = play(session, showQr);
+    expect(gameReducer(shown, showQr, T1)).toBe(shown);
+  });
+
+  it('sin pulsadores no cambia la sesión', () => {
+    const session = newGame();
+    expect(gameReducer(session, showQr, T1)).toBe(session);
+  });
+});

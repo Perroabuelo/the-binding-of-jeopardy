@@ -116,6 +116,8 @@ export interface GameSession {
   buzzersEnabled?: boolean;
   /** Equipo que elige la siguiente pregunta: el último que acertó por pulsador. */
   controlTeamId?: string;
+  /** La TV muestra el QR para unirse con el celular (solo con pulsadores). Ausente = oculto. */
+  joinQrVisible?: boolean;
   /** Milisegundos desde epoch. */
   updatedAt: number;
 }
@@ -141,6 +143,8 @@ export type GameAction =
   | { type: 'closeBuzzers' }
   | { type: 'buzz'; teamId: string; deviceId: string; deviceLabel: string }
   | { type: 'judgeBuzz'; correct: boolean }
+  /** Mostrar u ocultar en la TV el QR para unirse con el celular. */
+  | { type: 'setJoinQr'; visible: boolean }
   | ({ type: 'submitFinalWager'; teamId: string; amount: number } & DeviceSource)
   | ({ type: 'submitFinalAnswer'; teamId: string; text: string } & DeviceSource);
 
@@ -156,6 +160,8 @@ export interface TvView {
   teams: Team[];
   /** Equipo que elige la siguiente pregunta, en un juego con pulsadores. */
   controlTeamName?: string;
+  /** La TV muestra el QR para unirse con el celular. Presente solo en un juego con pulsadores. */
+  joinQr?: true;
   /** Presente solo en un juego con 2 o más rondas. `number` desde 1. */
   round?: { number: number; count: number; multiplier: number };
   phase:
@@ -698,6 +704,11 @@ export function gameReducer(session: GameSession, action: GameAction, now: numbe
           buzz: anyTeamCanBuzz(session, failed) ? { ...failed, status: 'armed' } : failed,
         },
       };
+    }
+    case 'setJoinQr': {
+      if (!session.buzzersEnabled) return session;
+      if ((session.joinQrVisible === true) === action.visible) return session;
+      return { ...session, joinQrVisible: action.visible, updatedAt: now };
     }
     case 'award': {
       if (phase.kind !== 'clue') return session;

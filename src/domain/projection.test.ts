@@ -543,6 +543,16 @@ describe('projectForTv: pulsadores', () => {
     expect(projectForTv(buzzGame())).not.toHaveProperty('controlTeamName');
   });
 
+  it('publica joinQr solo con pulsadores y el QR visible', () => {
+    expect(projectForTv(buzzGame())).not.toHaveProperty('joinQr');
+    const shown = play(buzzGame(), { type: 'setJoinQr', visible: true });
+    expect(projectForTv(shown).joinQr).toBe(true);
+    const hidden = play(shown, { type: 'setJoinQr', visible: false });
+    expect(projectForTv(hidden)).not.toHaveProperty('joinQr');
+    // Una sesión sin pulsadores con el campo escrito a mano tampoco lo publica.
+    expect(projectForTv({ ...buzzGame(false), joinQrVisible: true })).not.toHaveProperty('joinQr');
+  });
+
   it('en un juego sin pulsadores no publica nada de pulsadores', () => {
     const view = projectForTv(play(buzzGame(false), openClue('c0-r0')));
     expect(view.phase).not.toHaveProperty('buzz');

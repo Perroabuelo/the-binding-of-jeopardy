@@ -2,7 +2,7 @@
 
 ## 1. Dominio
 
-- [ ] 1.1 Agregar `joinQrVisible?: boolean` a `GameSession`, la acción `setJoinQr` en `gameReducer` (solo con `buzzersEnabled`; sin pulsadores devuelve la misma sesión) y `joinQr?: true` en `TvView` desde `projectForTv` (diseño, decisión 1). Verificar con `npm test`: en `game.test.ts`, `setJoinQr` muestra y oculta el QR con pulsadores y no cambia la sesión sin pulsadores; en `projection.test.ts`, `joinQr` aparece solo con pulsadores y el QR visible, y una sesión guardada sin el campo proyecta sin `joinQr`.
+- [x] 1.1 Agregar `joinQrVisible?: boolean` a `GameSession`, la acción `setJoinQr` en `gameReducer` (solo con `buzzersEnabled`; sin pulsadores devuelve la misma sesión) y `joinQr?: true` en `TvView` desde `projectForTv` (diseño, decisión 1). Verificar con `npm test`: en `game.test.ts`, `setJoinQr` muestra y oculta el QR con pulsadores y no cambia la sesión sin pulsadores; en `projection.test.ts`, `joinQr` aparece solo con pulsadores y el QR visible, y una sesión guardada sin el campo proyecta sin `joinQr`.
 
 ## 2. QR en la TV
 
