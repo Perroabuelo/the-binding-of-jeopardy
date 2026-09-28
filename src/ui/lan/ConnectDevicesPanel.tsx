@@ -1,7 +1,7 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { getDesktopApi, type DesktopApi, type LanStatus } from '../../platform/desktop';
 import { numberDeviceLabels } from './labels';
-import { qrPath } from './qr';
+import { QrCode } from './QrCode';
 import styles from './ConnectDevicesPanel.module.css';
 
 /** Equipos del juego con pulsadores en curso, para mostrar el equipo de cada dispositivo. */
@@ -21,25 +21,6 @@ export function ConnectDevicesButton({ teams }: { teams?: DeviceTeams }) {
         <ConnectDevicesPanel desktop={desktop} teams={teams} onClose={() => setOpen(false)} />
       )}
     </>
-  );
-}
-
-function QrCode({ url }: { url: string }) {
-  const { size, d } = useMemo(() => qrPath(url), [url]);
-  // Margen de 4 módulos, como pide el estándar para que los lectores lo reconozcan.
-  const margin = 4;
-  const side = size + margin * 2;
-  return (
-    <svg
-      role="img"
-      aria-label={`Código QR de ${url}`}
-      className={styles.qr}
-      viewBox={`${-margin} ${-margin} ${side} ${side}`}
-      shapeRendering="crispEdges"
-    >
-      <rect x={-margin} y={-margin} width={side} height={side} className={styles.qrLight} />
-      <path d={d} className={styles.qrDark} data-testid="qr-modules" />
-    </svg>
   );
 }
 
@@ -158,7 +139,7 @@ export function ConnectDevicesPanel({ desktop, teams, onClose }: ConnectDevicesP
 
         {status?.url && (
           <div className={styles.join}>
-            <QrCode url={status.url} />
+            <QrCode url={status.url} className={styles.qr} />
             <div className={styles.address}>
               <p>Escanea el código con la cámara del celular o abre esta dirección:</p>
               <p className={styles.url} data-testid="lan-url">
