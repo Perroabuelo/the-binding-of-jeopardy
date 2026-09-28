@@ -12,6 +12,12 @@ import { projectForTv } from '../../domain/projection';
 import { putImage, saveSession } from '../../storage/db';
 import { createMemoryBus, type MemoryBus, type SyncMessage, type SyncTransport } from '../../sync';
 import { makeCompleteBoard } from '../../../tests/fixtures/board';
+import {
+  installDesktop,
+  makeFakeDesktop,
+  makeLanStatus,
+  uninstallDesktop,
+} from '../../../tests/fixtures/desktop';
 import { OperatorScreen } from './OperatorScreen';
 import { TvScreen } from './TvScreen';
 
@@ -628,5 +634,89 @@ describe('TvScreen: pulsadores', () => {
       '«¿Qué es un pastel?»',
     );
     expect(region).toHaveTextContent('Respuesta de Primos: ¿Qué es una torta?');
+  });
+});
+
+describe('TvScreen: QR para unirse', () => {
+  function buzzSession(): GameSession {
+    let n = 0;
+    return startGame([{ board: makeCompleteBoard(), multiplier: 1 }], ['Primos', 'Tíos'], {
+      sessionId: SESSION_ID,
+      now: 1_700_000_000_000,
+      makeTeamId: () => `equipo-${++n}`,
+      withBuzzers: true,
+    });
+  }
+
+  function viewWithQr(): TvView {
+    return projectForTv(gameReducer(buzzSession(), { type: 'setJoinQr', visible: true }, 1));
+  }
+
+  afterEach(() => {
+    uninstallDesktop();
+  });
+
+  it('muestra el QR y la dirección sobre el tablero cuando la vista trae joinQr', async () => {
+    installDesktop();
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(viewWithQr());
+    const region = await screen.findByRole('region', { name: 'Unirse con el celular' });
+    expect(
+      within(region).getByRole('img', { name: 'Código QR de http://192.168.1.20:47470/' }),
+    ).toBeInTheDocument();
+    expect(within(region).getByTestId('lan-url')).toHaveTextContent('http://192.168.1.20:47470/');
+    expect(region).toHaveTextContent('Escanea con la cámara del celular para unirte');
+    // El tablero sigue ahí, por detrás.
+    expect(screen.getByRole('table', { name: 'Tablero' })).toBeInTheDocument();
+  });
+
+  it('actualiza la dirección cuando cambia la red', async () => {
+    const fake = installDesktop();
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(viewWithQr());
+    await screen.findByTestId('lan-url');
+    act(() => fake.emitStatus(makeLanStatus({ url: 'http://10.0.0.5:47470/' })));
+    expect(screen.getByTestId('lan-url')).toHaveTextContent('http://10.0.0.5:47470/');
+    expect(screen.getByRole('img', { name: 'Código QR de http://10.0.0.5:47470/' })).toBeVisible();
+  });
+
+  it('sin dirección avisa que la conexión no está disponible y no muestra QR', async () => {
+    installDesktop(makeFakeDesktop(makeLanStatus({ url: null, port: null, problem: 'noPort' })));
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(viewWithQr());
+    const region = await screen.findByRole('region', { name: 'Unirse con el celular' });
+    expect(region).toHaveTextContent('La conexión de dispositivos no está disponible');
+    expect(within(region).queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lan-url')).not.toBeInTheDocument();
+  });
+
+  it('sin joinQr no hay QR ni se pide el estado de la red', async () => {
+    const fake = installDesktop();
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(projectForTv(buzzSession()));
+    expect(screen.getByRole('table', { name: 'Tablero' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Unirse con el celular' })).not.toBeInTheDocument();
+    expect(fake.api.lan.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('al ocultarlo deja de escuchar la red', async () => {
+    const fake = installDesktop();
+    const onStatus = vi.mocked(fake.api.lan.onStatus);
+    const subscribe = onStatus.getMockImplementation()!;
+    const unsubscribed = vi.fn();
+    onStatus.mockImplementation((listener) => {
+      const off = subscribe(listener);
+      return () => {
+        unsubscribed();
+        off();
+      };
+    });
+    render(<TvScreen sessionId={SESSION_ID} />);
+    await sendView(viewWithQr());
+    await screen.findByTestId('lan-url');
+    expect(unsubscribed).not.toHaveBeenCalled();
+    await sendView(projectForTv(buzzSession()));
+    expect(screen.queryByRole('region', { name: 'Unirse con el celular' })).not.toBeInTheDocument();
+    expect(unsubscribed).toHaveBeenCalledOnce();
   });
 });

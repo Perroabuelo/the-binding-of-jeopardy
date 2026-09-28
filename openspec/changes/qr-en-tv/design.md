@@ -40,7 +40,7 @@ Sin `getDesktopApi()` (TV de la versión web) `TvJoinQr` no se muestra. En la pr
 
 `QrCode` sale de `ConnectDevicesPanel.tsx` a `src/ui/lan/QrCode.tsx`, con sus estilos. El panel pierde el bloque `.join` (QR y dirección) y conserva todo lo demás. `data-testid="lan-url"` pasa a la dirección de la TV.
 
-En la TV, el QR va en una capa centrada sobre el contenido (`position: fixed`, fondo semitransparente), con un lado de alrededor de `min(50vh, 40vw)` para que se pueda escanear desde varios metros. Muestra la dirección en letra grande y el texto "Escanea con la cámara del celular para unirte". La capa tiene `role="dialog"`, sin controles, con nombre accesible "Unirse con el celular".
+En la TV, el QR va en una capa centrada sobre el contenido (`position: fixed`, fondo semitransparente), con un lado de alrededor de `min(50vh, 40vw)` para que se pueda escanear desde varios metros. Muestra la dirección en letra grande y el texto "Escanea con la cámara del celular para unirte". La capa es una `section` con nombre accesible "Unirse con el celular" y sin controles. No es un `dialog`, porque en la TV nadie la cierra ni recibe foco. Si falla la lectura del estado de la red, muestra el mismo aviso que cuando no hay dirección.
 
 ### 4. Controles del operador
 

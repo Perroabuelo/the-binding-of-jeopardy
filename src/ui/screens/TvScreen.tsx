@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { parseClueKey } from '../../domain/board';
 import { FINAL_TIMER_MS, type TvBuzz, type TvFinalPhase, type TvView } from '../../domain/game';
+import { getDesktopApi, type DesktopApi, type LanStatus } from '../../platform/desktop';
 import { createBroadcastTransport, createTvSync } from '../../sync';
 import { BoardGrid } from '../game/BoardGrid';
 import { ClueImage } from '../game/ClueImage';
 import { Podium } from '../game/Podium';
 import { TeamScores } from '../game/TeamScores';
 import { secondsLeft, useCountdown } from '../game/useCountdown';
+import { QrCode } from '../lan/QrCode';
 import styles from './TvScreen.module.css';
 
 /**
@@ -74,7 +76,58 @@ function TvContent({ view }: { view: TvView }) {
           )}
         </>
       )}
+      {view.joinQr && <TvJoinQr />}
     </>
+  );
+}
+
+/** QR para unirse con el celular, a pedido del operador. Solo existe en escritorio. */
+function TvJoinQr() {
+  const desktop = getDesktopApi();
+  return desktop ? <TvJoinQrContent desktop={desktop} /> : null;
+}
+
+function TvJoinQrContent({ desktop }: { desktop: DesktopApi }) {
+  // La dirección la pide la TV: no viaja en la vista que publica el operador.
+  const [status, setStatus] = useState<LanStatus | 'failed' | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = desktop.lan.onStatus((next) => {
+      if (active) setStatus(next);
+    });
+    desktop.lan
+      .getStatus()
+      .then((next) => {
+        if (active) setStatus(next);
+      })
+      .catch(() => {
+        if (active) setStatus('failed');
+      });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [desktop]);
+
+  if (!status) return null;
+  const url = status === 'failed' ? undefined : status.url;
+  return (
+    <section aria-label="Unirse con el celular" className={styles.joinQr}>
+      {url ? (
+        <div className={styles.joinQrCard}>
+          <QrCode url={url} className={styles.joinQrCode} />
+          <p className={styles.joinQrHint}>Escanea con la cámara del celular para unirte</p>
+          <p className={styles.joinQrUrl} data-testid="lan-url">
+            {url}
+          </p>
+        </div>
+      ) : (
+        <p className={styles.joinQrCard} role="status">
+          La conexión de dispositivos no está disponible
+        </p>
+      )}
+    </section>
   );
 }
 

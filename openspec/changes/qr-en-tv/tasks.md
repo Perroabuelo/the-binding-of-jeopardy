@@ -7,7 +7,7 @@
 ## 2. QR en la TV
 
 - [x] 2.1 Mover `QrCode` de `ConnectDevicesPanel.tsx` a `src/ui/lan/QrCode.tsx`, con sus estilos, sin cambiar su salida (decisión 3). Verificar con `npm test`: los tests de `ConnectDevicesPanel` siguen pasando sin cambios.
-- [ ] 2.2 Agregar a `TvScreen` la capa `TvJoinQr`, que se muestra cuando la vista trae `joinQr`. Pide y escucha el estado de la red con la API de escritorio y muestra el QR, la dirección (`data-testid="lan-url"`) y "Escanea con la cámara del celular para unirte", o el aviso "La conexión de dispositivos no está disponible" si no hay dirección (decisión 2). Verificar con tests en `TvScreen.test.tsx`, con la API de escritorio simulada: con `joinQr` se ven el QR y la dirección, un `onStatus` con otra IP actualiza la dirección, sin `url` se ve el aviso y ningún QR, y sin `joinQr` no hay capa.
+- [x] 2.2 Agregar a `TvScreen` la capa `TvJoinQr`, que se muestra cuando la vista trae `joinQr`. Pide y escucha el estado de la red con la API de escritorio y muestra el QR, la dirección (`data-testid="lan-url"`) y "Escanea con la cámara del celular para unirte", o el aviso "La conexión de dispositivos no está disponible" si no hay dirección (decisión 2). Verificar con tests en `TvScreen.test.tsx`, con la API de escritorio simulada: con `joinQr` se ven el QR y la dirección, un `onStatus` con otra IP actualiza la dirección, sin `url` se ve el aviso y ningún QR, y sin `joinQr` no hay capa.
 
 ## 3. Operador
 
