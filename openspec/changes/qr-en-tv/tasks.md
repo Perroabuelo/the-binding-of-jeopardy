@@ -16,7 +16,7 @@
 
 ## 4. Extremo a extremo en escritorio
 
-- [ ] 4.1 Actualizar `e2e-desktop/lan.spec.ts`: abrir la TV, pulsar "Mostrar QR en la TV", leer `lan-url` en la ventana de la TV con el puerto real, conectar el "celular" y ver que el panel del operador lo cuenta y no tiene `lan-url`. Luego recargar la TV y verificar que el QR sigue visible, y pulsar "Ocultar QR de la TV" y verificar que desaparece en menos de 1 segundo. Revisar `buzzers.spec.ts` por si depende del QR en el panel. Verificar con `npm run test:e2e:desktop`.
+- [x] 4.1 Actualizar `e2e-desktop/lan.spec.ts`: abrir la TV, pulsar "Mostrar QR en la TV", leer `lan-url` en la ventana de la TV con el puerto real, conectar el "celular" y ver que el panel del operador lo cuenta y no tiene `lan-url`. Luego recargar la TV y verificar que el QR sigue visible, y pulsar "Ocultar QR de la TV" y verificar que desaparece en menos de 1 segundo. Revisar `buzzers.spec.ts` por si depende del QR en el panel. Verificar con `npm run test:e2e:desktop`.
 
 ## 5. Capturas
 
