@@ -8,6 +8,19 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [1.3.0] - 2026-09-28
+
+### Agregado
+
+- El código QR para unirse con el celular ahora aparece en la TV, donde todos lo ven. El operador
+  lo muestra y lo oculta con el botón **Mostrar QR en la TV**.
+
+### Cambiado
+
+- La pantalla **Conectar dispositivos** del operador queda para elegir la red, ver los
+  dispositivos conectados y la ayuda de conexión.
+- El QR y la pantalla de dispositivos aparecen solo en juegos con pulsadores.
+
 ## [1.2.1] - 2026-09-27
 
 ### Corregido
