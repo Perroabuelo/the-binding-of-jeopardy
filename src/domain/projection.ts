@@ -120,6 +120,7 @@ export function projectForTv(session: GameSession): TvView {
     categories,
     teams,
     ...(controlTeam && { controlTeamName: controlTeam.name }),
+    ...(session.buzzersEnabled && session.joinQrVisible && { joinQr: true as const }),
     ...(round && { round }),
     phase: tvPhase,
   };

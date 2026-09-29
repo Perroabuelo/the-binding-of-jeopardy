@@ -150,12 +150,18 @@ ventana del operador se cierran la TV y la app.
 
 ### Conectar celulares
 
-En la vista de operador, **Conectar dispositivos** muestra una dirección y un código QR. Los
-celulares que estén en la **misma red wifi** lo escanean con la cámara y aparecen en la lista de
-dispositivos conectados. No se necesita internet. En un juego con pulsadores, la lista muestra
-el equipo de cada celular o **Sin equipo**.
+Los celulares se conectan en los juegos con pulsadores. En la vista de operador, **Mostrar QR en
+la TV** muestra en la TV un código QR y la dirección de conexión, en grande y sobre el tablero. Los
+celulares que estén en la **misma red wifi** lo escanean con la cámara. No se necesita internet.
+Cuando todos se unieron, **Ocultar QR de la TV** lo saca. Si alguien llega tarde, se puede volver a
+mostrar en cualquier momento.
 
-![Panel Conectar dispositivos con el código QR](docs/capturas/conectar-dispositivos.png)
+![TV con el código QR para unirse](docs/capturas/tv-qr.png)
+
+**Conectar dispositivos** queda para el operador: muestra la lista de celulares conectados con el
+equipo de cada uno (o **Sin equipo**), el selector de **Red** y la ayuda de conexión.
+
+![Panel Conectar dispositivos con los celulares conectados](docs/capturas/conectar-dispositivos.png)
 
 Si ningún celular logra conectarse:
 
@@ -176,8 +182,8 @@ Al configurar los equipos en la app de escritorio aparece la opción **Usar puls
 por defecto. Con ella, los celulares de los invitados funcionan como pulsadores. La versión web no
 tiene pulsadores: ahí el operador sigue sumando y restando a mano.
 
-1. **Unirse.** Cada invitado escanea el QR de **Conectar dispositivos** y elige su equipo en el
-   celular. Varios celulares pueden estar en el mismo equipo, y cualquiera de ellos pulsa por el
+1. **Unirse.** El operador presiona **Mostrar QR en la TV**, y cada invitado escanea el QR de la
+   TV y elige su equipo en el celular. Varios celulares pueden estar en el mismo equipo, y cualquiera de ellos pulsa por el
    equipo. **Cambiar de equipo** está siempre disponible en el celular. Si el celular se recarga o
    se reconecta, vuelve solo a su equipo.
 2. **Activar.** Con una pregunta abierta, el operador la lee y presiona **Activar pulsadores**. Recién

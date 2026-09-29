@@ -1,0 +1,12 @@
+.qr {
+  display: block;
+  border-radius: var(--radius-md);
+}
+
+.light {
+  fill: var(--color-qr-light);
+}
+
+.dark {
+  fill: var(--color-qr-dark);
+}

@@ -78,10 +78,43 @@ describe('conectar dispositivos', () => {
     expect(screen.queryByRole('button', { name: 'Conectar dispositivos' })).not.toBeInTheDocument();
   });
 
-  it('en escritorio ofrece "Conectar dispositivos"', async () => {
+  function buzzGame(): GameSession {
+    return makeSession(['Primos', 'Tíos'], { buzzersEnabled: true });
+  }
+
+  it('en escritorio con pulsadores ofrece "Conectar dispositivos" y el QR de la TV', async () => {
+    installDesktop();
+    await renderOperator(buzzGame());
+    expect(screen.getByRole('button', { name: 'Conectar dispositivos' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Mostrar QR en la TV' })).toBeVisible();
+  });
+
+  it('en escritorio sin pulsadores no ofrece "Conectar dispositivos" ni el QR', async () => {
     installDesktop();
     await renderOperator();
-    expect(screen.getByRole('button', { name: 'Conectar dispositivos' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Conectar dispositivos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /QR/ })).not.toBeInTheDocument();
+  });
+
+  it('en la web no ofrece el QR aunque el juego tenga pulsadores', async () => {
+    await renderOperator(buzzGame());
+    expect(screen.queryByRole('button', { name: 'Conectar dispositivos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /QR/ })).not.toBeInTheDocument();
+  });
+
+  it('muestra y oculta el QR en la TV, y lo guarda en la sesión', async () => {
+    const user = userEvent.setup();
+    installDesktop();
+    await renderOperator(buzzGame());
+    expect(lastTvView()).not.toHaveProperty('joinQr');
+
+    await user.click(screen.getByRole('button', { name: 'Mostrar QR en la TV' }));
+    expect(lastTvView()?.joinQr).toBe(true);
+    await waitFor(async () => expect((await getSession(SESSION_ID))?.joinQrVisible).toBe(true));
+
+    await user.click(screen.getByRole('button', { name: 'Ocultar QR de la TV' }));
+    expect(lastTvView()).not.toHaveProperty('joinQr');
+    expect(screen.getByRole('button', { name: 'Mostrar QR en la TV' })).toBeVisible();
   });
 });
 

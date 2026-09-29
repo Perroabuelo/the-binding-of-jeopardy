@@ -1,6 +1,5 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import QRCode from 'qrcode';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   installDesktop,
@@ -11,7 +10,6 @@ import {
 } from '../../../tests/fixtures/desktop';
 import type { LanStatus } from '../../platform/desktop';
 import { ConnectDevicesButton, ConnectDevicesPanel } from './ConnectDevicesPanel';
-import { qrPath } from './qr';
 
 afterEach(() => {
   uninstallDesktop();
@@ -27,18 +25,14 @@ async function renderPanel(status: LanStatus = makeLanStatus()): Promise<FakeDes
 }
 
 describe('ConnectDevicesPanel', () => {
-  it('muestra la dirección y un QR que la codifica', async () => {
+  it('no muestra el QR ni la dirección: se muestran en la TV', async () => {
     await renderPanel();
-    expect(screen.getByTestId('lan-url')).toHaveTextContent('http://192.168.1.20:47470/');
-    const qr = screen.getByRole('img', { name: 'Código QR de http://192.168.1.20:47470/' });
-    const modules = within(qr as unknown as HTMLElement).getByTestId('qr-modules');
-    expect(modules.getAttribute('d')).toBe(qrPath('http://192.168.1.20:47470/').d);
-    // El trazado corresponde a esa dirección y no a otra.
-    expect(modules.getAttribute('d')).not.toBe(qrPath('http://172.25.0.1:47470/').d);
-    const dark = QRCode.create('http://192.168.1.20:47470/', {
-      errorCorrectionLevel: 'M',
-    }).modules.data.filter(Boolean).length;
-    expect(modules.getAttribute('d')!.match(/M/g)).toHaveLength(dark);
+    expect(screen.getByLabelText('Red')).toHaveValue('Wi-Fi');
+    expect(screen.getByRole('heading', { name: 'Dispositivos conectados: 0' })).toBeVisible();
+    expect(screen.queryByRole('img', { name: /Código QR/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('lan-url')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('192.168.1.20:47470');
+    expect(screen.getByRole('dialog')).toHaveTextContent('Mostrar QR en la TV');
   });
 
   it('actualiza la lista de dispositivos con onStatus y numera los repetidos', async () => {
