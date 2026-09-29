@@ -8,6 +8,8 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+## [1.3.1] - 2026-09-28
+
 ### Corregido
 
 - En el editor, las cajas de texto de la pregunta y la respuesta ya no se achican ni muestran una
