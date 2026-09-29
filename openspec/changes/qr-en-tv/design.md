@@ -46,7 +46,7 @@ En la TV, el QR va en una capa centrada sobre el contenido (`position: fixed`, f
 
 En `OperatorScreen`, dentro de `.tools`, y solo si hay `getDesktopApi()` y `session.buzzersEnabled`:
 - `ConnectDevicesButton`, que ya no se muestra en juegos sin pulsadores.
-- Un botón que despacha `setJoinQr`. Muestra "Mostrar QR en la TV" u "Ocultar QR de la TV" según `session.joinQrVisible`, con `aria-pressed`.
+- Un botón que despacha `setJoinQr`. Muestra "Mostrar QR en la TV" u "Ocultar QR de la TV" según `session.joinQrVisible`. No lleva `aria-pressed`, porque el texto ya dice qué hace y un lector de pantalla anunciaría el estado dos veces.
 
 El botón no se deshabilita si la TV está cerrada o no hay red. El estado queda guardado y la TV lo muestra al abrirse. Si no hay red, la TV lo dice y el panel del operador explica el motivo.
 
@@ -54,7 +54,7 @@ El botón no se deshabilita si la TV está cerrada o no hay red. El estado queda
 
 - **Unitarias (Vitest):** en `game.test.ts`, `setJoinQr` muestra y oculta con pulsadores y no cambia la sesión sin pulsadores. En `projection.test.ts`, `joinQr` solo aparece con pulsadores y el QR visible, y una sesión sin el campo proyecta sin `joinQr`.
 - **Componentes (Testing Library):**
-  - `OperatorScreen.test.tsx`: el botón y "Conectar dispositivos" existen solo en escritorio con pulsadores, y el botón alterna su texto y `aria-pressed`.
+  - `OperatorScreen.test.tsx`: el botón y "Conectar dispositivos" existen solo en escritorio con pulsadores, y el botón alterna su texto y lo que publica a la TV.
   - `ConnectDevicesPanel.test.tsx`: el panel ya no contiene el QR ni la dirección, y conserva el selector y los dispositivos.
   - `TvScreen.test.tsx`: con la API de escritorio simulada, `joinQr` muestra el QR y la dirección, el cambio de `onStatus` actualiza la dirección, sin `url` se ve el aviso, y sin `joinQr` no hay capa.
 - **e2e de escritorio (Playwright + Electron):** `lan.spec.ts` abre la TV, pulsa "Mostrar QR en la TV", lee `lan-url` en la ventana de la TV, conecta el "celular" y verifica que el panel del operador no tiene `lan-url`. Luego recarga la TV y sigue viendo el QR, y al ocultarlo desaparece. `buzzers.spec.ts` se ajusta si depende del QR en el panel.

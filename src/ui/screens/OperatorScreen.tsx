@@ -13,6 +13,7 @@ import {
 } from '../../domain/game';
 import { projectForTv } from '../../domain/projection';
 import { rankTeams } from '../../domain/ranking';
+import { getDesktopApi } from '../../platform/desktop';
 import { getSession, saveSession } from '../../storage/db';
 import { BoardGrid } from '../game/BoardGrid';
 import { ClueImage } from '../game/ClueImage';
@@ -98,7 +99,19 @@ export function OperatorScreen({ sessionId }: { sessionId: string }) {
           )}
           <div className={styles.tools}>
             <TvLauncher sessionId={sessionId} />
-            <ConnectDevicesButton teams={session.buzzersEnabled ? session.teams : undefined} />
+            {session.buzzersEnabled && getDesktopApi() && (
+              <>
+                <ConnectDevicesButton teams={session.teams} />
+                <button
+                  type="button"
+                  onClick={() =>
+                    dispatch({ type: 'setJoinQr', visible: session.joinQrVisible !== true })
+                  }
+                >
+                  {session.joinQrVisible ? 'Ocultar QR de la TV' : 'Mostrar QR en la TV'}
+                </button>
+              </>
+            )}
           </div>
           {session.phase.kind !== 'finished' && (
             <section aria-label="Equipos" className={styles.section}>
