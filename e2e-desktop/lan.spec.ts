@@ -17,8 +17,8 @@ test('un celular se conecta por la red local y aparece en el operador', async ()
   await operator.getByRole('button', { name: 'Conectar dispositivos' }).click();
   const panel = operator.getByRole('dialog', { name: 'Conectar dispositivos' });
   await expect(panel.getByRole('heading', { name: 'Dispositivos conectados: 0' })).toBeVisible();
-  // La dirección usa el puerto real (el preferido estaba libre).
-  await expect(panel.getByTestId('lan-url')).toContainText(`:${LAN_PORT}/`);
+  // El QR y la dirección se muestran en la TV, no en el operador.
+  await expect(panel.getByTestId('lan-url')).toHaveCount(0);
 
   // El "celular" es un Chromium aparte que abre la dirección por la red local.
   const browser = await chromium.launch();

@@ -12,7 +12,7 @@
 ## 3. Operador
 
 - [x] 3.1 En `OperatorScreen`, mostrar `ConnectDevicesButton` solo en escritorio con pulsadores, y agregar al lado el botón "Mostrar QR en la TV" / "Ocultar QR de la TV", que despacha `setJoinQr` (decisión 4). Verificar con tests en `OperatorScreen.test.tsx`: en escritorio con pulsadores están los dos botones y el del QR alterna su texto y la vista publicada a la TV trae o no `joinQr`; en escritorio sin pulsadores y en la web no está ninguno de los dos. Ajustar el test existente "en escritorio ofrece Conectar dispositivos" para que use un juego con pulsadores.
-- [ ] 3.2 Quitar del panel "Conectar dispositivos" el QR y la dirección (bloque `.join` y sus estilos), y conservar el selector de red, el aviso de red Pública, los dispositivos y la ayuda. Verificar con tests en `ConnectDevicesPanel.test.tsx`: el panel no contiene el QR ni `lan-url`; elegir otra interfaz sigue llamando a `selectInterface`, y los avisos "Sin red" y "Sin puertos" se siguen viendo. Los tests que leían `lan-url` del panel pasan a comprobar su ausencia.
+- [x] 3.2 Quitar del panel "Conectar dispositivos" el QR y la dirección (bloque `.join` y sus estilos), y conservar el selector de red, el aviso de red Pública, los dispositivos y la ayuda. Verificar con tests en `ConnectDevicesPanel.test.tsx`: el panel no contiene el QR ni `lan-url`; elegir otra interfaz sigue llamando a `selectInterface`, y los avisos "Sin red" y "Sin puertos" se siguen viendo. Los tests que leían `lan-url` del panel pasan a comprobar su ausencia.
 
 ## 4. Extremo a extremo en escritorio
 

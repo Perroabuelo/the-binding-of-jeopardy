@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { getDesktopApi, type DesktopApi, type LanStatus } from '../../platform/desktop';
 import { numberDeviceLabels } from './labels';
-import { QrCode } from './QrCode';
 import styles from './ConnectDevicesPanel.module.css';
 
 /** Equipos del juego con pulsadores en curso, para mostrar el equipo de cada dispositivo. */
@@ -71,7 +70,7 @@ interface ConnectDevicesPanelProps {
   onClose: () => void;
 }
 
-/** Dirección y QR para que los celulares se unan, con la lista de dispositivos conectados. */
+/** Red de la conexión y dispositivos conectados. El QR para unirse se muestra en la TV. */
 export function ConnectDevicesPanel({ desktop, teams, onClose }: ConnectDevicesPanelProps) {
   const [status, setStatus] = useState<LanStatus | null>(null);
   const [error, setError] = useState(false);
@@ -138,15 +137,9 @@ export function ConnectDevicesPanel({ desktop, teams, onClose }: ConnectDevicesP
         )}
 
         {status?.url && (
-          <div className={styles.join}>
-            <QrCode url={status.url} className={styles.qr} />
-            <div className={styles.address}>
-              <p>Escanea el código con la cámara del celular o abre esta dirección:</p>
-              <p className={styles.url} data-testid="lan-url">
-                {status.url}
-              </p>
-            </div>
-          </div>
+          <p className={styles.hint}>
+            Para que los celulares se unan, usa <strong>Mostrar QR en la TV</strong>.
+          </p>
         )}
 
         {status && status.interfaces.length > 0 && (
