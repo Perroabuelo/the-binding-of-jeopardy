@@ -8,6 +8,12 @@ funcionalidad nueva sube el minor y una corrección sube el patch.
 
 ## [Sin publicar]
 
+### Corregido
+
+- En el editor, las cajas de texto de la pregunta y la respuesta ya no se achican ni muestran una
+  barra de desplazamiento en ventanas bajas, como la de la app de escritorio. Si el contenido no
+  cabe, se desplaza el diálogo completo.
+
 ## [1.3.0] - 2026-09-28
 
 ### Agregado
