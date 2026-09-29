@@ -9,7 +9,12 @@ import type { DesktopIpcChannel, LanStatus } from '../src/platform/desktop';
 import { preferredLanPort } from './config';
 import { buildLanStatus } from './lanStatus';
 import { portCandidates, startLanServer, type LanServer } from './lanServer';
-import { categoryFor, readNetworkProfiles, type NetworkProfiles } from './networkProfile';
+import {
+  categoryFor,
+  createProfileRefresher,
+  readNetworkProfiles,
+  type NetworkProfiles,
+} from './networkProfile';
 
 const statusChannel: DesktopIpcChannel = 'jeopardy:lan-status-changed';
 const deviceEventChannel: DesktopIpcChannel = 'jeopardy:lan-device-event';
@@ -67,14 +72,23 @@ export async function startLan(options: { distDir: string; base: string }): Prom
     }
   }
 
-  /** Vuelve a mirar las interfaces y la categoría de red (al abrir el panel o cambiar de red). */
-  async function refresh(): Promise<void> {
+  // Leer la categoría de red tarda (PowerShell, hasta 3 s): llega después, con un aviso de estado.
+  const refreshProfiles = createProfileRefresher(readNetworkProfiles, (next) => {
+    profiles = next;
+    broadcast();
+  });
+
+  /**
+   * Vuelve a mirar las interfaces (al abrir el panel o la TV, o al cambiar de red) y pide la
+   * categoría de red sin esperarla: la dirección de conexión no depende de ella.
+   */
+  function refresh(): void {
     interfaces = rankInterfaces(networkInterfaces());
-    profiles = await readNetworkProfiles();
+    void refreshProfiles();
   }
 
-  ipcMain.handle('jeopardy:lan-status' satisfies DesktopIpcChannel, async () => {
-    await refresh();
+  ipcMain.handle('jeopardy:lan-status' satisfies DesktopIpcChannel, () => {
+    refresh();
     return status();
   });
   ipcMain.handle(
@@ -83,7 +97,7 @@ export async function startLan(options: { distDir: string; base: string }): Prom
       if (typeof name !== 'string') throw new Error('Interfaz inválida');
       savedInterface = name;
       await writeFile(settingsFile(), JSON.stringify({ interface: name }), 'utf8');
-      await refresh();
+      refresh();
       broadcast();
     },
   );
