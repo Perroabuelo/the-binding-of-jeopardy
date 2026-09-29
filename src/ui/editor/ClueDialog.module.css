@@ -21,6 +21,14 @@
   padding: var(--space-6);
 }
 
+/*
+ * Si el contenido no cabe, se desplaza el diálogo. Sin esto el flex encoge a las cajas de texto
+ * (su alto mínimo es 0 por tener overflow propio) hasta dejarlas del alto de su padding.
+ */
+.dialog > * {
+  flex-shrink: 0;
+}
+
 .title {
   margin: 0;
 }

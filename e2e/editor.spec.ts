@@ -121,3 +121,27 @@ test('agregar, mover y quitar categorías se conserva al recargar', async ({ pag
   );
   await expect(moved.getByLabel('Respuesta', { exact: true })).toHaveValue('En Valparaíso');
 });
+
+test('en una ventana baja las cajas de texto del diálogo no se achican', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 480 });
+  await page.goto('./');
+  await page.getByRole('button', { name: 'Nuevo tablero' }).click();
+  await page.getByRole('button', { name: 'Categoría 1, 100, incompleta' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Categoría 1, 100' });
+  const question = dialog.getByLabel('Pregunta', { exact: true });
+  const answer = dialog.getByLabel('Respuesta', { exact: true });
+  // Tantas líneas como filas tiene cada caja: caben sin barra de desplazamiento propia.
+  await question.fill('Primera línea\nSegunda línea\nTercera línea');
+  await answer.fill('Primera línea\nSegunda línea');
+
+  // El contenido no cabe en la ventana: se desplaza el diálogo, no cada caja.
+  const dialogOverflows = await dialog.evaluate((el) => el.scrollHeight > el.clientHeight);
+  expect(dialogOverflows).toBe(true);
+  for (const box of [question, answer]) {
+    const { scrollHeight, clientHeight } = await box.evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }));
+    expect(clientHeight).toBeGreaterThanOrEqual(scrollHeight);
+  }
+});
