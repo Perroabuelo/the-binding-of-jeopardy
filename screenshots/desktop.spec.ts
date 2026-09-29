@@ -5,8 +5,8 @@ import { capture } from './capture';
 const LAN_PORT = 47650;
 
 /**
- * Capturas de la app de escritorio: el QR para conectar celulares, el celular como pulsador y la
- * TV con los pulsadores activos. Requiere `npm run build:desktop` antes.
+ * Capturas de la app de escritorio: el QR en la TV para conectar celulares, el panel de
+ * dispositivos, el celular como pulsador y la TV con los pulsadores activos. Requiere `npm run build:desktop` antes.
  */
 test('conectar celulares y pulsadores en la app de escritorio', async () => {
   const { app, operator } = await launchDesktop(desktopDirs(), { lanPort: LAN_PORT });
@@ -30,6 +30,15 @@ test('conectar celulares y pulsadores en la app de escritorio', async () => {
   const tv = await tvOpened;
   await tv.setViewportSize({ width: 1920, height: 1080 });
   await expect(tv.getByRole('table', { name: 'Tablero' })).toBeVisible();
+
+  // El QR se captura a 1280x720, la resolución más baja de la TV, para ver que siga nítido.
+  await operator.getByRole('button', { name: 'Mostrar QR en la TV' }).click();
+  await tv.setViewportSize({ width: 1280, height: 720 });
+  await expect(tv.getByTestId('lan-url')).toContainText(`:${LAN_PORT}/`);
+  await capture(tv, 'tv-qr');
+  await operator.getByRole('button', { name: 'Ocultar QR de la TV' }).click();
+  await expect(tv.getByRole('region', { name: 'Unirse con el celular' })).toHaveCount(0);
+  await tv.setViewportSize({ width: 1920, height: 1080 });
 
   const browser = await chromium.launch();
   try {

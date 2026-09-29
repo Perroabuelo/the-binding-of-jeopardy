@@ -20,4 +20,4 @@
 
 ## 5. Capturas
 
-- [ ] 5.1 Actualizar `screenshots/desktop.spec.ts` para capturar el panel "Conectar dispositivos" sin QR y la TV con el QR a 1280x720 (`docs/capturas/tv-qr.png`). Regenerar las capturas con `npm run screenshots` y actualizar el README donde describe la conexión de celulares. Verificar revisando que el QR de la TV se vea nítido en la captura y con el CI en verde en el PR.
+- [x] 5.1 Actualizar `screenshots/desktop.spec.ts` para capturar el panel "Conectar dispositivos" sin QR y la TV con el QR a 1280x720 (`docs/capturas/tv-qr.png`). Regenerar las capturas con `npm run screenshots` y actualizar el README donde describe la conexión de celulares. Verificar revisando que el QR de la TV se vea nítido en la captura y con el CI en verde en el PR.
