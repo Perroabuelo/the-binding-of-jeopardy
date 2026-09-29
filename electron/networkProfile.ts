@@ -53,6 +53,26 @@ export function categoryFor(profiles: NetworkProfiles, interfaceName: string): N
 const PROFILE_COMMAND =
   'Get-NetConnectionProfile | Select-Object InterfaceAlias,@{n="NetworkCategory";e={[string]$_.NetworkCategory}} | ConvertTo-Json -Compress';
 
+/**
+ * Consulta las categorías de red en segundo plano, para que quien pide el estado no espere a
+ * Windows. Las consultas que se piden mientras otra está en curso comparten esa misma. `read`
+ * no debe rechazar (como `readNetworkProfiles`).
+ */
+export function createProfileRefresher(
+  read: () => Promise<NetworkProfiles>,
+  onProfiles: (profiles: NetworkProfiles) => void,
+): () => Promise<void> {
+  let inFlight: Promise<void> | null = null;
+  return () => {
+    inFlight ??= read()
+      .then(onProfiles)
+      .finally(() => {
+        inFlight = null;
+      });
+    return inFlight;
+  };
+}
+
 /** Consulta a Windows las categorías de red. Si falla o tarda más de 3 s, devuelve un mapa vacío. */
 export function readNetworkProfiles(): Promise<NetworkProfiles> {
   if (process.platform !== 'win32') return Promise.resolve(new Map());
